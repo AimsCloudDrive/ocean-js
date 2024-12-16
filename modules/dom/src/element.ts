@@ -11,7 +11,7 @@ import {
   Event,
 } from "@ocean/common";
 import { IRef, isComponent, Component } from "@ocean/component";
-import { createReaction } from "@ocean/reaction";
+import { createReaction, withoutTrack } from "@ocean/reaction";
 
 declare global {
   export namespace Component {
@@ -119,7 +119,9 @@ export function renderClassComponent(
     });
   }
   // 类组件
-  const inst: Component<any, any> = new element.type(newProps);
+  const inst: Component<any, any> = withoutTrack(() => {
+    return new element.type(newProps);
+  });
   // 处理传递的子元素
   if (children && children.length > 0) {
     const c = children.map((c) => {
@@ -172,6 +174,7 @@ export function renderClassComponent(
         () => {
           const instELement = inst.render();
           const dom = render(instELement, container);
+
           // cb执行完，真实生成的dom已经存在，将类组件实例附着在dom上
           inst.rendered();
           const mounted = inst.isMounted();
