@@ -13,6 +13,7 @@
     // 装饰器相关配置
     "experimentalDecorators": true, // 启用装饰器
     "emitDecoratorMetadata": true, // 为装饰器提供元数据支持
+    "jsx": "react",
 
     "declaration": true, // 生成声明文件
     "declarationDir": "dist", // 声明文件的路径

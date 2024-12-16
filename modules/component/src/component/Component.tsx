@@ -1,6 +1,6 @@
 import {
   COMPONENT_OPTION_KEY,
-  ClassType,
+  ClassType as _ClassType,
   Event,
   Nullable,
   getGlobalData,
@@ -17,6 +17,7 @@ declare global {
     export interface Context {}
   }
 }
+
 declare global {
   export namespace Ocean {
     export interface Store {
@@ -48,7 +49,7 @@ export type ComponentProps<C = never> = {
   $context?: Partial<Component.Context>;
   $key?: string | number;
   $ref?: IRef<any>;
-  class?: ClassType;
+  class?: _ClassType;
   style?: CSSStyle;
   children?: C;
 };
@@ -65,7 +66,7 @@ export type ComponentEvents = {
   },
 })
 export class Component<
-    P extends ComponentProps = ComponentProps,
+    P extends ComponentProps<any> = ComponentProps,
     E extends ComponentEvents = ComponentEvents
   >
   extends Event<E>

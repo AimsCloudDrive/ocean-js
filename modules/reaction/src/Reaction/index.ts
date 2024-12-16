@@ -176,3 +176,18 @@ export function createReaction(
     }
   }
 }
+
+export function withoutTrack<T>(callback: () => T): T {
+  const data = getGlobalData("@ocean/reaction");
+  const tracking = data.tracking;
+  Object.assign(data, { tracking: undefined });
+  let res: T;
+  try {
+    res = callback();
+  } catch (e) {
+    throw e;
+  } finally {
+    Object.assign(data, { tracking });
+  }
+  return res;
+}
