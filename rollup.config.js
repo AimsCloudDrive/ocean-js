@@ -10,6 +10,8 @@ export default {
     "@ocean/dom",
     "@ocean/component",
     "@ocean/reaction",
+    "@ocean/ui",
+    "@ocean/app",
   ],
   input: "src/index.ts", // 你的主要输入文件
   output: {
@@ -29,7 +31,7 @@ export default {
       presets: ["@babel/preset-env", "@babel/preset-typescript"],
       plugins: [["@babel/plugin-proposal-decorators", { version: "legacy" }]],
       babelrc: false,
-      sourceMaps: "both",
+      sourceMaps: true,
     }),
     typescript({
       tsconfig: "./tsconfig.json",
