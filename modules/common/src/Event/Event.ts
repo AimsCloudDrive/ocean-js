@@ -3,7 +3,7 @@ import { EVENTS } from "./context";
 
 const EK = EVENTS;
 
-export interface IEvent<E extends {} = {}> {
+export interface IEvent<E extends object = object> {
   on<T extends keyof E>(
     type: T,
     handler: (event: E[T], type: T, self: Event<E>) => void
@@ -15,11 +15,11 @@ export interface IEvent<E extends {} = {}> {
   emit<T extends keyof E>(type: T, event: E[T]): void;
 }
 
-type EVS<E extends {} = {}> = {
+type EVS<E extends object = object> = {
   [K in keyof E]: ((event: E[K], type: K, self: Event<E>) => void)[];
 };
 
-export class Event<E extends {} = {}> implements IEvent<E> {
+export class Event<E extends object = object> implements IEvent<E> {
   constructor() {
     defineProperty(this, EK, 0, Object.create(null));
   }
@@ -40,7 +40,7 @@ export class Event<E extends {} = {}> implements IEvent<E> {
     handler: (event: E[T], type: T, self: Event<E>) => void
   ) {
     const _events = this[EK as keyof this] as EVS<E>;
-    let handlers = _events[type];
+    const handlers = _events[type];
     if (!handlers) {
       return this;
     }
@@ -51,7 +51,7 @@ export class Event<E extends {} = {}> implements IEvent<E> {
   }
   emit<T extends keyof E>(type: T, event: E[T]) {
     const _events = this[EK as keyof this] as EVS<E>;
-    let handlers = _events[type];
+    const handlers = _events[type];
     if (!handlers) {
       return;
     }

@@ -1,4 +1,4 @@
-export type ClassFunction = new (...args: any[]) => any;
+export type ClassFunction = new (...args: unknown[]) => unknown;
 
 export type Decorator =
   | MethodDecorator
@@ -11,14 +11,14 @@ export type ClassDecorator = <TFunction extends ClassFunction = ClassFunction>(
   context: ClassDecoratorContext<TFunction>
 ) => TFunction | void;
 export type PropertyDecorator = (
-  target: Object,
+  target: object,
   context: ClassFieldDecoratorContext
 ) => void;
 export type AccessorDecorator = (
-  target: Object,
+  target: object,
   context: ClassAccessorDecoratorContext
 ) => void;
 export type MethodDecorator = (
-  target: Object,
+  target: object,
   context: ClassMethodDecoratorContext
 ) => void;

@@ -1,35 +1,42 @@
-declare global {
-  export namespace Ocean {
-    export interface Store {}
+import { Collection } from "../collection";
+
+const symbolKeys = new Collection<{ key: string; symbolKey: symbol }>(
+  (keys) => keys.key
+);
+
+export function GeneratSymbolKey(key: string): symbol {
+  if (symbolKeys.hasKey(key)) {
+    return symbolKeys.get(key)!.symbolKey;
+  } else {
+    const symbolKey = Symbol(key);
+    symbolKeys.add({ key, symbolKey });
+    return symbolKey;
   }
 }
 
-const keys = new Map<keyof Ocean.Store, symbol>();
-export function setGlobalData<K extends keyof Ocean.Store>(
-  key: K,
-  data: Ocean.Store[K]
-) {
-  let _key = keys.get(key);
-  if (!_key) {
-    keys.set(key, (_key = Symbol(key)));
-  }
-  Object.assign(globalThis, { [_key]: data });
+export function setGlobalData<T>(key: string, data: T): T {
+  const symbolKey = GeneratSymbolKey(key);
+  Object.assign(globalThis, { [symbolKey]: data });
+  return data;
 }
-export function getGlobalData<K extends keyof Ocean.Store>(
-  key: K
-): Ocean.Store[K] {
-  let _key = keys.get(key);
-  if (!_key) {
-    const data = {} as Ocean.Store[K];
-    setGlobalData(key, data);
-    return data;
+export function getGlobalData(key: string): unknown {
+  const symbolKey = GeneratSymbolKey(key);
+  const data = Reflect.get(globalThis, symbolKey);
+  if (!data) {
+    if (key.startsWith("@ocean/")) {
+      throw `The GlobalData of ${key} is must init before get.`;
+    }
+    return setGlobalData(key, {});
   }
-  return Reflect.get(globalThis, _key);
+  return data;
 }
 
 export type Nullable = null | undefined;
 
-export type createFunction<T extends any[]> = T extends [...infer P, infer R]
+export type createFunction<T extends unknown[]> = T extends [
+  ...infer P,
+  infer R
+]
   ? (...args: P) => R
   : never;
 
@@ -38,7 +45,7 @@ export const WRITABLE = 0x02;
 export const CONFIGURABLE = 0x01;
 
 /**
- * @param ctor
+ * @param target
  * @param propKey
  * @param flag 7
  * * const enumerable = 0x04;
@@ -46,13 +53,13 @@ export const CONFIGURABLE = 0x01;
  * * const configurable = 0x01;
  * @param value
  */
-export function defineProperty<T extends any>(
-  ctor: T,
+export function defineProperty<T>(
+  target: T,
   propKey: string | symbol,
   flag: number = 7,
-  value?: any
+  value?: unknown
 ) {
-  Object.defineProperty(ctor, propKey, {
+  Object.defineProperty(target, propKey, {
     value,
     writable: !!(WRITABLE & flag),
     enumerable: !!(ENUMERABLE & flag),
@@ -61,7 +68,7 @@ export function defineProperty<T extends any>(
 }
 
 /**
- * @param ctor
+ * @param target
  * @param propKey
  * @param flag 7
  * * const enumerable = 0x04;
@@ -71,14 +78,14 @@ export function defineProperty<T extends any>(
  * @param getter
  * @param setter
  */
-export function defineAccesser<T extends any = any, R = any>(
-  ctor: T,
+export function defineAccesser<T, R>(
+  target: T,
   propKey: symbol | string,
   flag: number = 5,
   getter?: () => R,
-  setter?: (value: any) => void
+  setter?: (value: R) => void
 ) {
-  Object.defineProperty<T>(ctor, propKey, {
+  Object.defineProperty<T>(target, propKey, {
     enumerable: !!(ENUMERABLE & flag),
     configurable: !!(CONFIGURABLE & flag),
     get: getter,
@@ -86,17 +93,20 @@ export function defineAccesser<T extends any = any, R = any>(
   });
 }
 
-export const tryCall = <F extends (...args: any[]) => any>(
-  call: F | undefined,
+export function tryCall<F extends createFunction<[...unknown[], unknown]>>(
+  call: F,
   data?: Parameters<F>,
+  receiver?: unknown,
   error?: (error: Error | unknown) => Error | unknown
-): ReturnType<F> => {
+): ReturnType<F> {
   if (typeof call === "function") {
     try {
-      return call(...(data || []));
+      return Reflect.apply(call, receiver, data || []) as ReturnType<F>;
     } catch (e: Error | unknown) {
       throw error ? error(e) : e;
     }
   }
-  throw (error || "in OcPromise") + ` ${data}`;
-};
+  throw `${
+    typeof call === "object" ? Reflect.get(call, "name", call) : call
+  } is not a function.`;
+}

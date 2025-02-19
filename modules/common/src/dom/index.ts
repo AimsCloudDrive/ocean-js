@@ -37,7 +37,7 @@ export function parseStyle(style: CSSStyle): string {
         return "";
       }
       if (typeof v === "number") {
-        v = `${v}px` as any;
+        v = `${v}px`;
       }
       return `${n}: ${v}`;
     })

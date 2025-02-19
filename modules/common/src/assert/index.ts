@@ -1,12 +1,12 @@
 export function assert(
-  condition: any,
+  condition: unknown,
   message: string = ""
 ): asserts condition {
-  if (condition === undefined) throw Error(message);
+  if (!condition) throw Error(message);
 }
 
 export function nil<T>(data: T | undefined, defaultData: T): T {
-  if (data == undefined) {
+  if (data === undefined) {
     return defaultData;
   }
   return data;

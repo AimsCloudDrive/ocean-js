@@ -5,7 +5,7 @@ export interface IRef<T> {
 
 export class Ref<T> implements IRef<T> {
   @observer()
-  declare data: T[];
+  data: T[];
 
   set(el: T) {
     if (this.data) {
@@ -25,10 +25,10 @@ export function createRef<T>(): Ref<T> {
 
 export class MapRef<T> implements IRef<T> {
   @observer()
-  declare data: Map<string | number, T>;
+  data: Map<string | number, T>;
   set(el: T) {
     if (this.data) {
-      this.data.set((el as any).$key, el);
+      this.data.set((el as unknown as { $key: string | number }).$key, el);
     } else {
       this.data = new Map();
       this.set(el);
@@ -44,8 +44,8 @@ export function createMapRef<T>(): MapRef<T> {
 
 export class SingleRef<T> implements IRef<T> {
   @observer()
-  declare data: T;
-  declare current: T;
+  data: T;
+  current: T;
   set(el: T) {
     this.current = el;
     this.data = el;

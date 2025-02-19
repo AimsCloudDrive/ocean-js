@@ -3,7 +3,7 @@ export type JSTypeMap = {
   string: string;
   boolean: boolean;
   bigint: bigint;
-  function: Function;
+  function: (...args: unknown[]) => unknown;
   undefined: undefined;
   symbol: symbol;
   object: object;

@@ -1,67 +1,61 @@
 import {
-  COMPONENT_OPTION_KEY,
+  defineProperty,
   JSTypes,
   OptionDecoratorUsedError,
-  defineProperty,
 } from "@ocean/common";
-
-export function initComponentOptions(
-  ctor: Object
-): Record<string | symbol, { name: string | symbol; type: JSTypes }> {
-  let OPTIONS = Reflect.get(ctor, COMPONENT_OPTION_KEY);
-  if (!OPTIONS) {
-    OPTIONS = Object.create({});
-    defineProperty(ctor, COMPONENT_OPTION_KEY, 0, OPTIONS);
-  }
-  return OPTIONS;
-}
-
+import { isComponent } from "./component";
+import { getOrInitComponentDefinition } from "../component/Component";
 /**
  * 仅允许附着在实例属性或实例访问器属性（有setter）
  * @param type
  * @returns
  */
-export function option(type: JSTypes = "unknown"): PropertyDecorator {
-  return (
-    ctor: Object | (new (...args: any[]) => any),
-    propKey: string | symbol,
-    descriptor?: PropertyDescriptor & { initializer: () => any }
-  ) => {
-    const ccp = (window as any).optionds || [];
-    (window as any).optionds = ccp;
-    const oop = [ctor, propKey, { ...descriptor }];
-    ccp.push(oop);
-    try {
-      if (typeof ctor === "function") {
-        throw new OptionDecoratorUsedError();
-      }
-      if (descriptor) {
-        if (
-          !descriptor.set || // 没有setter
-          typeof descriptor.value === "function" // 实例方法
-        ) {
-          throw new OptionDecoratorUsedError();
-        }
-      } else {
-        if (!(ctor && propKey)) {
-          // private || declare
-          throw new OptionDecoratorUsedError();
-        }
-      }
-      // TODO 必须在component中才能使用@option
-      // const { componentKeyWord } = getGlobalData("@ocean/component");
-      // const isComp = ctor[componentKeyWord];
-      // if (!isComp) {
-      //   console.error(`the decorator of 'option' should in a component`);
-      //   return;
-      // }
-      const OPTIONS = initComponentOptions(ctor);
-      OPTIONS[propKey] = {
-        name: propKey,
-        type,
-      };
-    } catch (e) {
-      console.error(e);
+export function option(
+  option: { type?: JSTypes; propName?: string | symbol } = {}
+): PropertyDecorator {
+  return (target: object, propKey: string | symbol) => {
+    const { type = "unknown", propName } = option;
+    // 实例属性target为类的原型对象
+    // 静态属性target为类构造器
+    // 非静态
+    if (typeof target === "function") {
+      throw new OptionDecoratorUsedError();
     }
+    // 如果propName已经存在于类中
+    if (propName && Object.prototype.hasOwnProperty.call(target, propName)) {
+      throw new OptionDecoratorUsedError();
+    }
+    // 判断是否是component
+    if (!isComponent(target)) {
+      throw new OptionDecoratorUsedError();
+    }
+    // 获取属性描述符
+    const descriptor = Object.getOwnPropertyDescriptor(target, propKey);
+    if (!descriptor) {
+      throw new OptionDecoratorUsedError();
+    }
+    // 非没有setter的计算属性
+    if (descriptor.get && !descriptor.set) {
+      throw new OptionDecoratorUsedError();
+    }
+    // 非实例方法
+    if (typeof descriptor.value !== "function") {
+      throw new OptionDecoratorUsedError();
+    }
+    const definition = getOrInitComponentDefinition(target);
+    // 判断$options中是否存在propName
+    if (
+      propName &&
+      Object.values(definition.$options).some(
+        ({ propName: pN }) => pN === propName
+      )
+    ) {
+      throw 1;
+    }
+    // 更新$option
+    defineProperty(definition.$options, propKey, 0, {
+      name: propName || propKey,
+      type,
+    });
   };
 }

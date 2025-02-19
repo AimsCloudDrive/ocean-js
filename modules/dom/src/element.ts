@@ -151,15 +151,16 @@ export function renderClassComponent(
   // 清空绑定的事件
   Object.entries(eventBindings).forEach(([k, event]) => {
     inst.un(k, event.on);
+    delete eventBindings[k];
   });
   // 绑定新事件
   if (_events) {
     Object.keys(_events).forEach((k) => {
       // 绑定新事件
       const on = props[k];
-      if (on) {
+      if (on && typeof on === "function") {
         inst.on(k, on);
-        Object.assign(eventBindings, { on });
+        Object.assign(eventBindings, { [k]: { on } });
       }
     });
   }
@@ -173,25 +174,25 @@ export function renderClassComponent(
       createReaction(
         () => {
           const instELement = inst.render();
-          const dom = render(instELement, container);
-
-          // cb执行完，真实生成的dom已经存在，将类组件实例附着在dom上
-          inst.rendered();
-          const mounted = inst.isMounted();
-          if (inst.el) {
-            container.removeChild(inst.el);
-          }
-          inst.el = dom as HTMLElement;
-          if (dom) {
-            // 将类组件实例附着在dom上
-            if (!Reflect.get(dom, "$owner")) {
-              Object.assign(dom, { $owner: inst });
+          withoutTrack(() => {
+            const dom = render(instELement, container);
+            inst.rendered();
+            const mounted = inst.isMounted();
+            if (inst.el) {
+              container.removeChild(inst.el);
             }
-            container.appendChild(dom);
-            if (!mounted) {
-              inst.mounted();
+            inst.el = dom as HTMLElement;
+            if (dom) {
+              // 将类组件实例附着在dom上
+              if (!Reflect.get(dom, "$owner")) {
+                Object.assign(dom, { $owner: inst });
+              }
+              container.appendChild(dom);
+              if (!mounted) {
+                inst.mounted();
+              }
             }
-          }
+          });
         },
         { delay: "nextTick" }
       ).disposer()
@@ -219,17 +220,19 @@ export function renderFunctionComponent(
   }
   createReaction(() => {
     const returnElement = element.type(element.props, _children);
-    const _dom = render(returnElement, container);
-    if (dom) {
-      container.removeChild(dom);
-    }
-    dom = _dom;
-    dom && container.appendChild(dom);
-    // 函数组件ref绑定生成的元素
-    if ($ref) {
-      const refs: IRef<any>[] = [$ref].flat();
-      refs.forEach((ref) => ref.set(dom));
-    }
+    withoutTrack(() => {
+      const _dom = render(returnElement, container);
+      if (dom) {
+        container.removeChild(dom);
+      }
+      dom = _dom;
+      dom && container.appendChild(dom);
+      // 函数组件ref绑定生成的元素
+      if ($ref) {
+        const refs: IRef<any>[] = [$ref].flat();
+        refs.forEach((ref) => ref.set(dom));
+      }
+    });
   });
 }
 

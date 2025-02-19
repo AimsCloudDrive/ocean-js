@@ -1,9 +1,9 @@
 {
   "name": "@ocean/reaction",
-  "version": "0.0.13",
+  "version": "0.0.1",
   "description": "@ocean/reaction",
   "main": "dist/index.js",
-  "typings": "dist/index.d.ts",
+  "typings": "dist/types/index.d.ts",
   "type": "module",
   "files": [
     "dist",

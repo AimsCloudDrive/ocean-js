@@ -24,7 +24,10 @@ export default {
       targets: ["defaults"],
       exclude: "node_modules/**",
       extensions: [".ts", ".js", ".tsx", ".jsx"],
-      presets: ["@babel/preset-env", "@babel/preset-typescript"],
+      presets: [
+        "@babel/preset-env",
+        ["@babel/preset-typescript", { allowDeclareFields: true }],
+      ],
       plugins: [["@babel/plugin-proposal-decorators", { version: "legacy" }]],
       babelrc: false,
       sourceMaps: true,
@@ -33,7 +36,7 @@ export default {
       tsconfig: "./tsconfig.json",
       declaration: true,
       declarationDir: "dist/types", // 声明文件的路径
-      rootDir: "src",
+      rootDirs: ["modules/**/src"],
       outDir: "dist",
       sourceMap: true,
     }),

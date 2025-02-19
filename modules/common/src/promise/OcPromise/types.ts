@@ -1,19 +1,19 @@
 import { Nullable, createFunction } from "../../global";
 import { OcPromiseRejectError } from "./OcPromiseError";
 
-export interface thenable<R extends any, E extends Error> {
+export interface thenable<R, E extends Error | unknown = Error> {
   then<
-    TR extends Nullable | createFunction<[R, any]>,
-    TE extends Nullable | createFunction<[E, any]>,
+    TR extends Nullable | createFunction<[R, unknown]>,
+    TE extends Nullable | createFunction<[E, unknown]>,
     FR = ReturnTypeNotUndeF<TR | TE>
   >(
     onfulfilled: TR,
     onrejected: TE
-  ): thenable<FR, Error>;
+  ): thenable<FR, Error | unknown>;
   cancel?(): void;
 }
 
-export type ReturnTypeNotUndeF<T = any> = T extends (...args: any[]) => infer R
+export type ReturnTypeNotUndeF<T> = T extends (...args: unknown[]) => infer R
   ? R
   : never;
 
@@ -29,14 +29,14 @@ export type Canceled = typeof CANCELED;
 
 export type OcPromiseStatus = Fulfilled | Rejected | Canceled | Pendding;
 
-export type Resolve<R extends any = any> = (data: R) => void;
-export type Reject<E extends Error = OcPromiseRejectError> = (
+export type Resolve<R> = (data: R) => void;
+export type Reject<E extends Error | unknown = OcPromiseRejectError> = (
   reason: E
 ) => void;
-export type Cancel<C extends any = any> = (reason: C) => void;
+export type Cancel<C> = (reason: C) => void;
 
 export type OcPromiseExecutor<
-  R extends any = any,
-  E extends Error = OcPromiseRejectError,
-  C extends any = any
+  R,
+  E extends Error | unknown = Error,
+  C = unknown
 > = createFunction<[Resolve<R>, Reject<E>, Cancel<C>, void]>;

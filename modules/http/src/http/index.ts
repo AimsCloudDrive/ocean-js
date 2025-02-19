@@ -20,16 +20,15 @@ export function createServer(
 ): Express.Application {
   const server = express();
   let { createHandle, routes, middles } = option;
-  if (middles) {
-    middles = [
-      cors({
-        origin: "*",
-      }),
-      express.json(),
-      middles,
-    ].flat();
-    middles.reduce<typeof server>((a, b) => a.use(b), server);
-  }
+  [
+    cors({
+      origin: "*",
+    }),
+    express.json(),
+    middles || [],
+  ]
+    .flat()
+    .reduce<typeof server>((a, b) => a.use(b), server);
   if (routes) {
     const parseRoute = (routes: ServerRoute[], parentPath: string) => {
       for (const route of routes) {
@@ -51,3 +50,27 @@ export function createServer(
   });
   return server;
 }
+
+createServer(8088, {
+  routes: [
+    {
+      path: "/api",
+      children: [
+        {
+          path: "/userCreate",
+          method: "post",
+          handlers: [
+            express.json(),
+            (request, response) => {
+              console.log("aaa");
+              response.send({ aaa: 1 });
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  createHandle: () => {
+    console.log("userServer ready");
+  },
+});

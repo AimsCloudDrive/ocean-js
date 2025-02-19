@@ -79,5 +79,7 @@ export const nextTick = (task: () => void) => {
 export const cancelNextTick = (id: number) => {
   const { tickMap } = nextTickStore;
   const option = tickMap.get(id);
-  tryCall(option?.cancel);
+  if (option?.cancel) {
+    tryCall(option?.cancel);
+  }
 };

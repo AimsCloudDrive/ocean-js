@@ -1,5 +1,4 @@
 import {
-  COMPONENT_OPTION_KEY,
   ClassType as _ClassType,
   Event,
   Nullable,
@@ -7,6 +6,9 @@ import {
   parseClass,
   setGlobalData,
   CSSStyle,
+  defineProperty,
+  JSTypes,
+  assert,
 } from "@ocean/common";
 import { component, option } from "../Decorator";
 import { IRef } from "./Ref";
@@ -18,27 +20,13 @@ declare global {
   }
 }
 
-declare global {
-  export namespace Ocean {
-    export interface Store {
-      "@ocean/component": {
-        componentKeyWord: symbol;
-        componentEventsKey: symbol;
-        instanceEventBindingKey: symbol;
-        componentKeyMap: Map<string, any>;
-        rendering?: Component;
-      };
-    }
-  }
-}
 setGlobalData("@ocean/component", {
-  componentKeyWord: Symbol("component"),
-  componentKeyMap: new Map(),
-  componentEventsKey: Symbol("component_events"),
   instanceEventBindingKey: Symbol("instance_event_binding"),
+  componentDefinitionKey: Symbol("component_definition"),
+  componentMap: new Map(),
 });
 
-interface IComponent<P, E, C> {
+interface IComponent<P> {
   props: P;
   context: Partial<Component.Context>;
   setProps(props: P): void;
@@ -48,7 +36,7 @@ interface IComponent<P, E, C> {
 export type ComponentProps<C = never> = {
   $context?: Partial<Component.Context>;
   $key?: string | number;
-  $ref?: IRef<any>;
+  $ref?: IRef<unknown>;
   class?: _ClassType;
   style?: CSSStyle;
   children?: C;
@@ -66,21 +54,20 @@ export type ComponentEvents = {
   },
 })
 export class Component<
-    P extends ComponentProps<any> = ComponentProps,
+    P extends ComponentProps<unknown> = ComponentProps,
     E extends ComponentEvents = ComponentEvents
   >
   extends Event<E>
-  implements IComponent<P, E, P["children"]>
+  implements IComponent<P>
 {
-  setState: any;
-  state: any;
-  refs: any;
+  setState: unknown;
+  state: unknown;
+  refs: unknown;
   forceUpdate(): void {}
-  declare context: any;
+  declare context: Partial<Component.Context>;
 
   @option()
   private $key: string | number | Nullable;
-  @option()
   private $context?: Partial<Component.Context>;
   declare props: P;
   declare el: HTMLElement;
@@ -91,13 +78,14 @@ export class Component<
     this.set(props);
   }
 
-  declare $owner?: Component<any, any>;
-  declare $parent?: Component<any, any>;
+  declare $owner?: Component<ComponentProps<unknown>, ComponentEvents>;
+  declare $parent?: Component<ComponentProps<unknown>, ComponentEvents>;
 
+  // 设置JSX
   setJSX(jsx: P["children"]) {}
 
   getClassName(): string {
-    const p = this.props as any;
+    const p = this.props as ComponentProps<unknown>;
     return p.class ? parseClass(p.class) : "";
   }
   getStyle(): string {
@@ -109,7 +97,7 @@ export class Component<
   ): Partial<Component.Context>[T] {
     const $ctx = this.$context;
     const $p = this.getUpComp();
-    if ($ctx && $ctx.hasOwnProperty(key)) {
+    if ($ctx && Object.hasOwnProperty.call($ctx, key)) {
       return $ctx[key];
     }
     return $p?.getContext(key) as Partial<Component.Context>[T];
@@ -123,32 +111,41 @@ export class Component<
     this.setProps(props);
   }
 
+  getDefinition(): ComponentDefinition {
+    return getOrInitComponentDefinition(this);
+  }
+
   setProps(props: Partial<P>) {
-    const options = this.getOptions();
-    Object.entries(props).forEach(([k, v]: [any, any]) => {
-      if (Object.hasOwnProperty.call(options, k)) {
-        this[k as keyof typeof this] = v;
+    const definition = this.getDefinition();
+    if (!definition) return;
+    const options = definition.$options;
+    Object.entries(options).forEach(([propKey, prop]) => {
+      if (Object.hasOwnProperty.call(props, prop.propName)) {
+        const value = props[prop.propName];
+        if (prop.type === "array" && Array.isArray(value)) {
+          this[propKey] = value;
+        } else if (typeof value === prop.type) {
+          this[propKey] = value;
+        } else {
+          console.warn(`[Component] ${propKey} is not a ${prop.type}`);
+        }
       }
     });
   }
-  private getOptions() {
-    const OPTIONS = Reflect.get(this, COMPONENT_OPTION_KEY) || {};
-    return OPTIONS as { [K in keyof P]: any };
-  }
-  private getObservers(): Record<string, Observer> {
-    const { observerListKey } = getGlobalData("@ocean/reaction");
-    return Reflect.get(this, observerListKey) || {};
-  }
+
   updateProperty(name: string): void {
-    const observers = this.getObservers();
-    if (observers.hasOwnProperty(name)) {
-      const ob = observers[name];
+    const definition = this.getDefinition();
+    if (!definition) return;
+    const observers = definition.$observers;
+    if (Object.hasOwnProperty.call(observers, name)) {
+      const observer = observers[name];
       // TODO: 普通属性、计算属性、方法属性
-      ob.update();
+      observer.update();
     } else {
       console.warn(`[Component] ${name} is not a observer`);
     }
   }
+
   render(): any {}
   rendered(): void {}
   init() {
@@ -204,15 +201,59 @@ export class Component<
   }
 }
 
-export function isComponent(ctor: Function) {
-  const { componentKeyWord: componentKey, componentKeyMap: componentMap } =
-    getGlobalData("@ocean/component");
-  const name = ctor.prototype[componentKey];
-  if (name == undefined) {
-    return false;
+export type ComponentDefinition = {
+  componentName: string;
+  $options: {
+    [K in string]: {
+      propName: string;
+      type: JSTypes | "array";
+    };
+  };
+  $events: {
+    [K in string]: JSTypes;
+  };
+  $observers: {
+    [K in string]: Observer;
+  };
+};
+
+/**
+ * 初始化组件定义
+ * 不会向上继续找原型对象的原型
+ * @param prototype 组件类的原型对象
+ * @returns 组件定义
+ */
+export function getOrInitComponentDefinition(
+  prototype: object
+): ComponentDefinition {
+  const { componentDefinitionKey } = getGlobalData("@ocean/component") as {
+    componentDefinitionKey: symbol;
+  };
+  const oldProptotype = Object.getPrototypeOf(prototype);
+  try {
+    // 置空原型
+    Object.setPrototypeOf(prototype, null);
+    // 获取组件定义
+    let definition: ComponentDefinition | undefined = Reflect.get(
+      prototype,
+      componentDefinitionKey
+    );
+    // 如果组件定义不存在，则初始化组件定义
+    if (!definition) {
+      definition = Object.create(null);
+      Object.assign(definition as ComponentDefinition, {
+        $options: {},
+        $events: {},
+        $observers: {},
+      });
+      // 设置组件定义
+      defineProperty(prototype, componentDefinitionKey, 0, definition);
+    }
+    // 断言组件定义存在
+    assert(definition, `[Component] ${prototype} is not a component`);
+    return definition;
+  } finally {
+    // 恢复原型
+    Object.setPrototypeOf(prototype, oldProptotype);
   }
-  if (!!componentMap.get(name)) {
-    return true;
-  }
-  return false;
 }

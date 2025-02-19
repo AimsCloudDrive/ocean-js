@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
+    "baseUrl": "./",
     "paths": { "@ocean/*": ["modules/*/src"] },
     "incremental": false, // 增量编译
     // "tsBuildInfoFile": "./.tsbuildinfo", // 增量编译文件的存储位置
@@ -19,7 +19,7 @@
     "jsx": "react",
 
     "declaration": true, // 生成声明文件
-    "declarationDir": "dist", // 声明文件的路径
+    "declarationDir": "dist/types", // 声明文件的路径
     // "emitDeclarationOnly": true, // 只生成声明文件
     "sourceMap": true, // 生成目标文件的 sourceMap
     // "inlineSourceMap": true, // 生成目标文件的 inline sourceMap

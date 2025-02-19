@@ -38,7 +38,6 @@ export function performChunk(
       while (isContinue(Date.now() - now) && i < tasks.length) {
         console.info(i, tasks.length);
         tasks[i](i);
-        debugger;
         i++;
       }
     });
