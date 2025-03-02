@@ -104,15 +104,14 @@ export class Reaction {
     const { tracker } = this;
     // 先清空tracked
     this.tracked.clear();
-    const data = getGlobalData("@ocean/reaction");
+    const data = getGlobalData(
+      "@ocean/reaction"
+    ) as Ocean.Store["@ocean/reaction"];
     // 保存原始的tracking函数
     const tracking = data.tracking;
     // 更新tracking函数
     Object.assign(data, {
-      tracking: (ob: IObserver) => {
-        this.tracked.add(ob);
-        ob.addReaction(this);
-      },
+      tracking: this.addObserver.bind(this),
     });
     try {
       // 执行tracker函数
@@ -141,8 +140,15 @@ export class Reaction {
   }
 
   destroy() {
-    this.tracked.forEach((ob) => ob.removeReaction(this));
-    this.tracked.clear();
+    this.tracked.forEach(this.removeObserver.bind(this));
+  }
+  addObserver(observer: IObserver) {
+    this.tracked.add(observer);
+    observer.addReaction(this);
+  }
+  removeObserver(observer: IObserver) {
+    this.tracked.delete(observer);
+    observer.removeReaction(this);
   }
 }
 
@@ -178,16 +184,16 @@ export function createReaction(
 }
 
 export function withoutTrack<T>(callback: () => T): T {
-  const data = getGlobalData("@ocean/reaction");
-  const tracking = data.tracking;
-  Object.assign(data, { tracking: undefined });
-  let res: T;
+  const reactionData = getGlobalData(
+    "@ocean/reaction"
+  ) as Ocean.Store["@ocean/reaction"];
+  const { tracking } = reactionData;
+  reactionData.tracking = undefined;
   try {
-    res = callback();
+    return callback();
   } catch (e) {
     throw e;
   } finally {
-    Object.assign(data, { tracking });
+    Object.assign(reactionData, { tracking });
   }
-  return res;
 }
