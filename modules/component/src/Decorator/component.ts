@@ -3,7 +3,7 @@ import {
   JSTypes,
   getGlobalData,
 } from "@ocean/common";
-import { getOrInitComponentDefinition } from "../component/Component";
+import { initComponentDefinition } from "../component/Component";
 
 export type ComponentOption = {
   events?: {
@@ -33,7 +33,7 @@ export function component(
     }
     // ctor为类的构造器,获取其原型对象
     // 初始化组件定义
-    const definition = getOrInitComponentDefinition(ctor.prototype);
+    const definition = initComponentDefinition(ctor.prototype);
     // 设置组件名称
     definition.componentName = name;
     // 绑定声明事件

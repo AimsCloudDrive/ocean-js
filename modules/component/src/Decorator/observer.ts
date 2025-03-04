@@ -1,10 +1,10 @@
 import { isComponent } from "./component";
 import { ObserverDecoratorUsedError, defineProperty } from "@ocean/common";
-import { getOrInitComponentDefinition } from "../component/Component";
+import { initComponentDefinition } from "../component/Component";
 import { Observer, ObserverOption } from "@ocean/reaction";
 
 export function observer<T>(option: ObserverOption<T> = {}): PropertyDecorator {
-  return function (target: object, key: string | symbol) {
+  return function (target, key) {
     // 实例属性target为类的原型对象
     // 静态属性target为类构造器
     // 非静态
@@ -28,7 +28,7 @@ export function observer<T>(option: ObserverOption<T> = {}): PropertyDecorator {
       throw new ObserverDecoratorUsedError();
     }
     // 初始化组件定义
-    const definition = getOrInitComponentDefinition(target);
+    const definition = initComponentDefinition(target);
     // 判断是否已存在观察者
     if (Reflect.has(definition.$observers, key)) {
       throw new ObserverDecoratorUsedError();
@@ -38,6 +38,6 @@ export function observer<T>(option: ObserverOption<T> = {}): PropertyDecorator {
       ...option,
     });
     // 设置观察者
-    defineProperty(definition.$observers, key, 0, observer);
+    defineProperty(definition.$observers, key, 7, observer);
   };
 }

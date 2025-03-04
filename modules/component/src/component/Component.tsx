@@ -21,7 +21,6 @@ declare global {
 }
 
 setGlobalData("@ocean/component", {
-  instanceEventBindingKey: Symbol("instance_event_binding"),
   componentDefinitionKey: Symbol("component_definition"),
   componentMap: new Map(),
 });
@@ -79,7 +78,6 @@ export class Component<
   }
 
   declare $owner?: Component<ComponentProps<unknown>, ComponentEvents>;
-  declare $parent?: Component<ComponentProps<unknown>, ComponentEvents>;
 
   // 设置JSX
   setJSX(jsx: P["children"]) {}
@@ -104,7 +102,7 @@ export class Component<
   }
 
   private getUpComp() {
-    return this.$owner || this.$parent;
+    return this.$owner;
   }
 
   set(props: Partial<P>) {
@@ -112,7 +110,9 @@ export class Component<
   }
 
   getDefinition(): ComponentDefinition {
-    return getOrInitComponentDefinition(this);
+    const prototype = Reflect.getPrototypeOf(this);
+    if (!prototype) throw Error("the component not prototype");
+    return initComponentDefinition(prototype);
   }
 
   setProps(props: Partial<P>) {
@@ -223,7 +223,7 @@ export type ComponentDefinition = {
  * @param prototype 组件类的原型对象
  * @returns 组件定义
  */
-export function getOrInitComponentDefinition(
+export function initComponentDefinition(
   prototype: object
 ): ComponentDefinition {
   const { componentDefinitionKey } = getGlobalData("@ocean/component") as {
@@ -242,9 +242,9 @@ export function getOrInitComponentDefinition(
     if (!definition) {
       definition = Object.create(null);
       Object.assign(definition as ComponentDefinition, {
-        $options: {},
-        $events: {},
-        $observers: {},
+        $options: Object.create(null),
+        $events: Object.create(null),
+        $observers: Object.create(null),
       });
       // 设置组件定义
       defineProperty(prototype, componentDefinitionKey, 0, definition);
@@ -252,6 +252,21 @@ export function getOrInitComponentDefinition(
     // 断言组件定义存在
     assert(definition, `[Component] ${prototype} is not a component`);
     return definition;
+  } finally {
+    // 恢复原型
+    Object.setPrototypeOf(prototype, oldProptotype);
+  }
+}
+export function getComponentDefinition(prototype: object): ComponentDefinition {
+  const { componentDefinitionKey } = getGlobalData("@ocean/component") as {
+    componentDefinitionKey: symbol;
+  };
+  const oldProptotype = Object.getPrototypeOf(prototype);
+  try {
+    // 置空原型
+    Object.setPrototypeOf(prototype, null);
+    // 获取组件定义
+    return Reflect.get(prototype, componentDefinitionKey);
   } finally {
     // 恢复原型
     Object.setPrototypeOf(prototype, oldProptotype);

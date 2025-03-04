@@ -5,20 +5,9 @@ export interface IObserver {
   removeReaction(reaction: Reaction): void;
 }
 
-declare global {
-  export namespace Ocean {
-    export interface Store {
-      "@ocean/reaction": {
-        tracking?: (ob: IObserver) => void;
-        observerListKey: symbol;
-      };
-    }
-  }
-}
-
-setGlobalData("@ocean/reaction", {
-  observerListKey: Symbol("observerList"),
-});
+type $REACTION = {
+  tracking?: (ob: IObserver) => void;
+};
 
 export class Reaction {
   private declare tracker: () => void;
@@ -84,14 +73,25 @@ export class Reaction {
     if (this.delay === "nextFrame") {
       this.nextTick = function (cb: () => void) {
         this._cancel();
-        const rafId = requestAnimationFrame(() => {
-          cb();
-          this.cancel = undefined;
-        });
-        this.cancel = () => {
-          // 取消requestAnimationFrame的对调函数执行
-          cancelAnimationFrame(rafId);
-        };
+        if (Reflect.has(globalThis, "requestAnimationFrame")) {
+          const rafId = requestAnimationFrame(() => {
+            cb();
+            this.cancel = undefined;
+          });
+          this.cancel = () => {
+            // 取消requestAnimationFrame的对调函数执行
+            cancelAnimationFrame(rafId);
+          };
+        } else {
+          const id = setTimeout(() => {
+            cb();
+            this.cancel = undefined;
+          }, 1000 / 60);
+          this.cancel = () => {
+            clearTimeout(id);
+            this.cancel = undefined;
+          };
+        }
       };
     }
   }
@@ -104,11 +104,9 @@ export class Reaction {
     const { tracker } = this;
     // 先清空tracked
     this.tracked.clear();
-    const data = getGlobalData(
-      "@ocean/reaction"
-    ) as Ocean.Store["@ocean/reaction"];
+    const data = getGlobalData("@ocean/reaction") as $REACTION;
     // 保存原始的tracking函数
-    const tracking = data.tracking;
+    const { tracking } = data || {};
     // 更新tracking函数
     Object.assign(data, {
       tracking: this.addObserver.bind(this),
@@ -184,9 +182,7 @@ export function createReaction(
 }
 
 export function withoutTrack<T>(callback: () => T): T {
-  const reactionData = getGlobalData(
-    "@ocean/reaction"
-  ) as Ocean.Store["@ocean/reaction"];
+  const reactionData = getGlobalData("@ocean/reaction") as $REACTION;
   const { tracking } = reactionData;
   reactionData.tracking = undefined;
   try {

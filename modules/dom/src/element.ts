@@ -1,17 +1,23 @@
 import {
-  defineProperty,
-  ClassType,
-  isArray,
-  parseClass,
   CSSStyle,
-  parseStyle,
-  getGlobalData,
-  setGlobalData,
-  JSTypes,
+  ClassType,
   Event,
+  getGlobalData,
+  parseClass,
+  parseStyle,
+  setGlobalData,
 } from "@ocean/common";
-import { IRef, isComponent, Component } from "@ocean/component";
+import {
+  Component,
+  IRef,
+  getComponentDefinition,
+  isComponent,
+} from "@ocean/component";
 import { createReaction, withoutTrack } from "@ocean/reaction";
+
+type $DOM = {
+  rendering?: Component;
+};
 
 declare global {
   export namespace Component {
@@ -94,34 +100,35 @@ export function createDom<T = any>(element: DOMElement<T>) {
   return dom;
 }
 
+const eventBindingMap = new WeakMap<
+  WeakKey,
+  { [K in string]: Parameters<Event["on"]>[1] }
+>();
+
 export function renderClassComponent(
   element: DOMElement<any>,
   container: HTMLElement
 ) {
   const { children, $ref, ...props } = element.props;
+  const componentDefinition = getComponentDefinition(element.type.prototype);
 
-  const _component = getGlobalData("@ocean/component");
   // 处理自定义事件
-  const { componentEventsKey, instanceEventBindingKey } = _component;
   // 组件声明的事件
-  const _events: Record<string, { type: JSTypes }> = (element.type as Function)
-    .prototype[componentEventsKey];
-  const { ...newProps } = props;
+  const { $events } = componentDefinition;
+  const { ..._props } = props;
   // 去除props中的自带属性
-  delete newProps["__self"];
-  delete newProps["__source"];
+  delete _props["__self"];
+  delete _props["__source"];
   // 去除props中的事件
-  if (_events) {
-    Object.keys(_events).forEach((k) => {
-      if (newProps[k]) {
-        delete newProps[k];
+  if ($events) {
+    Object.keys($events).forEach((k) => {
+      if (Object.prototype.hasOwnProperty.call(_props, k)) {
+        delete _props[k];
       }
     });
   }
   // 类组件
-  const inst: Component<any, any> = withoutTrack(() => {
-    return new element.type(newProps);
-  });
+  const inst: Component<any, any> = new element.type(_props);
   // 处理传递的子元素
   if (children && children.length > 0) {
     const c = children.map((c) => {
@@ -141,34 +148,31 @@ export function renderClassComponent(
     }
   }
 
-  // 组件实例绑定的事件
-  let eventBindings: Record<
-    string,
-    { on: (event: any, type: string, self: Event<any>) => void }
-  > = inst[instanceEventBindingKey];
-  eventBindings ||
-    defineProperty(inst, instanceEventBindingKey, 0, (eventBindings = {}));
-  // 清空绑定的事件
-  Object.entries(eventBindings).forEach(([k, event]) => {
-    inst.un(k, event.on);
-    delete eventBindings[k];
-  });
-  // 绑定新事件
-  if (_events) {
-    Object.keys(_events).forEach((k) => {
+  // 事件绑定
+  if ($events) {
+    // 清除上次注册的事件
+    const binding = eventBindingMap.get(inst) || {};
+    eventBindingMap.set(inst, binding);
+    Object.keys($events).forEach((ek) => {
+      inst.un(ek, binding[ek]);
+    });
+
+    // 绑定新事件
+    Object.keys($events).forEach((k) => {
       // 绑定新事件
       const on = props[k];
       if (on && typeof on === "function") {
         inst.on(k, on);
-        Object.assign(eventBindings, { [k]: { on } });
+        Object.assign(binding, { [k]: { on } });
       }
     });
   }
   // 挂载组件
-  const { rendering } = _component;
+  const domGlobalData = (getGlobalData("@ocean/dom") || {}) as $DOM;
+  setGlobalData("@ocean/dom", domGlobalData);
+  const { rendering } = domGlobalData;
   inst.$owner = rendering;
-  inst.$parent = rendering;
-  _component.rendering = inst;
+  domGlobalData.rendering = inst;
   try {
     inst.onclean(
       createReaction(
@@ -184,6 +188,7 @@ export function renderClassComponent(
             inst.el = dom as HTMLElement;
             if (dom) {
               // 将类组件实例附着在dom上
+              // TODO: 生产环境禁用
               if (!Reflect.get(dom, "$owner")) {
                 Object.assign(dom, { $owner: inst });
               }
@@ -198,7 +203,7 @@ export function renderClassComponent(
       ).disposer()
     );
   } finally {
-    Object.assign(_component, { rendering });
+    Object.assign(domGlobalData, { rendering });
   }
 }
 
@@ -247,8 +252,8 @@ export function render(
       // 类组件
       renderClassComponent(_element, container);
     } else {
-      // 函数组件
-      renderFunctionComponent(_element, container);
+      // TODO: 函数组件
+      // renderFunctionComponent(_element, container);
     }
   } else {
     // 普通元素
