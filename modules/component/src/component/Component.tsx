@@ -250,7 +250,10 @@ export function initComponentDefinition(
       defineProperty(prototype, componentDefinitionKey, 0, definition);
     }
     // 断言组件定义存在
-    assert(definition, `[Component] ${prototype} is not a component`);
+    assert(
+      definition,
+      `[Component] ${prototype.constructor.name} is not a component`
+    );
     return definition;
   } finally {
     // 恢复原型

@@ -1,5 +1,4 @@
 import { Nullable, createFunction } from "..";
-import { Event } from "../Event";
 import { assert } from "../assert";
 
 /** 集合事件类型定义 */
@@ -45,10 +44,7 @@ interface ToArray<T = unknown> {
  * 集合类，提供基于键值的元素存储和管理
  * @template T 元素类型
  */
-export class Collection<T = unknown>
-  extends Event<CollectionEvent>
-  implements Iterable<T>, ToArray<T>
-{
+export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
   /** 获取元素键值的函数 */
   private declare getKey: CollectionGetKey<T>;
   /** 存储所有元素的数组 */
@@ -63,7 +59,6 @@ export class Collection<T = unknown>
    * @param getKey 获取元素键值的函数
    */
   constructor(getKey?: CollectionGetKey<T>) {
-    super();
     // 确保提供了获取键值的函数
     assert(getKey, "miss get unique key");
     this.getKey = getKey;
@@ -138,7 +133,7 @@ export class Collection<T = unknown>
     } else if (force) {
       // 键值存在且force为true时，替换原有元素
       const index = this.indexMap.get(key);
-      assert(index);
+      assert(index != undefined);
       this.elMap.set(key, element);
       this.elements.splice(index, 1, element);
     }
@@ -268,10 +263,18 @@ export class Collection<T = unknown>
    * 使用生成器函数遍历集合中的所有元素
    * @yields 集合中的每个元素
    */
-  *[Symbol.iterator](): Generator<T, void, undefined> {
-    for (const element of this.elements) {
-      yield element;
-    }
+  [Symbol.iterator](): Iterator<T, T, undefined> {
+    let i = 0;
+    return {
+      next: () => {
+        const j = i;
+        i++;
+        return {
+          value: this.elements[j],
+          done: j >= this.elements.length,
+        };
+      },
+    };
   }
 
   /**
