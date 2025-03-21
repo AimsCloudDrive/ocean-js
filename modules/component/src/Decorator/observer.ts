@@ -7,7 +7,7 @@ import { Observer, ObserverOption } from "@ocean/reaction";
 import { initComponentDefinition } from "../component/Component";
 
 export function observer<T>(option: ObserverOption<T> = {}): PropertyDecorator {
-  return async function (target, key) {
+  return function (target, key) {
     // 实例属性target为类的原型对象
     // 静态属性target为类构造器
     // 非静态

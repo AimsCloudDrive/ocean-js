@@ -63,8 +63,14 @@ export class OcPromise<
 
     // 创建 resolve 处理函数
     const resolve: Resolve<R> = (data: R) => {
-      // 将状态改为已完成
-      this.changeStatus(FULFILLED, data);
+      if (isOcPromise(data)) {
+        data.then(resolve, reject, cancel);
+      } else if (isPromiseLike(data)) {
+        data.then(resolve, reject);
+      } else {
+        // 将状态改为已完成
+        this.changeStatus(FULFILLED, data);
+      }
     };
 
     // 创建 reject 处理函数
@@ -131,10 +137,10 @@ export class OcPromise<
     while (this.handlers.length) {
       // 取出队列中的第一个处理函数组
       const handler = this.handlers.shift()!;
-      const { resolve, reject, cancel, onfulfilled, oncanceled, onrejected } =
+      const { resolve, reject, cancel, onfulfilled, onrejected, oncanceled } =
         handler;
 
-      // 根据当前状态选择要执行的处理函数
+      // 根据当前状态选择要执行的处理函数，未传对应处理函数则状态穿透
       const exe =
         this.status === FULFILLED
           ? onfulfilled

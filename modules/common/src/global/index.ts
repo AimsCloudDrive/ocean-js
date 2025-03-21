@@ -70,7 +70,7 @@ export function defineProperty<T>(
 /**
  * @param target
  * @param propKey
- * @param flag 7
+ * @param flag 5
  * * const enumerable = 0x04;
  * * const writable = 0x02;
  * * const configurable = 0x01;
@@ -109,4 +109,8 @@ export function tryCall<F extends createFunction<[...unknown[], unknown]>>(
   throw `${
     typeof call === "object" ? Reflect.get(call, "name", call) : call
   } is not a function.`;
+}
+
+export function equal(value: unknown, otherValue: unknown): boolean {
+  return Object.is(value, otherValue);
 }

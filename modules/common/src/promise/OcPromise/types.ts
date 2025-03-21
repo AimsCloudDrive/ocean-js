@@ -29,7 +29,7 @@ export type Canceled = typeof CANCELED;
 
 export type OcPromiseStatus = Fulfilled | Rejected | Canceled | Pendding;
 
-export type Resolve<R> = (data: R) => void;
+export type Resolve<R> = (data: R | thenable<R>) => void;
 export type Reject<E extends Error | unknown = OcPromiseRejectError> = (
   reason: E
 ) => void;

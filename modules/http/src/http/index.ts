@@ -10,6 +10,36 @@ export type ServerRoute<T extends string | RegExp = any> = {
   handlers?: RequestHandler[];
 };
 
+/**
+ *
+ * @param port
+ * @param option
+ * @returns
+ * @example
+ createServer(8088, {
+  routes: [
+    {
+      path: "/api",
+      children: [
+        {
+          path: "/userCreate",
+          method: "post",
+          handlers: [
+            express.json(),
+            (request, response) => {
+              console.log("aaa");
+              response.send({ aaa: 1 });
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  createHandle: () => {
+    console.log("userServer ready");
+  },
+});
+ */
 export function createServer(
   port: number,
   option: {
@@ -50,27 +80,3 @@ export function createServer(
   });
   return server;
 }
-
-createServer(8088, {
-  routes: [
-    {
-      path: "/api",
-      children: [
-        {
-          path: "/userCreate",
-          method: "post",
-          handlers: [
-            express.json(),
-            (request, response) => {
-              console.log("aaa");
-              response.send({ aaa: 1 });
-            },
-          ],
-        },
-      ],
-    },
-  ],
-  createHandle: () => {
-    console.log("userServer ready");
-  },
-});

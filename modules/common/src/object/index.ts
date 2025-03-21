@@ -66,3 +66,7 @@ export function compareObjects<T extends object>(obj1: T, obj2: T): boolean {
 
   return true;
 }
+
+export function isObject(value: unknown): boolean {
+  return typeof value === "object" && value !== null;
+}

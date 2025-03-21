@@ -2,6 +2,8 @@ import {
   CSSStyle,
   ClassType,
   Event,
+  Nullable,
+  compareObjects,
   getGlobalData,
   parseClass,
   parseStyle,
@@ -18,6 +20,9 @@ import { createReaction, withoutTrack } from "@ocean/reaction";
 type $DOM = {
   rendering?: Component;
 };
+
+setGlobalData("@ocean/dom", {} as $DOM);
+const componentVDOMMap = new WeakMap<Component, DOMElement<any>>();
 
 declare global {
   export namespace Component {
@@ -57,7 +62,7 @@ export function createElement(
   };
 }
 
-export function createTextElement(text: string) {
+function createTextElement(text: string) {
   return {
     type: TEXT_NODE,
     props: {
@@ -67,11 +72,7 @@ export function createTextElement(text: string) {
   };
 }
 
-type UpdateProps<T> = Omit<
-  DOMElement<T>["props"],
-  "children" | "class" | "style" | "context" | "$key" | "$ref"
->;
-export function createDom<T = any>(element: DOMElement<T>) {
+function createDom<T = any>(element: DOMElement<T>) {
   const {
     children,
     class: _class,
@@ -168,8 +169,7 @@ export function renderClassComponent(
     });
   }
   // 挂载组件
-  const domGlobalData = (getGlobalData("@ocean/dom") || {}) as $DOM;
-  setGlobalData("@ocean/dom", domGlobalData);
+  const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
   const { rendering } = domGlobalData;
   inst.$owner = rendering;
   domGlobalData.rendering = inst;
@@ -177,27 +177,31 @@ export function renderClassComponent(
     inst.onclean(
       createReaction(
         () => {
-          const instELement = inst.render();
-          withoutTrack(() => {
-            const dom = render(instELement, container);
-            inst.rendered();
-            const mounted = inst.isMounted();
-            if (inst.el) {
-              container.removeChild(inst.el);
+          const prevVDOM = componentVDOMMap.get(inst);
+          const vDOM = inst.render();
+          const isChanged = patchVDOM(vDOM, prevVDOM);
+          componentVDOMMap.set(inst, vDOM);
+          const dom = renderer(vDOM, container);
+          inst.rendered();
+          if (!isChanged) {
+            return;
+          }
+          const mounted = inst.isMounted();
+          if (inst.el) {
+            container.removeChild(inst.el);
+          }
+          inst.el = dom as HTMLElement;
+          if (dom) {
+            // 将类组件实例附着在dom上
+            // TODO: 生产环境禁用
+            if (!Reflect.get(dom, "$owner")) {
+              Object.assign(dom, { $owner: inst });
             }
-            inst.el = dom as HTMLElement;
-            if (dom) {
-              // 将类组件实例附着在dom上
-              // TODO: 生产环境禁用
-              if (!Reflect.get(dom, "$owner")) {
-                Object.assign(dom, { $owner: inst });
-              }
-              container.appendChild(dom);
-              if (!mounted) {
-                inst.mounted();
-              }
+            container.appendChild(dom);
+            if (!mounted) {
+              inst.mounted();
             }
-          });
+          }
         },
         { delay: "nextTick" }
       ).disposer()
@@ -226,7 +230,7 @@ export function renderFunctionComponent(
   createReaction(() => {
     const returnElement = element.type(element.props, _children);
     withoutTrack(() => {
-      const _dom = render(returnElement, container);
+      const _dom = renderer(returnElement, container);
       if (dom) {
         container.removeChild(dom);
       }
@@ -241,7 +245,7 @@ export function renderFunctionComponent(
   });
 }
 
-export function render(
+function renderer(
   element: any,
   container: HTMLElement
 ): HTMLElement | Text | undefined {
@@ -266,12 +270,32 @@ export function render(
     // children
     if (children && children.length > 0) {
       children.forEach((child) => {
-        const childDom = render(child, dom as HTMLElement);
+        const childDom = renderer(child, dom as HTMLElement);
         if (childDom) {
           dom.appendChild(childDom);
         }
       });
     }
+    container.appendChild(dom);
     return dom;
+  }
+}
+
+export { renderer as render };
+
+/**
+ *
+ * @param vDOM
+ * @param prevVDOM
+ * @returns 返回时否有变
+ */
+function patchVDOM(
+  vDOM: DOMElement<any>,
+  prevVDOM: DOMElement<any> | Nullable
+) {
+  if (!prevVDOM) {
+    return true;
+  } else {
+    return compareObjects(vDOM, prevVDOM);
   }
 }

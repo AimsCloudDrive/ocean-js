@@ -149,20 +149,13 @@ export class Component<
   render(): any {}
   rendered(): void {}
   init() {
-    this.mountedEvents = [];
-    this.unmountedEvents = [];
     this.clean = [];
   }
-  private declare mountedEvents: (() => void)[];
-  private declare unmountedEvents: (() => void)[];
   mounted() {
     this.emit("mounted", null);
-    while (this.mountedEvents.length) {
-      this.mountedEvents.shift()?.();
-    }
   }
   onmounted(cb: () => void) {
-    this.mountedEvents.push(cb);
+    this.on("mounted", cb);
   }
 
   unmount() {
@@ -172,16 +165,14 @@ export class Component<
         p.removeChild(this.el);
         this.unmounted();
       }
+      Object.assign(this, { el: null });
     }
   }
   unmounted() {
     this.emit("unmounted", null);
-    while (this.unmountedEvents.length) {
-      this.unmountedEvents.shift()?.();
-    }
   }
   onunmounted(cb: () => void) {
-    this.unmountedEvents.push(cb);
+    this.on("unmounted", cb);
   }
 
   private declare clean: (() => void)[];
@@ -193,7 +184,7 @@ export class Component<
     while (this.clean.length) {
       this.clean.shift()?.();
     }
-    Object.assign(this, { el: undefined });
+    Object.assign(this, { el: null });
     this.unmount();
   }
   isMounted() {

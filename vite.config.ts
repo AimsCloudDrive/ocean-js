@@ -8,29 +8,29 @@ import babel from "@rollup/plugin-babel";
 export default defineConfig({
   build: {
     rollupOptions: {
-      external: (id) => {
-        // 使用正则表达式来匹配所有以 @ocean/ 开头的模块
-        return /^@ocean\//.test(id);
-      },
+      external: [/^@ocean\//],
       input: "src/index.ts", // 你的主要输入文件
       plugins: [
         nodeResolve({
           browser: true,
         }),
-        commonjs(),
         babel({
+          babelHelpers: "bundled",
           targets: ["defaults"],
           exclude: "node_modules/**",
           extensions: [".ts", ".js", ".tsx", ".jsx"],
           presets: [
-            "@babel/preset-env",
-            ["@babel/preset-typescript", { allowDeclareFields: true }],
+            ["@babel/preset-env"],
+            [
+              "@babel/preset-typescript",
+              { allowDeclareFields: true, sourceMap: true },
+            ],
           ],
           plugins: [
             ["@babel/plugin-proposal-decorators", { version: "legacy" }],
           ],
           babelrc: false,
-          sourceMaps: true,
+          sourceMaps: "inline",
         }),
         typescript({
           tsconfig: "tsconfig.json",
@@ -43,13 +43,13 @@ export default defineConfig({
       ],
     },
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: "inline",
     minify: false,
     outDir: "dist",
     lib: {
       entry: "src/index.ts",
       name: "index.js",
-      formats: ["es"],
+      formats: ["es", "cjs"],
       fileName: (format) => {
         if (/^esm?$/.test(format)) {
           return "index.js";

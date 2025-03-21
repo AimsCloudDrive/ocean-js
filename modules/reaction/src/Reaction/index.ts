@@ -5,34 +5,41 @@ export interface IObserver {
   removeReaction(reaction: Reaction): void;
 }
 
-type $REACTION = {
+export type $REACTION = {
   tracking?: (ob: IObserver) => void;
+  reaction?: Reaction;
 };
 
+setGlobalData("@ocean/reaction", {} as $REACTION);
+
+export type ReactionOption = {
+  tracker: () => void;
+  callback?: () => void;
+  scheduler?: "nextTick" | "nextFrame" | undefined | ((cb: () => void) => void);
+};
 export class Reaction {
-  private declare tracker: () => void;
-  private declare callback: () => void;
+  private declare option: ReactionOption;
   private declare tracked: Set<IObserver>;
-  private declare delay: "nextTick" | "nextFrame" | undefined;
   // 上一次更新还未执行则取消上一次更新
   private declare cancel?: () => void;
-  constructor(props: {
-    tracker: () => void;
-    callback: () => void;
-    delay?: "nextTick" | "nextFrame";
-  }) {
+  constructor(option: ReactionOption) {
     this.tracked = new Set();
-    Object.assign(this, props);
-    this.track();
+    this.option = option;
     this.updateNextTick();
+    this.track();
   }
   private _cancel() {
     this.cancel && this.cancel();
     this.cancel = undefined;
   }
+  /**
+   * 根据传入的delay选项，初始化微队列函数
+   * @returns
+   */
   updateNextTick() {
-    if (!this.delay) return;
-    if (this.delay === "nextTick") {
+    const { scheduler } = this.option;
+    if (!scheduler) return;
+    if (scheduler === "nextTick") {
       // 判断浏览器环境还是node环境
       if (typeof process !== "undefined" && process.nextTick) {
         // node环境
@@ -69,8 +76,7 @@ export class Reaction {
           };
         };
       }
-    }
-    if (this.delay === "nextFrame") {
+    } else if (scheduler === "nextFrame") {
       this.nextTick = function (cb: () => void) {
         this._cancel();
         if (Reflect.has(globalThis, "requestAnimationFrame")) {
@@ -93,6 +99,8 @@ export class Reaction {
           };
         }
       };
+    } else {
+      this.nextTick = scheduler;
     }
   }
   nextTick(cb: () => void) {
@@ -101,17 +109,18 @@ export class Reaction {
     cb();
   }
   track() {
-    const { tracker } = this;
-    // 先清空tracked
-    this.tracked.clear();
-    const data = getGlobalData("@ocean/reaction") as $REACTION;
+    const { tracker } = this.option;
+    // 增量更新 先清空关联
+    this.destroy();
+    const reactionData = getGlobalData("@ocean/reaction") as $REACTION;
     // 保存原始的tracking函数
-    const { tracking } = data || {};
-    // 更新tracking函数
-    Object.assign(data, {
-      tracking: this.addObserver.bind(this),
-    });
+    const { tracking, reaction } = reactionData;
     try {
+      // 更新tracking函数
+      Object.assign(reactionData, {
+        tracking: this.addObserver.bind(this),
+        reaction: this,
+      });
       // 执行tracker函数
       tracker();
     } catch (e) {
@@ -120,17 +129,31 @@ export class Reaction {
       throw e;
     } finally {
       // 恢复原始的tracking函数
-      Object.assign(data, { tracking });
+      Object.assign(reactionData, { tracking, reaction });
     }
   }
 
-  patch() {
-    this.nextTick(() => this.callback());
+  notify() {
+    const { reaction } = getGlobalData("@ocean/reaction") as $REACTION;
+    if (reaction && reaction === this) {
+      console.error(
+        "The value of the dependent observer is being changed in the current tracking"
+      );
+    } else {
+      this.nextTick(() => {
+        this.runcall();
+      });
+    }
   }
 
   exec() {
-    this.callback();
+    this.runcall();
     return this;
+  }
+
+  private runcall() {
+    const { callback } = this.option;
+    callback ? callback() : this.track();
   }
 
   disposer() {
@@ -153,43 +176,43 @@ export class Reaction {
 export function createReaction(
   tracker: () => void,
   callback: () => void,
-  option?: { delay?: "nextTick" | "nextFrame" }
+  option?: { scheduler?: ReactionOption["scheduler"] }
 ): Reaction;
 export function createReaction(
   tracker: () => void,
-  option?: { delay?: "nextTick" | "nextFrame" }
+  option?: { scheduler?: ReactionOption["scheduler"] }
 ): Reaction;
 
 export function createReaction(
   tracker: () => void,
-  callback?: (() => void) | { delay?: "nextTick" | "nextFrame" },
-  option?: { delay?: "nextTick" | "nextFrame" }
+  callback?: (() => void) | { scheduler?: ReactionOption["scheduler"] },
+  option?: { scheduler?: ReactionOption["scheduler"] }
 ): Reaction {
   if (typeof callback === "function") {
-    return new Reaction({ tracker, callback, delay: option?.delay });
+    return new Reaction({ tracker, callback, scheduler: option?.scheduler });
   } else {
     if (callback) {
       if (option) throw "error params.";
       return new Reaction({
         tracker,
-        callback: tracker,
-        delay: callback.delay,
+        scheduler: callback.scheduler,
       });
     } else {
-      return new Reaction({ tracker, callback: tracker, delay: option?.delay });
+      return new Reaction({ tracker, scheduler: option?.scheduler });
     }
   }
 }
 
 export function withoutTrack<T>(callback: () => T): T {
   const reactionData = getGlobalData("@ocean/reaction") as $REACTION;
-  const { tracking } = reactionData;
+  const { tracking, reaction } = reactionData;
   reactionData.tracking = undefined;
+  reactionData.reaction = undefined;
   try {
     return callback();
   } catch (e) {
     throw e;
   } finally {
-    Object.assign(reactionData, { tracking });
+    Object.assign(reactionData, { tracking, reaction });
   }
 }
