@@ -1,23 +1,22 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import babel from "vite-plugin-babel";
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react({
-      jsxRuntime: "classic",
-      babel: {
-        plugins: [
-          ["@babel/plugin-transform-typescript", {}],
-          ["@babel/plugin-proposal-decorators", { legacy: true }],
-          ["@babel/plugin-proposal-class-properties", { loose: true }],
-        ],
-        presets: ["react-app"],
+    babel({
+      babelConfig: {
+        plugins: [["@babel/plugin-proposal-decorators", { version: "legacy" }]],
       },
     }),
   ],
-  build: {
-    sourcemap: true,
-    minify: false,
+  optimizeDeps: {
+    esbuildOptions: {
+      tsconfigRaw: {
+        compilerOptions: {
+          experimentalDecorators: true,
+        },
+      },
+    },
   },
 });

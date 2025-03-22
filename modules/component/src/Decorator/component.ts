@@ -42,6 +42,10 @@ export function component(
         definition.$events[ek] = type;
       });
     }
+    // 处理preOptions
+    if (Object.keys(definition.$preOptions)) {
+      Object.assign(definition.$options, definition.$preOptions);
+    }
     // 记录组件
     componentMap.set(name, ctor);
   };

@@ -36,9 +36,7 @@ export function observer<T>(option: ObserverOption<T> = {}): PropertyDecorator {
       throw new ObserverDecoratorUsedError();
     }
     // 创建观察者
-    const observer = new Observer<T>({
-      ...option,
-    });
+    const observer = new Observer<T>({ ...option });
     // 设置观察者
     defineProperty(definition.$observers, key, 7, observer);
     defineAccesser(

@@ -17,7 +17,8 @@ export class Observer<T = unknown> implements IObserver {
   private declare handles: Set<Reaction>;
   private declare initValue: T;
   private declare equal: (oldValue: T, newValue: T) => boolean;
-  constructor(option: ObserverOption<T> = { equal, initValue: void 0 }) {
+  constructor(option: ObserverOption<T> = {}) {
+    this.equal = equal;
     Object.assign(this, option);
     this.handles = new Set();
   }

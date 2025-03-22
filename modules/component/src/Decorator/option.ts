@@ -21,32 +21,25 @@ export function option(option: { type?: JSTypes } = {}): PropertyDecorator {
       console.error("静态");
       throw new OptionDecoratorUsedError();
     }
-    OcPromise.resolve(null).then(() => {
-      // 判断是否是component
-      if (!isComponent(target)) {
-        console.error("不是Component");
+    // 获取属性描述符
+    const descriptor = Object.getOwnPropertyDescriptor(target, propKey);
+    if (descriptor) {
+      // 非没有setter的计算属性
+      if (descriptor.get && !descriptor.set) {
+        console.error("计算属性没有setter");
         throw new OptionDecoratorUsedError();
       }
-      // 获取属性描述符
-      const descriptor = Object.getOwnPropertyDescriptor(target, propKey);
-      if (descriptor) {
-        // 非没有setter的计算属性
-        if (descriptor.get && !descriptor.set) {
-          console.error("计算属性没有setter");
-          throw new OptionDecoratorUsedError();
-        }
-        // 非实例方法
-        if (typeof descriptor.value === "function") {
-          console.error("非实例方法");
-          throw new OptionDecoratorUsedError();
-        }
+      // 非实例方法
+      if (typeof descriptor.value === "function") {
+        console.error("非实例方法");
+        throw new OptionDecoratorUsedError();
       }
-      const definition = initComponentDefinition(target);
-      // 更新$option
-      defineProperty(definition.$options, propKey, 7, {
-        name: propKey,
-        type,
-      });
+    }
+    const definition = initComponentDefinition(target);
+    // 更新$option
+    defineProperty(definition.$preOptions, propKey, 7, {
+      propName: propKey,
+      type,
     });
   };
 }

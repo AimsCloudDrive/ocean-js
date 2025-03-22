@@ -12,7 +12,7 @@ import {
 import {
   Component,
   IRef,
-  getComponentDefinition,
+  initComponentDefinition,
   isComponent,
 } from "@ocean/component";
 import { createReaction, withoutTrack } from "@ocean/reaction";
@@ -22,6 +22,7 @@ type $DOM = {
 };
 
 setGlobalData("@ocean/dom", {} as $DOM);
+
 const componentVDOMMap = new WeakMap<Component, DOMElement<any>>();
 
 declare global {
@@ -110,105 +111,107 @@ export function renderClassComponent(
   element: DOMElement<any>,
   container: HTMLElement
 ) {
-  const { children, $ref, ...props } = element.props;
-  const componentDefinition = getComponentDefinition(element.type.prototype);
+  withoutTrack(() => {
+    const { children, $ref, ...props } = element.props;
+    const componentDefinition = initComponentDefinition(element.type.prototype);
 
-  // 处理自定义事件
-  // 组件声明的事件
-  const { $events } = componentDefinition;
-  const { ..._props } = props;
-  // 去除props中的自带属性
-  delete _props["__self"];
-  delete _props["__source"];
-  // 去除props中的事件
-  if ($events) {
-    Object.keys($events).forEach((k) => {
-      if (Object.prototype.hasOwnProperty.call(_props, k)) {
-        delete _props[k];
-      }
-    });
-  }
-  // 类组件
-  const inst: Component<any, any> = new element.type(_props);
-  // 处理传递的子元素
-  if (children && children.length > 0) {
-    const c = children.map((c) => {
-      if (c.type === TEXT_NODE && typeof c.props.nodeValue === "function") {
-        return c.props.nodeValue;
-      } else {
-        return c;
-      }
-    });
-    inst.setJSX(c.length > 1 ? c : c[0]);
-  }
-  // 处理ref
-  if ($ref) {
-    const _$ref = [$ref].flat();
-    for (const ref of _$ref) {
-      ref.set(inst);
+    // 处理自定义事件
+    // 组件声明的事件
+    const { $events } = componentDefinition;
+    const { ..._props } = props;
+    // 去除props中的自带属性
+    delete _props["__self"];
+    delete _props["__source"];
+    // 去除props中的事件
+    if ($events) {
+      Object.keys($events).forEach((k) => {
+        if (Object.prototype.hasOwnProperty.call(_props, k)) {
+          delete _props[k];
+        }
+      });
     }
-  }
-
-  // 事件绑定
-  if ($events) {
-    // 清除上次注册的事件
-    const binding = eventBindingMap.get(inst) || {};
-    eventBindingMap.set(inst, binding);
-    Object.keys($events).forEach((ek) => {
-      inst.un(ek, binding[ek]);
-    });
-
-    // 绑定新事件
-    Object.keys($events).forEach((k) => {
-      // 绑定新事件
-      const on = props[k];
-      if (on && typeof on === "function") {
-        inst.on(k, on);
-        Object.assign(binding, { [k]: { on } });
+    // 类组件
+    const inst: Component<any, any> = new element.type(_props);
+    // 处理传递的子元素
+    if (children && children.length > 0) {
+      const c = children.map((c) => {
+        if (c.type === TEXT_NODE && typeof c.props.nodeValue === "function") {
+          return c.props.nodeValue;
+        } else {
+          return c;
+        }
+      });
+      inst.setJSX(c.length > 1 ? c : c[0]);
+    }
+    // 处理ref
+    if ($ref) {
+      const _$ref = [$ref].flat();
+      for (const ref of _$ref) {
+        ref.set(inst);
       }
-    });
-  }
-  // 挂载组件
-  const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
-  const { rendering } = domGlobalData;
-  inst.$owner = rendering;
-  domGlobalData.rendering = inst;
-  try {
-    inst.onclean(
-      createReaction(
-        () => {
-          const prevVDOM = componentVDOMMap.get(inst);
-          const vDOM = inst.render();
-          const isChanged = patchVDOM(vDOM, prevVDOM);
-          componentVDOMMap.set(inst, vDOM);
-          const dom = renderer(vDOM, container);
-          inst.rendered();
-          if (!isChanged) {
-            return;
-          }
-          const mounted = inst.isMounted();
-          if (inst.el) {
-            container.removeChild(inst.el);
-          }
-          inst.el = dom as HTMLElement;
-          if (dom) {
-            // 将类组件实例附着在dom上
-            // TODO: 生产环境禁用
-            if (!Reflect.get(dom, "$owner")) {
-              Object.assign(dom, { $owner: inst });
+    }
+
+    // 事件绑定
+    if ($events) {
+      // 清除上次注册的事件
+      const binding = eventBindingMap.get(inst) || {};
+      eventBindingMap.set(inst, binding);
+      Object.keys($events).forEach((ek) => {
+        inst.un(ek, binding[ek]);
+      });
+
+      // 绑定新事件
+      Object.keys($events).forEach((k) => {
+        // 绑定新事件
+        const on = props[k];
+        if (on && typeof on === "function") {
+          inst.on(k, on);
+          Object.assign(binding, { [k]: { on } });
+        }
+      });
+    }
+    // 挂载组件
+    const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
+    const { rendering } = domGlobalData;
+    inst.$owner = rendering;
+    domGlobalData.rendering = inst;
+    try {
+      inst.onclean(
+        createReaction(
+          () => {
+            const prevVDOM = componentVDOMMap.get(inst);
+            const vDOM = inst.render();
+            const isChanged = patchVDOM(vDOM, prevVDOM);
+            componentVDOMMap.set(inst, vDOM);
+            const dom = renderer(vDOM, container);
+            inst.rendered();
+            if (!isChanged) {
+              return;
             }
-            container.appendChild(dom);
-            if (!mounted) {
-              inst.mounted();
+            const mounted = inst.isMounted();
+            if (inst.el) {
+              container.removeChild(inst.el);
             }
-          }
-        },
-        { delay: "nextTick" }
-      ).disposer()
-    );
-  } finally {
-    Object.assign(domGlobalData, { rendering });
-  }
+            inst.el = dom as HTMLElement;
+            if (dom) {
+              // 将类组件实例附着在dom上
+              // TODO: 生产环境禁用
+              if (!Reflect.get(dom, "$owner")) {
+                Object.assign(dom, { $owner: inst });
+              }
+              container.appendChild(dom);
+              if (!mounted) {
+                inst.mounted();
+              }
+            }
+          },
+          { scheduler: "nextTick" }
+        ).disposer()
+      );
+    } finally {
+      Object.assign(domGlobalData, { rendering });
+    }
+  });
 }
 
 export function renderFunctionComponent(

@@ -9,6 +9,7 @@ import {
   defineProperty,
   JSTypes,
   assert,
+  isArray,
 } from "@ocean/common";
 import { component, option } from "../Decorator";
 import { IRef } from "./Ref";
@@ -64,9 +65,9 @@ export class Component<
   refs: unknown;
   forceUpdate(): void {}
   declare context: Partial<Component.Context>;
-
   @option()
   private $key: string | number | Nullable;
+  @option()
   private $context?: Partial<Component.Context>;
   declare props: P;
   declare el: HTMLElement;
@@ -119,16 +120,15 @@ export class Component<
     const definition = this.getDefinition();
     if (!definition) return;
     const options = definition.$options;
-    Object.entries(options).forEach(([propKey, prop]) => {
-      if (Object.hasOwnProperty.call(props, prop.propName)) {
-        const value = props[prop.propName];
-        if (prop.type === "array" && Array.isArray(value)) {
-          this[propKey] = value;
-        } else if (typeof value === prop.type) {
-          this[propKey] = value;
-        } else {
-          console.warn(`[Component] ${propKey} is not a ${prop.type}`);
-        }
+    Object.entries(props).forEach(([propName, value]) => {
+      const propDef = options[propName];
+      if (!propDef) return;
+      const { type } = propDef;
+      const valueType = isArray(value) ? "array" : typeof value;
+      if (type == "unknown" || valueType === type) {
+        this[propName] = value;
+      } else {
+        console.warn(`[Component] ${propName} is not a ${type}`);
       }
     });
   }
@@ -140,7 +140,7 @@ export class Component<
     if (Object.hasOwnProperty.call(observers, name)) {
       const observer = observers[name];
       // TODO: 普通属性、计算属性、方法属性
-      observer.update();
+      observer.notify();
     } else {
       console.warn(`[Component] ${name} is not a observer`);
     }
@@ -194,6 +194,12 @@ export class Component<
 
 export type ComponentDefinition = {
   componentName: string;
+  $preOptions: {
+    [K in string]: {
+      propName: string;
+      type: JSTypes | "array";
+    };
+  };
   $options: {
     [K in string]: {
       propName: string;
@@ -220,7 +226,11 @@ export function initComponentDefinition(
   const { componentDefinitionKey } = getGlobalData("@ocean/component") as {
     componentDefinitionKey: symbol;
   };
-  const oldProptotype = Object.getPrototypeOf(prototype);
+  // 原型对象的原型
+  const prototype_prototype = Object.getPrototypeOf(prototype);
+  //
+  const prototype_prototype_definition =
+    getComponentDefinition(prototype_prototype);
   try {
     // 置空原型
     Object.setPrototypeOf(prototype, null);
@@ -232,26 +242,31 @@ export function initComponentDefinition(
     // 如果组件定义不存在，则初始化组件定义
     if (!definition) {
       definition = Object.create(null);
-      Object.assign(definition as ComponentDefinition, {
-        $options: Object.create(null),
-        $events: Object.create(null),
-        $observers: Object.create(null),
+      assert(definition);
+      Object.assign(definition, {
+        $options: Object.create(
+          prototype_prototype_definition?.["$options"] || null
+        ),
+        $events: Object.create(
+          prototype_prototype_definition?.["$events"] || null
+        ),
+        $observers: Object.create(
+          prototype_prototype_definition?.["$observers"] || null
+        ),
+        $preOptions: Object.create(null),
       });
       // 设置组件定义
       defineProperty(prototype, componentDefinitionKey, 0, definition);
     }
-    // 断言组件定义存在
-    assert(
-      definition,
-      `[Component] ${prototype.constructor.name} is not a component`
-    );
     return definition;
   } finally {
     // 恢复原型
-    Object.setPrototypeOf(prototype, oldProptotype);
+    Object.setPrototypeOf(prototype, prototype_prototype);
   }
 }
-export function getComponentDefinition(prototype: object): ComponentDefinition {
+export function getComponentDefinition(
+  prototype: object
+): ComponentDefinition | undefined {
   const { componentDefinitionKey } = getGlobalData("@ocean/component") as {
     componentDefinitionKey: symbol;
   };
