@@ -1,0 +1,50 @@
+body {
+  margin: 0;
+  height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.container {
+  display: flex;
+  height: 100%;
+}
+
+#file-tree {
+  width: 300px;
+  border-right: 1px solid #ddd;
+  padding: 20px;
+  overflow: auto;
+}
+
+#preview {
+  flex: 1;
+}
+
+iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+ul {
+  list-style: none;
+  padding-left: 20px;
+}
+
+.folder {
+  color: #666;
+  cursor: default;
+  padding: 4px 0;
+  display: block;
+}
+
+.file {
+  color: #0366d6;
+  cursor: pointer;
+  padding: 4px 0;
+  display: block;
+}
+
+.file:hover {
+  background: #f6f8fa;
+}

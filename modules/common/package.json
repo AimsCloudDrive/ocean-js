@@ -22,7 +22,8 @@
     "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm run publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
-    "rel": "pnpm publish"
+    "rel": "pnpm publish",
+    "dev": "pnpm run -r --filter=./example dev"
   },
   "publishConfig": {
     "registry": "http://never.aims.nevermonarch.cn:64873",
