@@ -5,7 +5,7 @@ import { assert } from "../assert";
 export type CollectionEvent = Record<never, never>;
 
 /** 集合键类型，可以是字符串或数字 */
-export type CollectionKey = string | number;
+export type CollectionKey = string | number | symbol;
 
 /**
  * 获取集合元素键值的函数类型
@@ -66,6 +66,12 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
     this.elements = new Array<T>();
     this.elMap = new Map<CollectionKey, T>();
     this.indexMap = new Map<CollectionKey, number>();
+  }
+  /**
+   * 获得集合的实际元素数量
+   */
+  size(): number {
+    return Reflect.ownKeys(this.elements).length;
   }
 
   /**

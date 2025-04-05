@@ -10,17 +10,18 @@ export function performChunk(
     chunkSplitor?: (
       task: (isContinue: (elapsedTime: number) => boolean) => void
     ) => void;
+    onEnd?: () => void;
   } = {}
 ) {
   if (tasks.length === 0) return;
-  let { chunkSplitor } = option;
+  let { chunkSplitor, onEnd } = option;
   if (
     typeof chunkSplitor !== "function" &&
     typeof globalThis.requestIdleCallback === "function"
   ) {
     chunkSplitor = (task) => {
       globalThis.requestIdleCallback((idle) => {
-        task(() => idle.timeRemaining() > 0);
+        task((elapsedTime) => idle.timeRemaining() > 0);
       });
     };
   }
@@ -32,7 +33,10 @@ export function performChunk(
   const _chunkSplitor = chunkSplitor;
   let i = 0;
   function _run() {
-    if (i === tasks.length) return;
+    if (i === tasks.length) {
+      onEnd && onEnd();
+      return;
+    }
     _chunkSplitor((isContinue) => {
       const now = Date.now();
       while (isContinue(Date.now() - now) && i < tasks.length) {

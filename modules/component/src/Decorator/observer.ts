@@ -29,16 +29,8 @@ export function observer<T>(option: ObserverOption<T> = {}): PropertyDecorator {
         throw new ObserverDecoratorUsedError();
       }
     }
-    // 初始化组件定义
-    const definition = initComponentDefinition(target);
-    // 判断是否已存在观察者
-    if (Reflect.has(definition.$observers, key)) {
-      throw new ObserverDecoratorUsedError();
-    }
     // 创建观察者
     const observer = new Observer<T>({ ...option });
-    // 设置观察者
-    defineProperty(definition.$observers, key, 7, observer);
     defineAccesser(
       target,
       key,
@@ -46,5 +38,13 @@ export function observer<T>(option: ObserverOption<T> = {}): PropertyDecorator {
       () => observer.get(),
       (value) => observer.set(value)
     );
+    // 初始化组件定义
+    const definition = initComponentDefinition(target);
+    // 判断是否已存在观察者
+    if (Reflect.has(definition.$observers, key)) {
+      throw new ObserverDecoratorUsedError();
+    }
+    // 设置观察者
+    defineProperty(definition.$observers, key, 7, observer);
   };
 }

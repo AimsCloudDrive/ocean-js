@@ -5,8 +5,10 @@ import {
   Nullable,
   compareObjects,
   getGlobalData,
+  ownKeysAndPrototypeOwnKeys,
   parseClass,
   parseStyle,
+  performChunk,
   setGlobalData,
 } from "@ocean/common";
 import {
@@ -104,7 +106,7 @@ function createDom<T = any>(element: DOMElement<T>) {
 
 const eventBindingMap = new WeakMap<
   WeakKey,
-  { [K in string]: Parameters<Event["on"]>[1] }
+  { [K in PropertyKey]: Parameters<Event["on"]>[1] }
 >();
 
 export function renderClassComponent(
@@ -118,18 +120,20 @@ export function renderClassComponent(
     // 处理自定义事件
     // 组件声明的事件
     const { $events } = componentDefinition;
+    const $eventKeys = ownKeysAndPrototypeOwnKeys($events);
     const { ..._props } = props;
     // 去除props中的自带属性
     delete _props["__self"];
     delete _props["__source"];
     // 去除props中的事件
-    if ($events) {
-      Object.keys($events).forEach((k) => {
-        if (Object.prototype.hasOwnProperty.call(_props, k)) {
-          delete _props[k];
+    if ($eventKeys.size()) {
+      for (const eventKey of $eventKeys) {
+        if (Reflect.has(_props, eventKey)) {
+          delete _props[eventKey];
         }
-      });
+      }
     }
+
     // 类组件
     const inst: Component<any, any> = new element.type(_props);
     // 处理传递的子元素
@@ -152,23 +156,20 @@ export function renderClassComponent(
     }
 
     // 事件绑定
-    if ($events) {
-      // 清除上次注册的事件
+    if ($eventKeys.size()) {
       const binding = eventBindingMap.get(inst) || {};
       eventBindingMap.set(inst, binding);
-      Object.keys($events).forEach((ek) => {
-        inst.un(ek, binding[ek]);
-      });
-
-      // 绑定新事件
-      Object.keys($events).forEach((k) => {
+      for (const key of $eventKeys) {
+        // 清除上次注册的事件
+        inst.un(key, binding[key]);
+        Reflect.deleteProperty(binding, key);
         // 绑定新事件
-        const on = props[k];
+        const on = props[key];
         if (on && typeof on === "function") {
-          inst.on(k, on);
-          Object.assign(binding, { [k]: { on } });
+          inst.on(key, on);
+          Object.assign(binding, { [key]: { on } });
         }
-      });
+      }
     }
     // 挂载组件
     const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
@@ -176,7 +177,7 @@ export function renderClassComponent(
     inst.$owner = rendering;
     domGlobalData.rendering = inst;
     try {
-      inst.onclean(
+      inst.onunmounted(
         createReaction(
           () => {
             const prevVDOM = componentVDOMMap.get(inst);
@@ -205,7 +206,9 @@ export function renderClassComponent(
               }
             }
           },
-          { scheduler: "nextTick" }
+          {
+            scheduler: "nextTick",
+          }
         ).disposer()
       );
     } finally {

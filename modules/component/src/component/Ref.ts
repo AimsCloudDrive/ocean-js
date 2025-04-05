@@ -26,10 +26,13 @@ export function createRef<T>(): Ref<T> {
 
 export class MapRef<T> implements IRef<T> {
   @observer()
-  data: Map<string | number, T>;
+  data: Map<any, T>;
   set(el: T) {
     if (this.data) {
-      this.data.set((el as unknown as { $key: string | number }).$key, el);
+      this.data.set(
+        (el as unknown as { $key: string | number }).$key || el,
+        el
+      );
     } else {
       this.data = new Map();
       this.set(el);

@@ -10,6 +10,7 @@ import {
   JSTypes,
   assert,
   isArray,
+  ownKeysAndPrototypeOwnKeys,
 } from "@ocean/common";
 import { component, option } from "../Decorator";
 import { IRef } from "./Ref";
@@ -133,16 +134,26 @@ export class Component<
     });
   }
 
-  updateProperty(name: string): void {
+  updateProperty(name: PropertyKey): void {
     const definition = this.getDefinition();
     if (!definition) return;
     const observers = definition.$observers;
-    if (Object.hasOwnProperty.call(observers, name)) {
+    const observerKeys = ownKeysAndPrototypeOwnKeys(observers);
+    if (observerKeys.hasElement(name)) {
       const observer = observers[name];
       // TODO: 普通属性、计算属性、方法属性
       observer.notify();
     } else {
-      console.warn(`[Component] ${name} is not a observer`);
+      if (typeof name === "symbol") {
+        console.warn(
+          name,
+          ` of [Component.${definition.componentName}] is not a Observer Property`
+        );
+      } else {
+        console.warn(
+          `The ${name} of [Component.${definition.componentName}] is not a Observer Property`
+        );
+      }
     }
   }
 
@@ -195,22 +206,22 @@ export class Component<
 export type ComponentDefinition = {
   componentName: string;
   $preOptions: {
-    [K in string]: {
+    [K in PropertyKey]: {
       propName: string;
       type: JSTypes | "array";
     };
   };
   $options: {
-    [K in string]: {
+    [K in PropertyKey]: {
       propName: string;
       type: JSTypes | "array";
     };
   };
   $events: {
-    [K in string]: JSTypes;
+    [K in PropertyKey]: JSTypes;
   };
   $observers: {
-    [K in string]: Observer;
+    [K in PropertyKey]: Observer;
   };
 };
 

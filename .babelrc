@@ -1,7 +1,15 @@
 {
   // 支持编译装饰器语法
+  "presets": [
+    "@babel/preset-env",
+    ["@babel/preset-typescript", { "allowDeclareFields": true }]
+  ],
   "plugins": [
     ["@babel/plugin-proposal-decorators", { "version": "legacy" }],
     ["@babel/plugin-proposal-class-properties", { "loose": true }]
-  ]
+  ],
+  "sourceMaps": "inline",
+  "exclude": "node_modules/**",
+  "targets": ["defaults"],
+  "extensions": [".ts", ".js", ".tsx", ".jsx"]
 }

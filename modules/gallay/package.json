@@ -1,7 +1,7 @@
 {
-  "name": "@ocean/common",
-  "version": "2.0.1",
-  "description": "@ocean/common",
+  "name": "@ocean/gallay",
+  "version": "0.0.1",
+  "description": "@ocean/gallay",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
@@ -11,10 +11,14 @@
   ],
   "keywords": [
     "ocean",
-    "common"
+    "gallay"
   ],
   "author": "OceanCommon",
   "license": "MIT",
+  "publishConfig": {
+    "registry": "http://never.aims.nevermonarch.cn:64873",
+    "access": "public"
+  },
   "scripts": {
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
@@ -24,11 +28,10 @@
     "unrel": "pnpm unpublish --force",
     "rel": "pnpm publish"
   },
-  "publishConfig": {
-    "registry": "http://never.aims.nevermonarch.cn:64873",
-    "access": "public"
-  },
-  "dependencies": {
-    "@ocean/common": "file:"
+  "devDependencies": {
+    "@ocean/common": "workspace:*",
+    "@ocean/dom": "workspace:*",
+    "@ocean/component": "workspace:*",
+    "@ocean/reaction": "workspace:*"
   }
 }

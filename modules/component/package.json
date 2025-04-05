@@ -1,6 +1,6 @@
 {
   "name": "@ocean/component",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "@ocean/component",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
@@ -17,15 +17,19 @@
   "license": "MIT",
   "scripts": {
     "clean": "rimraf dist",
+    "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
-    "build2": "npm run clean && vite build -c ../../vite.config.ts",
-    "build": "npm run clean && npm run check && rollup -c ../../rollup.config.js",
-    "release": "pnpm run build& pnpm version patch & pnpm publish --no-git-checks",
+    "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
+    "release": "pnpm run build && pnpm run version --patch && pnpm run publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
     "rel": "pnpm publish"
   },
   "devDependencies": {
     "@ocean/common": "workspace:^",
     "@ocean/reaction": "workspace:^"
+  },
+  "publishConfig": {
+    "registry": "http://never.aims.nevermonarch.cn:64873",
+    "access": "public"
   }
 }

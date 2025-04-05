@@ -114,3 +114,15 @@ export function tryCall<F extends createFunction<[...unknown[], unknown]>>(
 export function equal(value: unknown, otherValue: unknown): boolean {
   return Object.is(value, otherValue);
 }
+
+export function ownKeysAndPrototypeOwnKeys(
+  $events: object,
+  keys: Collection<PropertyKey> = new Collection((key) => key)
+) {
+  Object.keys($events).forEach((key) => keys.add(key));
+  const prototype = Reflect.getPrototypeOf($events);
+  if (prototype) {
+    ownKeysAndPrototypeOwnKeys(prototype, keys);
+  }
+  return keys;
+}
