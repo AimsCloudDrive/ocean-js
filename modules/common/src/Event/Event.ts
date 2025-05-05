@@ -15,7 +15,7 @@ export interface IEvent<E extends object = object> {
   emit<T extends keyof E>(type: T, event: E[T]): void;
 }
 
-type EVS<E extends object = object> = {
+type EVS<E extends {} = {}> = {
   [K in keyof E]: ((event: E[K], type: K, self: Event<E>) => void)[];
 };
 
@@ -57,4 +57,11 @@ export class Event<E extends object = object> implements IEvent<E> {
     }
     handlers.forEach((handler) => handler(event, type, this));
   }
+}
+
+export function clearEvent(target: Event<any>) {
+  if (!target || !(target instanceof Event)) {
+    throw "the target should be Event instance";
+  }
+  return Reflect.deleteProperty(target, EK);
 }

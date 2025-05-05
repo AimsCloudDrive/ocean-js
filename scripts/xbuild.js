@@ -151,7 +151,9 @@ async function executeCommand(command, packages, parallel) {
     // 原有串行逻辑
     const filter =
       targetPackages.length > 0
-        ? `--filter=./${MODULES_DIR}/{${targetPackages.join(",")}}`
+        ? targetPackages.length > 1
+          ? `--filter=./${MODULES_DIR}/{${targetPackages.join(",")}}`
+          : `--filter=./${MODULES_DIR}/${targetPackages.join(",")}`
         : `--filter=./${MODULES_DIR}/*`;
 
     try {

@@ -99,6 +99,14 @@ function createDom<T = any>(element: DOMElement<T>) {
   if (style) {
     Object.assign(props, { style: parseStyle(style) });
   }
+  // 处理事件
+  Reflect.ownKeys(props)
+    .filter((key) => typeof key === "string" && key.startsWith("on"))
+    .forEach((key: string) => {
+      const event = Reflect.get(props, key, props);
+      Reflect.deleteProperty(props, key);
+      dom.addEventListener(key.slice(2), event);
+    });
 
   Object.assign(dom, props);
   return dom;
@@ -108,6 +116,8 @@ const eventBindingMap = new WeakMap<
   WeakKey,
   { [K in PropertyKey]: Parameters<Event["on"]>[1] }
 >();
+
+const componentCache = new Map<any, Component>();
 
 export function renderClassComponent(
   element: DOMElement<any>,
@@ -135,7 +145,9 @@ export function renderClassComponent(
     }
 
     // 类组件
-    const inst: Component<any, any> = new element.type(_props);
+    const component: Component<any, any> =
+      componentCache.get(_props.$key) || new element.type(_props);
+    _props.$key != undefined && componentCache.set(_props.$key, component);
     // 处理传递的子元素
     if (children && children.length > 0) {
       const c = children.map((c) => {
@@ -145,28 +157,28 @@ export function renderClassComponent(
           return c;
         }
       });
-      inst.setJSX(c.length > 1 ? c : c[0]);
+      component.setJSX(c.length > 1 ? c : c[0]);
     }
     // 处理ref
     if ($ref) {
       const _$ref = [$ref].flat();
       for (const ref of _$ref) {
-        ref.set(inst);
+        ref.set(component);
       }
     }
 
     // 事件绑定
     if ($eventKeys.size()) {
-      const binding = eventBindingMap.get(inst) || {};
-      eventBindingMap.set(inst, binding);
+      const binding = eventBindingMap.get(component) || {};
+      eventBindingMap.set(component, binding);
       for (const key of $eventKeys) {
         // 清除上次注册的事件
-        inst.un(key, binding[key]);
+        component.un(key, binding[key]);
         Reflect.deleteProperty(binding, key);
         // 绑定新事件
         const on = props[key];
         if (on && typeof on === "function") {
-          inst.on(key, on);
+          component.on(key, on);
           Object.assign(binding, { [key]: { on } });
         }
       }
@@ -174,35 +186,35 @@ export function renderClassComponent(
     // 挂载组件
     const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
     const { rendering } = domGlobalData;
-    inst.$owner = rendering;
-    domGlobalData.rendering = inst;
+    component.$owner = rendering;
+    domGlobalData.rendering = component;
     try {
-      inst.onunmounted(
+      component.onunmounted(
         createReaction(
           () => {
-            const prevVDOM = componentVDOMMap.get(inst);
-            const vDOM = inst.render();
+            const prevVDOM = componentVDOMMap.get(component);
+            const vDOM = component.render();
+            componentVDOMMap.set(component, vDOM);
             const isChanged = patchVDOM(vDOM, prevVDOM);
-            componentVDOMMap.set(inst, vDOM);
             const dom = renderer(vDOM, container);
-            inst.rendered();
+            component.rendered();
             if (!isChanged) {
               return;
             }
-            const mounted = inst.isMounted();
-            if (inst.el) {
-              container.removeChild(inst.el);
+            const mounted = component.isMounted();
+            if (component.el) {
+              container.removeChild(component.el);
             }
-            inst.el = dom as HTMLElement;
+            component.el = dom as HTMLElement;
             if (dom) {
               // 将类组件实例附着在dom上
               // TODO: 生产环境禁用
               if (!Reflect.get(dom, "$owner")) {
-                Object.assign(dom, { $owner: inst });
+                Object.assign(dom, { $owner: component });
               }
               container.appendChild(dom);
               if (!mounted) {
-                inst.mounted();
+                component.mounted();
               }
             }
           },
@@ -217,6 +229,10 @@ export function renderClassComponent(
   });
 }
 
+function isValidChild(child: Array<any> | Nullable): boolean {
+  return !!child && child.length > 0;
+}
+
 export function renderFunctionComponent(
   element: DOMElement<any>,
   container: HTMLElement
@@ -224,12 +240,15 @@ export function renderFunctionComponent(
   let dom: any = undefined;
   const { children, $ref } = element.props;
   let _children: any = undefined;
-  if (children && children.length > 0) {
-    _children = children.map((c) => {
-      if (c.type === TEXT_NODE && typeof c.props.nodeValue === "function") {
-        return c.props.nodeValue;
+  if (isValidChild(children)) {
+    _children = children.map((child) => {
+      if (
+        child.type === TEXT_NODE &&
+        typeof child.props.nodeValue === "function"
+      ) {
+        return child.props.nodeValue;
       } else {
-        return c;
+        return child;
       }
     });
   }
@@ -275,7 +294,7 @@ function renderer(
     }
     // children
     if (children && children.length > 0) {
-      children.forEach((child) => {
+      [...children].flat().forEach((child) => {
         const childDom = renderer(child, dom as HTMLElement);
         if (childDom) {
           dom.appendChild(childDom);
@@ -285,6 +304,13 @@ function renderer(
     container.appendChild(dom);
     return dom;
   }
+}
+
+export function mountWith(
+  mount: () => DOMElement<any>,
+  container: HTMLElement
+) {
+  renderer(mount(), container);
 }
 
 export { renderer as render };
