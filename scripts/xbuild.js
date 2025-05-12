@@ -152,12 +152,14 @@ async function executeCommand(command, packages, parallel) {
     const filter =
       targetPackages.length > 0
         ? targetPackages.length > 1
-          ? `--filter=./${MODULES_DIR}/{${targetPackages.join(",")}}`
-          : `--filter=./${MODULES_DIR}/${targetPackages.join(",")}`
-        : `--filter=./${MODULES_DIR}/*`;
+          ? `{${targetPackages.join(",")}}`
+          : `${targetPackages.join(",")}`
+        : `*`;
 
     try {
-      execSync(`pnpm run -r ${filter} ${command}`, { stdio: "inherit" });
+      execSync(`pnpm run -r --filter=./${MODULES_DIR}/${filter} ${command}`, {
+        stdio: "inherit",
+      });
       return true;
     } catch {
       return false;

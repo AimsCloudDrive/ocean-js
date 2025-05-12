@@ -1,5 +1,8 @@
 import { defineConfig } from "vite";
 import dts from "@rollup/plugin-typescript";
+import babel from "@rollup/plugin-babel";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -8,8 +11,30 @@ export default defineConfig({
       plugins: [
         dts({
           tsconfig: "./tsconfig.json",
-        }) as any,
-      ],
+        }),
+        babel({
+          babelHelpers: "bundled",
+          presets: [
+            "@babel/preset-env",
+            ["@babel/preset-typescript", { allowDeclareFields: true }],
+          ],
+          plugins: [
+            [
+              path.resolve(
+                fileURLToPath(import.meta.url),
+                "..",
+                "babel-plugins/decorator.js"
+              ),
+              { version: "legacy" },
+            ],
+          ],
+          sourceMaps: "inline",
+          exclude: "node_modules/**",
+          targets: ["defaults"],
+          extensions: [".ts", ".js", ".tsx", ".jsx"],
+          babelrc: false,
+        }),
+      ] as any[],
       external: /^@ocean\//,
     },
     target: ["es2015"],

@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "declarationDir": "./dist/types",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "useDefineForClassFields": true
   },
   "include": ["./src/**/*.ts", "./src/**/*.tsx"]
 }

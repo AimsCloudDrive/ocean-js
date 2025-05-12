@@ -5,25 +5,15 @@
 // 运行顺序：同一个类的所有装饰器，类装饰器>属性装饰器>访问器装饰器>方法装饰器
 console.log("-----defin decorator");
 // @ts-nocheck
-const { types: t } = require("@babel/core");
-
-function createDecoratorPlugin() {
-  return {
-    name: "custom-decorators-plugin",
-    visitor: {
-      ClassDeclaration(path) {
-        transformClass(path);
-      },
-      ClassExpression(path) {
-        transformClass(path);
-      },
-    },
-  };
-}
+// const { types: t } = require("@babel/core");
+import { types as t } from "@babel/core";
 
 function transformClass(path) {
   const { node } = path;
-  if (!node.decorators && !hasClassElementDecorators(node.body.body)) return;
+  console.log("node.decorators--->", node.decorators);
+  if (!node.decorators?.length && !hasClassElementDecorators(node.body.body)) {
+    return;
+  }
 
   const tempClassId = path.scope.generateUidIdentifier("_cls");
   const statements = [];
@@ -85,10 +75,9 @@ function transformClass(path) {
       if (shouldProcess) {
         element.decorators.reverse().forEach((decorator) => {
           decoratorApplies.push(() => {
-            const prototype = t.memberExpression(
-              tempClassId,
-              t.identifier("prototype")
-            );
+            const prototype = element.static
+              ? tempClassId
+              : t.memberExpression(tempClassId, t.identifier("prototype"));
             const name = getElementName(element);
             const descriptor = t.callExpression(
               t.memberExpression(
@@ -98,6 +87,7 @@ function transformClass(path) {
               [prototype, t.stringLiteral(name)]
             );
 
+            // 修改后的上下文生成逻辑
             const contextProperties = [
               t.objectProperty(
                 t.identifier("kind"),
@@ -107,6 +97,18 @@ function transformClass(path) {
               ),
               t.objectProperty(t.identifier("name"), t.stringLiteral(name)),
               t.objectProperty(t.identifier("descriptor"), descriptor),
+              t.objectProperty(
+                t.identifier("static"),
+                t.booleanLiteral(!!element.static)
+              ),
+              t.objectProperty(
+                t.identifier("private"),
+                t.booleanLiteral(
+                  t.isPrivateName(element.key) ||
+                    (t.isIdentifier(element.key) &&
+                      element.key.name.startsWith("#"))
+                )
+              ),
             ];
 
             const context = t.objectExpression(contextProperties);
@@ -187,4 +189,16 @@ function hasClassElementDecorators(elements) {
   return elements.some((el) => el.decorators && el.decorators.length > 0);
 }
 
-module.exports = createDecoratorPlugin;
+export default function createDecoratorPlugin() {
+  return {
+    name: "custom-decorators-plugin",
+    visitor: {
+      ClassDeclaration(path) {
+        transformClass(path);
+      },
+      ClassExpression(path) {
+        transformClass(path);
+      },
+    },
+  };
+}

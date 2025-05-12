@@ -12,7 +12,7 @@ import {
   isArray,
   ownKeysAndPrototypeOwnKeys,
 } from "@ocean/common";
-import { component, option } from "../Decorator";
+import { component, getObserver, option } from "../Decorator";
 import { IRef } from "./Ref";
 import { Observer } from "@ocean/reaction";
 
@@ -140,9 +140,9 @@ export class Component<
     const observers = definition.$observers;
     const observerKeys = ownKeysAndPrototypeOwnKeys(observers);
     if (observerKeys.hasElement(name)) {
-      const observer = observers[name];
       // TODO: 普通属性、计算属性、方法属性
-      observer.notify();
+      const observer = getObserver.call(this, name);
+      observer && observer.notify();
     } else {
       if (typeof name === "symbol") {
         console.warn(
@@ -221,7 +221,7 @@ export type ComponentDefinition = {
     [K in PropertyKey]: JSTypes;
   };
   $observers: {
-    [K in PropertyKey]: Observer;
+    [K in PropertyKey]: boolean;
   };
 };
 
@@ -255,6 +255,7 @@ export function initComponentDefinition(
       definition = Object.create(null);
       assert(definition);
       Object.assign(definition, {
+        // 将组件的属性事件监听器通过原型链接起来
         $options: Object.create(
           prototype_prototype_definition?.["$options"] || null
         ),

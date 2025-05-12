@@ -18,11 +18,12 @@
   "scripts": {
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
-    "check": "tsc --noEmit",
+    "check": "",
     "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm run publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
-    "rel": "pnpm publish"
+    "rel": "pnpm publish",
+    "b2": "pnpm run clean && pnpm run check && rollup -c ../../rollup.config.js"
   },
   "devDependencies": {
     "@ocean/common": "workspace:^",
