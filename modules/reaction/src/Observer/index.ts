@@ -1,4 +1,4 @@
-import { equal, getGlobalData, isObject } from "@ocean/common";
+import { assert, equal, getGlobalData, isObject } from "@ocean/common";
 import {
   OPERATORMAPS,
   OPERATORTYPES,
@@ -15,12 +15,16 @@ export type ObserverOption<T> = {
 
 export class Observer<T = unknown> implements IObserver {
   private declare handles: Set<Reaction>;
-  private declare initValue: T;
+  private declare value: T;
   private declare equal: (oldValue: T, newValue: T) => boolean;
   constructor(option: ObserverOption<T> = {}) {
-    this.equal = equal;
-    Object.assign(this, option);
+    this.equal = option.equal || equal;
     this.handles = new Set();
+    if (Object.prototype.hasOwnProperty.call(option, "initValue")) {
+      const value = option.initValue;
+      assert(value);
+      this.value = this.value;
+    }
   }
   track() {
     const running = getGlobalData("@ocean/reaction") as $REACTION;
@@ -30,13 +34,13 @@ export class Observer<T = unknown> implements IObserver {
   }
   get(): T {
     this.track();
-    return this.initValue;
+    return this.value;
   }
 
   set(newValue: T): void {
-    const { initValue: oldValue } = this;
+    const { value: oldValue } = this;
     // 更新值
-    this.initValue = newValue;
+    this.value = newValue;
     // 比较新值
     if (!this.equal(oldValue, newValue)) {
       this.notify();

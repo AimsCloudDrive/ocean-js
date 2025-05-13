@@ -12,3 +12,4 @@ export * from "./array";
 export * from "./object";
 export * from "./dom";
 export * from "./promise";
+export * from "./component";

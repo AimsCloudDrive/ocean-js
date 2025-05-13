@@ -4,7 +4,8 @@
     "@babel/preset-env",
     ["@babel/preset-typescript", { "allowDeclareFields": true }]
   ],
-  "plugins": ["../babel-plugins/decorators.js"],
+  // "plugins": ["../babel-plugins/decorators.js"],
+  "plugins": [["@babel/plugin-proposal-decorators", { "version": "legacy" }]],
   "sourceMaps": "inline",
   "exclude": "node_modules/**",
   "targets": ["defaults"],

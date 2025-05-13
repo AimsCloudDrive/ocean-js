@@ -5,5 +5,10 @@
     "outDir": "./dist",
     "useDefineForClassFields": true
   },
-  "include": ["./src/**/*.ts", "./src/**/*.tsx"]
+  "include": [
+    "./src/**/*.ts",
+    "./src/**/*.tsx",
+    "../reaction/src/Decorator/computed.ts",
+    "../reaction/src/Decorator/observer.ts"
+  ]
 }

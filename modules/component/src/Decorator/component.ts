@@ -2,8 +2,8 @@ import {
   ComponentDecoratorUsedError,
   JSTypes,
   getGlobalData,
+  initComponentDefinition,
 } from "@ocean/common";
-import { initComponentDefinition } from "../component/Component";
 
 export type ComponentOption = {
   events?: {

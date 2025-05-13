@@ -19,14 +19,15 @@ export default defineConfig({
             ["@babel/preset-typescript", { allowDeclareFields: true }],
           ],
           plugins: [
-            [
-              path.resolve(
-                fileURLToPath(import.meta.url),
-                "..",
-                "babel-plugins/decorator.js"
-              ),
-              { version: "legacy" },
-            ],
+            ["@babel/plugin-proposal-decorators", { version: "legacy" }],
+            // [
+            //   path.resolve(
+            //     fileURLToPath(import.meta.url),
+            //     "..",
+            //     "babel-plugins/decorator.js"
+            //   ),
+            //   { version: "legacy" },
+            // ],
           ],
           sourceMaps: "inline",
           exclude: "node_modules/**",
@@ -45,7 +46,7 @@ export default defineConfig({
     lib: {
       entry: ["src/index.ts"],
       name: "index.js",
-      formats: ["es"],
+      formats: ["es", "cjs"],
       fileName: (format) => {
         if (/^esm?$/.test(format)) {
           return "index.js";

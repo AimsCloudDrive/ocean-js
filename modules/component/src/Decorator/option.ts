@@ -2,8 +2,8 @@ import {
   defineProperty,
   JSTypes,
   OptionDecoratorUsedError,
+  initComponentDefinition,
 } from "@ocean/common";
-import { initComponentDefinition } from "../component/Component";
 /**
  * 仅允许附着在实例属性或实例访问器属性（有setter）
  * @param type

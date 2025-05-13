@@ -1,6 +1,7 @@
 import { getGlobalData, setGlobalData } from "@ocean/common";
 
 export interface IObserver {
+  notify(): void;
   addReaction(reaction: Reaction): void;
   removeReaction(reaction: Reaction): void;
 }
