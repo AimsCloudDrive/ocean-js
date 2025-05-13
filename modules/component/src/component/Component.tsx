@@ -2,17 +2,12 @@ import {
   CSSStyle,
   ComponentDefinition,
   Event,
-  JSTypes,
   Nullable,
   ClassType as _ClassType,
-  assert,
-  defineProperty,
-  getGlobalData,
   initComponentDefinition,
   isArray,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
-  setGlobalData,
 } from "@ocean/common";
 import { getObserver } from "@ocean/reaction";
 import { component, option } from "../Decorator";

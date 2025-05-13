@@ -1,12 +1,19 @@
-import { defineConfig } from "vite";
-import dts from "@rollup/plugin-typescript";
 import babel from "@rollup/plugin-babel";
-import path from "path";
-import { fileURLToPath } from "url";
+import dts from "@rollup/plugin-typescript";
+import { defineConfig } from "vite";
+import addSourceCommentPlugin from "./vite-plugins/addSourceCommentPlugin";
+import addTsIgnorePlugin from "./vite-plugins/addTsIgnorePlugin";
 
 // https://vite.dev/config/
 export default defineConfig({
+  plugins: [addSourceCommentPlugin(), addTsIgnorePlugin()],
   build: {
+    terserOptions: {
+      format: {
+        comments: /^\/\*\**\*\//,
+      },
+      compress: true,
+    },
     rollupOptions: {
       plugins: [
         dts({
@@ -29,7 +36,7 @@ export default defineConfig({
             //   { version: "legacy" },
             // ],
           ],
-          sourceMaps: "inline",
+          sourceMaps: true,
           exclude: "node_modules/**",
           targets: ["defaults"],
           extensions: [".ts", ".js", ".tsx", ".jsx"],
@@ -38,15 +45,15 @@ export default defineConfig({
       ] as any[],
       external: /^@ocean\//,
     },
-    target: ["es2015"],
+    target: ["esnext"],
     emptyOutDir: true,
-    sourcemap: "inline",
+    sourcemap: true,
     minify: false,
     outDir: "./dist",
     lib: {
       entry: ["src/index.ts"],
       name: "index.js",
-      formats: ["es", "cjs"],
+      formats: ["es"],
       fileName: (format) => {
         if (/^esm?$/.test(format)) {
           return "index.js";
