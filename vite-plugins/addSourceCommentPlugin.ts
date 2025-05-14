@@ -1,6 +1,7 @@
 import path from "path";
 import { Plugin } from "vite";
 
+/**! */
 export default function addSourceCommentPlugin(): Plugin {
   const sourceMap = new Map<string, { relativePath: string }>();
 
@@ -40,7 +41,7 @@ export default function addSourceCommentPlugin(): Plugin {
           }
         }
       }
-      console.log(newCode);
+      // console.log(newCode);
 
       return {
         code: newCode,

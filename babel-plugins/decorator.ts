@@ -1,27 +1,46 @@
-// 类装饰器接收一个参数，参数为类的构造器
-// 属性装饰器接收两个参数，参数一为类的原型，参数二为上下文对象，包含kind（property）、name（属性名）、descriptor（属性描述符）、static（是否静态）、private（是否私有），
-// 访问器装饰器接收两个参数，参数一为类的原型，参数二为上下文对象，包含kind（get|set）、name（属性名）、descriptor（属性描述符）、static（是否静态）、private（是否私有），
-// 方法装饰器接收两个参数，参数一为类的原型，参数二为上下文对象，包含kind（method）、name（方法名）、descriptor（属性描述符）、static（是否静态）、private（是否私有），
-// 运行顺序：同一个类的所有装饰器，类装饰器>属性装饰器>访问器装饰器>方法装饰器
-console.log("-----defin decorator");
-// @ts-nocheck
-// const { types: t } = require("@babel/core");
 import { types as t } from "@babel/core";
+import { NodePath, Visitor } from "@babel/traverse";
+import {
+  ClassDeclaration,
+  ClassExpression,
+  ClassMethod,
+  ClassProperty,
+  Decorator,
+  Identifier,
+  StringLiteral,
+  PrivateName,
+} from "@babel/types";
 
-function transformClass(path) {
+interface DecoratorQueueItem {
+  type: "property" | "accessor" | "method";
+  kinds?: string[];
+  kind?: string;
+}
+
+interface ClassElement {
+  decorators?: Decorator[] | null;
+  static?: boolean;
+  key: Identifier | StringLiteral | PrivateName;
+  kind?: string;
+}
+
+function transformClass(
+  path: NodePath<ClassDeclaration | ClassExpression>
+): void {
   const { node } = path;
   console.log("node.decorators--->", node.decorators);
-  if (!node.decorators?.length && !hasClassElementDecorators(node.body.body)) {
+  if (
+    !node.decorators?.length &&
+    !hasClassElementDecorators(node.body.body as any)
+  ) {
     return;
   }
 
   const tempClassId = path.scope.generateUidIdentifier("_cls");
-  const statements = [];
+  const statements: any[] = [];
 
-  // 初始化临时类变量
   statements.push(t.variableDeclarator(tempClassId, buildClassNode(node)));
 
-  // 处理类装饰器
   if (node.decorators) {
     node.decorators.reverse().forEach((decorator) => {
       statements.push(
@@ -40,34 +59,33 @@ function transformClass(path) {
     });
   }
 
-  // 收集装饰器应用
-  const decoratorApplies = [];
+  const decoratorApplies: Array<() => any> = [];
   const body = node.body.body;
 
-  // 按类型收集装饰器
-  const decoratorsQueue = [
+  const decoratorsQueue: DecoratorQueueItem[] = [
     { type: "property", kind: "property" },
     { type: "accessor", kinds: ["get", "set"] },
     { type: "method", kind: "method" },
   ];
 
   decoratorsQueue.forEach(({ type, kinds, kind }) => {
-    body.forEach((element) => {
+    body.forEach((_element) => {
+      const element = _element as ClassElement;
       if (!element.decorators) return;
 
       let shouldProcess = false;
-      if (type === "property" && t.isClassProperty(element)) {
+      if (type === "property" && t.isClassProperty(_element)) {
         shouldProcess = true;
       } else if (
         type === "accessor" &&
-        t.isClassMethod(element) &&
-        (kinds || []).includes(element.kind)
+        t.isClassMethod(element as ClassMethod) &&
+        (kinds || []).includes((element as ClassMethod).kind)
       ) {
         shouldProcess = true;
       } else if (
         type === "method" &&
-        t.isClassMethod(element) &&
-        element.kind === "method"
+        t.isClassMethod(element as ClassMethod) &&
+        (element as ClassMethod).kind === "method"
       ) {
         shouldProcess = true;
       }
@@ -87,13 +105,12 @@ function transformClass(path) {
               [prototype, t.stringLiteral(name)]
             );
 
-            // 修改后的上下文生成逻辑
             const contextProperties = [
               t.objectProperty(
                 t.identifier("kind"),
                 type === "accessor"
-                  ? t.stringLiteral(element.kind)
-                  : t.stringLiteral(kind)
+                  ? t.stringLiteral((element as ClassMethod).kind)
+                  : t.stringLiteral(kind!)
               ),
               t.objectProperty(t.identifier("name"), t.stringLiteral(name)),
               t.objectProperty(t.identifier("descriptor"), descriptor),
@@ -104,9 +121,18 @@ function transformClass(path) {
               t.objectProperty(
                 t.identifier("private"),
                 t.booleanLiteral(
-                  t.isPrivateName(element.key) ||
-                    (t.isIdentifier(element.key) &&
-                      element.key.name.startsWith("#"))
+                  (() => {
+                    const key = element.key;
+                    if (t.isPrivateName(key)) {
+                      return true;
+                    } else if (t.isIdentifier(key)) {
+                      return key.name.startsWith("#");
+                    } else if (t.isStringLiteral(key)) {
+                      return key.value.startsWith("#");
+                    } else {
+                      return false;
+                    }
+                  })()
                 )
               ),
             ];
@@ -138,12 +164,10 @@ function transformClass(path) {
     });
   });
 
-  // 生成装饰器应用代码
   decoratorApplies.forEach((apply) => {
     statements.push(apply());
   });
 
-  // 构建最终表达式
   const iife = t.callExpression(
     t.arrowFunctionExpression(
       [],
@@ -151,9 +175,9 @@ function transformClass(path) {
         t.variableDeclaration("let", [statements[0]]),
         ...statements.slice(1).map((s) => t.expressionStatement(s.expression)),
         t.returnStatement(tempClassId),
-      ]),
-      []
-    )
+      ])
+    ),
+    []
   );
 
   path.replaceWith(
@@ -163,21 +187,21 @@ function transformClass(path) {
   );
 }
 
-function buildClassNode(node) {
+function buildClassNode(node: ClassDeclaration | ClassExpression) {
   return t.classExpression(
     node.id,
     node.superClass,
     t.classBody(
       node.body.body.map((element) => {
         const newElement = t.cloneNode(element);
-        newElement.decorators = null;
+        Reflect.set(newElement, "decorators", null, newElement);
         return newElement;
       })
     )
   );
 }
 
-function getElementName(element) {
+function getElementName(element: ClassElement): string {
   return t.isIdentifier(element.key)
     ? element.key.name
     : t.isStringLiteral(element.key)
@@ -185,7 +209,7 @@ function getElementName(element) {
     : "";
 }
 
-function hasClassElementDecorators(elements) {
+function hasClassElementDecorators(elements: ClassElement[]): boolean {
   return elements.some((el) => el.decorators && el.decorators.length > 0);
 }
 
@@ -193,12 +217,12 @@ export default function createDecoratorPlugin() {
   return {
     name: "custom-decorators-plugin",
     visitor: {
-      ClassDeclaration(path) {
+      ClassDeclaration(path: NodePath<ClassDeclaration>) {
         transformClass(path);
       },
-      ClassExpression(path) {
+      ClassExpression(path: NodePath<ClassExpression>) {
         transformClass(path);
       },
-    },
+    } as Visitor,
   };
 }
