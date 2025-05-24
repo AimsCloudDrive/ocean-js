@@ -1,6 +1,6 @@
 {
   "name": "@ocean/reaction",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "@ocean/reaction",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
@@ -24,7 +24,7 @@
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
     "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
-    "release": "pnpm run build && pnpm run version --patch && pnpm run publish --no-git-checks",
+    "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
     "rel": "pnpm publish"
   },

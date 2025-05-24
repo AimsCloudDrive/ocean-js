@@ -1,6 +1,6 @@
 {
   "name": "@ocean/component",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "@ocean/component",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
@@ -20,7 +20,7 @@
     "version": "node ../../scripts/version.js",
     "check": "",
     "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
-    "release": "pnpm run build && pnpm run version --patch && pnpm run publish --no-git-checks",
+    "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
     "rel": "pnpm publish",
     "b2": "pnpm run clean && pnpm run check && rollup -c ../../rollup.config.js"
