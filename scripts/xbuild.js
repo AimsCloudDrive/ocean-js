@@ -173,7 +173,7 @@ async function executeCommand(command, packages, parallel) {
 // 获取所有有效包
 async function getAllValidPackages(modulesPath) {
   try {
-    const entries = await fs.readdir(modulesPath);
+    const entries = await fs.readdir(modulesPath, { recursive: true });
     return entries.filter(async (entry) => {
       const stat = await fs.stat(resolve(modulesPath, entry));
       return stat.isDirectory();

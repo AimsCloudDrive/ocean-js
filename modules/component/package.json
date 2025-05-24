@@ -18,7 +18,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
-    "check": "",
+    "check": "tsc --noEmit",
     "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
