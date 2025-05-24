@@ -2,7 +2,7 @@
   "compilerOptions": {
     // "types": ["modules/**/src"],
     "baseUrl": "./",
-    // "paths": { "@ocean/*": ["modules/*/src"] },
+    "paths": { "@ocean/*": ["modules/*/src"] },
     // "incremental": true, // 增量编译
     // "tsBuildInfoFile": "./.tsbuildinfo", // 增量编译文件的存储位置
     // "diagnostics": true, // 打印编译信息

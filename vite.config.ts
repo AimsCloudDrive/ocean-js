@@ -16,6 +16,7 @@ export default defineConfig({
       plugins: [
         dts({
           tsconfig: "./tsconfig.json",
+          paths: {},
         }),
         babel({
           babelHelpers: "bundled",
