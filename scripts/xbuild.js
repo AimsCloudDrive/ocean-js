@@ -3,9 +3,9 @@
 import chalk from "chalk";
 import { execSync, spawn } from "child_process";
 import fs from "fs";
+import os from "os";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import os from "os";
 
 // 基础配置
 const __filename = fileURLToPath(import.meta.url);
@@ -145,7 +145,7 @@ async function executeCommand(command, packages, parallel) {
 
   // 获取实际要构建的包列表
   let targetPackages =
-    packages.length > 0 ? packages : await getAllValidPackages(MODULES_PATH);
+    packages.length > 0 ? packages : getAllValidPackages(MODULES_PATH);
 
   if (!parallel) {
     // 原有串行逻辑
@@ -171,11 +171,11 @@ async function executeCommand(command, packages, parallel) {
 }
 
 // 获取所有有效包
-async function getAllValidPackages(modulesPath) {
+function getAllValidPackages(modulesPath) {
   try {
-    const entries = await fs.readdir(modulesPath, { recursive: true });
+    const entries = fs.readdirSync(modulesPath, { recursive: false });
     return entries.filter(async (entry) => {
-      const stat = await fs.stat(resolve(modulesPath, entry));
+      const stat = fs.statSync(resolve(modulesPath, entry));
       return stat.isDirectory();
     });
   } catch (error) {
