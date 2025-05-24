@@ -4,6 +4,7 @@ import {
   Event,
   Nullable,
   ClassType as _ClassType,
+  getGlobalData,
   initComponentDefinition,
   isArray,
   ownKeysAndPrototypeOwnKeys,
@@ -36,17 +37,19 @@ export type ComponentProps<C = never> = {
 };
 
 export type ComponentEvents = {
+  created: null;
   mounted: null;
   unmounted: null;
 };
 
 @component("component", {
   events: {
+    created: "null",
     mounted: "null",
     unmounted: "null",
   },
 })
-export class Component<
+export abstract class Component<
     P extends ComponentProps<unknown> = ComponentProps,
     E extends ComponentEvents = ComponentEvents
   >
@@ -154,13 +157,34 @@ export class Component<
   init() {
     this.clean = [];
   }
+
+  private declare clean: (() => void)[];
+  onclean(cb: () => void) {
+    this.clean.push(cb);
+  }
+
+  isMounted() {
+    return !!this.el && this.el.parentElement != null;
+  }
+  // lifeCircle
+  created() {}
+  mount() {
+    const DomData = getGlobalData("@ocean/dom") as {
+      rendering: Component | undefined;
+    };
+    const { rendering } = DomData;
+    try {
+      return this.render();
+    } finally {
+      DomData.rendering = rendering;
+    }
+  }
   mounted() {
     this.emit("mounted", null);
   }
   onmounted(cb: () => void) {
     this.on("mounted", cb);
   }
-
   unmount() {
     if (this.el) {
       const p = this.el.parentElement;
@@ -177,20 +201,11 @@ export class Component<
   onunmounted(cb: () => void) {
     this.on("unmounted", cb);
   }
-
-  private declare clean: (() => void)[];
-  onclean(cb: () => void) {
-    this.clean.push(cb);
-  }
-
   destroy() {
     while (this.clean.length) {
       this.clean.shift()?.();
     }
     Object.assign(this, { el: null });
     this.unmount();
-  }
-  isMounted() {
-    return !!this.el && this.el.parentElement != null;
   }
 }

@@ -4,17 +4,18 @@ import {
   Event,
   Nullable,
   compareObjects,
+  getComponentDefinition,
   getGlobalData,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
   parseStyle,
-  performChunk,
   setGlobalData,
 } from "@ocean/common";
 import {
   Component,
+  ComponentEvents,
+  ComponentProps,
   IRef,
-  initComponentDefinition,
   isComponent,
 } from "@ocean/component";
 import { createReaction, withoutTrack } from "@ocean/reaction";
@@ -25,7 +26,10 @@ type $DOM = {
 
 setGlobalData("@ocean/dom", {} as $DOM);
 
-const componentVDOMMap = new WeakMap<Component, DOMElement<any>>();
+const componentVDOMMap = new WeakMap<
+  Component<ComponentProps<any>>,
+  DOMElement<any>
+>();
 
 declare global {
   export namespace Component {
@@ -37,7 +41,7 @@ export const TEXT_NODE = "TEXT_NODE";
 
 export type DOMElement<T> = {
   type: T;
-  props: Omit<React.HTMLAttributes<T>, "style" | "children"> & {
+  props: Omit<React.HTMLAttributes<T>, "style" | "children" | "class"> & {
     $ref?: IRef<any> | IRef<any>[];
     $key?: string | number;
     style?: CSSStyle;
@@ -117,16 +121,18 @@ const eventBindingMap = new WeakMap<
   { [K in PropertyKey]: Parameters<Event["on"]>[1] }
 >();
 
-const componentCache = new Map<any, Component>();
+const componentCache = new Map<any, Component<ComponentProps<any>>>();
 
-export function renderClassComponent(
+export function mountComponent(
   element: DOMElement<any>,
   container: HTMLElement
 ) {
   withoutTrack(() => {
     const { children, $ref, ...props } = element.props;
-    const componentDefinition = initComponentDefinition(element.type.prototype);
-
+    const componentDefinition = getComponentDefinition(element.type);
+    if (!componentDefinition) {
+      return;
+    }
     // 处理自定义事件
     // 组件声明的事件
     const { $events } = componentDefinition;
@@ -144,10 +150,18 @@ export function renderClassComponent(
       }
     }
 
-    // 类组件
-    const component: Component<any, any> =
-      componentCache.get(_props.$key) || new element.type(_props);
-    _props.$key != undefined && componentCache.set(_props.$key, component);
+    // lifeCircle: create
+    const component = (() => {
+      let component: Component<ComponentProps<any>> | undefined =
+        componentCache.get(_props.$key);
+      if (!component) {
+        component = new element.type(_props) as Component;
+        _props.$key != undefined && componentCache.set(_props.$key, component);
+      } else {
+        component.set(_props);
+      }
+      return component;
+    })();
     // 处理传递的子元素
     if (children && children.length > 0) {
       const c = children.map((c) => {
@@ -171,7 +185,8 @@ export function renderClassComponent(
     if ($eventKeys.size()) {
       const binding = eventBindingMap.get(component) || {};
       eventBindingMap.set(component, binding);
-      for (const key of $eventKeys) {
+      for (const _key of $eventKeys) {
+        const key = _key as keyof ComponentEvents;
         // 清除上次注册的事件
         component.un(key, binding[key]);
         Reflect.deleteProperty(binding, key);
@@ -183,49 +198,50 @@ export function renderClassComponent(
         }
       }
     }
+    // lifeCircle: created
+    component.created();
     // 挂载组件
     const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
     const { rendering } = domGlobalData;
     component.$owner = rendering;
-    domGlobalData.rendering = component;
-    try {
-      component.onunmounted(
-        createReaction(
-          () => {
-            const prevVDOM = componentVDOMMap.get(component);
-            const vDOM = component.render();
-            componentVDOMMap.set(component, vDOM);
-            const isChanged = patchVDOM(vDOM, prevVDOM);
-            const dom = renderer(vDOM, container);
-            component.rendered();
-            if (!isChanged) {
-              return;
-            }
-            const mounted = component.isMounted();
-            if (component.el) {
-              container.removeChild(component.el);
-            }
-            component.el = dom as HTMLElement;
-            if (dom) {
-              // 将类组件实例附着在dom上
-              // TODO: 生产环境禁用
-              if (!Reflect.get(dom, "$owner")) {
-                Object.assign(dom, { $owner: component });
-              }
-              container.appendChild(dom);
-              if (!mounted) {
-                component.mounted();
-              }
-            }
-          },
-          {
-            scheduler: "nextTick",
+    component.onunmounted(
+      createReaction(
+        () => {
+          const prevVDOM = componentVDOMMap.get(component);
+          const vDOM = component.mount();
+          componentVDOMMap.set(component, vDOM);
+          const isChanged = patchVDOM(vDOM, prevVDOM);
+          const dom = renderer(vDOM, container);
+          component.rendered();
+          if (!isChanged) {
+            return;
           }
-        ).disposer()
-      );
-    } finally {
-      Object.assign(domGlobalData, { rendering });
-    }
+          const mounted = component.isMounted();
+          if (component.el) {
+            container.removeChild(component.el);
+          }
+          component.el = dom as HTMLElement;
+          if (dom) {
+            // 将类组件实例附着在dom上
+            // TODO: 生产环境禁用
+            if (!Reflect.get(dom, "$owner")) {
+              Object.assign(dom, { $owner: component });
+            }
+            container.appendChild(dom);
+            if (!mounted) {
+              component.mounted();
+            }
+          }
+        },
+        {
+          scheduler: (cb) => {
+            requestIdleCallback(({ timeRemaining }) => {
+              timeRemaining() > 0 && cb();
+            });
+          },
+        }
+      ).disposer()
+    );
   });
 }
 
@@ -279,7 +295,7 @@ function renderer(
   if (typeof _element.type === "function") {
     if (isComponent(_element.type)) {
       // 类组件
-      renderClassComponent(_element, container);
+      mountComponent(_element, container);
     } else {
       // TODO: 函数组件
       // renderFunctionComponent(_element, container);
@@ -312,8 +328,6 @@ export function mountWith(
 ) {
   renderer(mount(), container);
 }
-
-export { renderer as render };
 
 /**
  *

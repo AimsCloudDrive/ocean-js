@@ -32,15 +32,18 @@ export type ComponentDefinition = {
 /**
  * 初始化组件定义
  * 不会向上继续找原型对象的原型
- * @param prototype 组件类的原型对象
+ * @param prototype 组件类或类的原型对象
  * @returns 组件定义
  */
-export function initComponentDefinition(
-  prototype: object
+export function initComponentDefinition<T>(
+  prototype: object | (new (...args: any[]) => T)
 ): ComponentDefinition {
   const { componentDefinitionKey } = getGlobalData("@ocean/component") as {
     componentDefinitionKey: symbol;
   };
+  prototype = (
+    typeof prototype === "function" ? prototype.prototype : prototype
+  ) as object;
   // 原型对象的原型
   const prototype_prototype = Object.getPrototypeOf(prototype);
   //
@@ -80,12 +83,20 @@ export function initComponentDefinition(
     Object.setPrototypeOf(prototype, prototype_prototype);
   }
 }
-export function getComponentDefinition(
-  prototype: object
+
+/**
+ * @param prototype 组件类或类的原型对象
+ * @returns 组件定义
+ */
+export function getComponentDefinition<T>(
+  prototype: object | (new (...args: any[]) => T)
 ): ComponentDefinition | undefined {
   const { componentDefinitionKey } = getGlobalData("@ocean/component") as {
     componentDefinitionKey: symbol;
   };
+  prototype = (
+    typeof prototype === "function" ? prototype.prototype : prototype
+  ) as object;
   const oldProptotype = Object.getPrototypeOf(prototype);
   try {
     // 置空原型

@@ -2,14 +2,13 @@
 
 import {
   Component,
-  ComponentProps,
+  type ComponentProps,
   SingleRef,
   component,
   createSingleRef,
-  observer,
 } from "@ocean/component";
-import { VNode, createElement, render } from "@ocean/dom";
-import { createReaction } from "@ocean/reaction";
+import { type VNode, createElement, mountWith } from "@ocean/dom";
+import { observer } from "@ocean/reaction";
 
 declare global {
   namespace Component {
@@ -126,22 +125,24 @@ class Floor4 extends Component<ComponentProps<VNode>> {
   }
 }
 
-render(
-  <Floor1 class={"floor1"}>
-    <Floor2 class={"floor2"}>
-      <Floor3 class={"floor3"}>
-        {(floor3) => (
-          <Floor4
-            mounted={() => {
-              console.info("floor4 mounted");
-            }}
-            $ref={floor3.floor4SingleRef}
-            class={"floor4"}
-          ></Floor4>
-        )}
-      </Floor3>
-    </Floor2>
-  </Floor1>,
+mountWith(
+  () => (
+    <Floor1 class={"floor1"}>
+      <Floor2 class={"floor2"}>
+        <Floor3 class={"floor3"}>
+          {(floor3) => (
+            <Floor4
+              mounted={() => {
+                console.info("floor4 mounted");
+              }}
+              $ref={floor3.floor4SingleRef}
+              class={"floor4"}
+            ></Floor4>
+          )}
+        </Floor3>
+      </Floor2>
+    </Floor1>
+  ),
   document.getElementById("root")!
 );
 

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    // "types": ["modules/**/src"],
     "baseUrl": "./",
     // "paths": { "@ocean/*": ["modules/*/src"] },
     // "incremental": true, // 增量编译
@@ -16,13 +17,13 @@
     "experimentalDecorators": true, // 启用装饰器
     "emitDecoratorMetadata": true, // 为装饰器提供元数据支持
 
-    "jsx": "react",
+    "jsx": "preserve",
 
     "declaration": true, // 生成声明文件
     "declarationDir": "dist/types", // 声明文件的路径
     // "emitDeclarationOnly": true, // 只生成声明文件
-    "sourceMap": true, // 生成目标文件的 sourceMap
-    // "inlineSourceMap": true, // 生成目标文件的 inline sourceMap
+    // "sourceMap": true, // 生成目标文件的 sourceMap
+    "inlineSourceMap": true, // 生成目标文件的 inline sourceMap
     "declarationMap": true, // 生成声明文件的 sourceMap
     "removeComments": false, // 删除注释
     "noEmit": true, // 不输出文件
