@@ -6,13 +6,33 @@ import fs from "fs";
 import os from "os";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
+import { SuperTaskController } from "./SuperTaskController";
 
 // 基础配置
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const MODULES_DIR = "modules";
 
-// 命令配置
+/**
+ * 命令配置
+ * @typedef {{
+  build: {
+    aliases: ["-b", "--build"],
+    script: "build",
+    description: "构建项目",
+  },
+  check: {
+    aliases: ["-c", "--check"],
+    script: "check",
+    description: "代码检查",
+  },
+  release: {
+    aliases: ["-r", "--release"],
+    script: "release",
+    description: "发布包",
+  },
+}}
+ */
 const COMMANDS = {
   build: {
     aliases: ["-b", "--build"],
@@ -31,7 +51,10 @@ const COMMANDS = {
   },
 };
 
-// 环境预检
+/**
+ * 环境预检
+ * @returns {boolean}
+ */
 function checkPnpmExists() {
   try {
     execSync("pnpm --version", { stdio: "ignore" });
@@ -42,6 +65,10 @@ function checkPnpmExists() {
 }
 
 // 参数预处理
+/**
+ *
+ * @returns {{command: keyof typeof COMMANDS, args: string[]}}
+ */
 function preprocessArguments() {
   const rawArgs = process.argv.slice(2);
 
@@ -58,7 +85,7 @@ function preprocessArguments() {
 /**
  * 解析有效命令
  * @param {string[]} args
- * @returns
+ * @returns {{command: keyof typeof COMMANDS, packages: string[], parallel: boolean}}
  */
 function parseCommand(args) {
   let targetCommand = null;
@@ -123,7 +150,11 @@ function parseCommand(args) {
   return { command: targetCommand, packages, parallel };
 }
 
-// 验证包有效性
+/**
+ * 验证包有效性
+ * @param {string[]} packageNames
+ * @returns {{valid: string[], invalid: string[]}}
+ */
 function validatePackages(packageNames) {
   const valid = [];
   const invalid = [];
@@ -140,6 +171,13 @@ function validatePackages(packageNames) {
   return { valid, invalid };
 }
 
+/**
+ *
+ * @param {keyof typeof COMMANDS} command
+ * @param {string[]} packages
+ * @param {boolean} parallel
+ * @returns {Promise<void>}
+ */
 async function executeCommand(command, packages, parallel) {
   const MODULES_PATH = resolve(__dirname, "..", MODULES_DIR);
 
@@ -170,7 +208,11 @@ async function executeCommand(command, packages, parallel) {
   return runParallelBuild(targetPackages, command);
 }
 
-// 获取所有有效包
+/**
+ * 获取所有有效包
+ * @param {string} modulesPath
+ * @returns {string[]}
+ */
 function getAllValidPackages(modulesPath) {
   try {
     const entries = fs.readdirSync(modulesPath, { recursive: false });
@@ -184,55 +226,56 @@ function getAllValidPackages(modulesPath) {
   }
 }
 
-// 并行构建核心逻辑
+/**
+ * 并行构建核心逻辑
+ * @param {string[]} packages
+ * @param {keyof typeof COMMANDS} command
+ * @returns {Promise<void>}
+ */
 async function runParallelBuild(packages, command) {
   const concurrency = Math.max(1, os.cpus().length - 1); // 留出一个核心
-  const queue = [];
-  let running = 0;
+  let finished = 0;
   let hasError = false;
 
   console.log(chalk.blue(`启动并行构建 (最大并发数: ${concurrency})`));
 
+  const controller = new SuperTaskController({
+    accompanyingCount: concurrency,
+  });
   return new Promise((resolve, reject) => {
     packages.forEach((pkg) => {
-      queue.push(async () => {
-        if (hasError) return;
-
-        console.log(chalk.gray(`🏗️  开始构建: ${pkg}`));
-
-        try {
-          await runSinglePackageBuild(pkg, command);
-          console.log(chalk.green(`✅ ${pkg} 构建成功`));
-        } catch (error) {
-          hasError = true;
-          console.log(chalk.red(`❌ ${pkg} 构建失败:`), error.message);
-          reject(false);
-        }
-      });
-    });
-
-    // 启动队列执行
-    const run = async () => {
-      if (hasError) {
-        return;
-      }
-      while (queue.length > 0 && running < concurrency) {
-        running++;
-        const task = queue.shift();
-        task().finally(() => {
-          running--;
-          run();
+      controller
+        .addTask(() => {
+          if (hasError) return;
+          console.log(chalk.gray(`🏗️  开始构建: ${pkg}`));
+          return runSinglePackageBuild(pkg, command).then(
+            () => {
+              console.log(chalk.green(`✅ ${pkg} 构建成功`));
+            },
+            () => {
+              hasError = true;
+              console.log(chalk.red(`❌ ${pkg} 构建失败:`), error.message);
+              reject(false);
+            }
+          );
+        })
+        .finally(() => {
+          finished++;
+          if (finished === packages.length) {
+            resolve(true);
+          }
         });
-      }
-
-      if (running === 0) resolve(true);
-    };
-
-    run();
+    });
   });
 }
 
 // 执行单个包构建
+/**
+ *
+ * @param {string} pkg
+ * @param {keyof typeof COMMANDS} command
+ * @returns {Promise<void>}
+ */
 function runSinglePackageBuild(pkg, command) {
   const pnpmBinary = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
