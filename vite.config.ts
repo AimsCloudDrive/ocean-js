@@ -44,7 +44,7 @@ export default defineConfig({
           },
         }),
       ] as any[],
-      external: /^@ocean\//,
+      external: [/^@ocean\//, "fs", "path"],
     },
     target: ["esnext"],
     emptyOutDir: true,

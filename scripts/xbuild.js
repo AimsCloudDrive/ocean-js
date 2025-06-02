@@ -6,7 +6,7 @@ import fs from "fs";
 import os from "os";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import { SuperTaskController } from "./SuperTaskController";
+import { SuperTaskController } from "./SuperTaskController.js";
 
 // 基础配置
 const __filename = fileURLToPath(import.meta.url);
