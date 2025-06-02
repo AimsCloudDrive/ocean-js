@@ -104,59 +104,69 @@ export class Db extends _Db {
     );
     return !!(res.matchedCount + res.modifiedCount + res.upsertedCount);
   }
-  async updateRelate(
+  private async __update<K extends "props" | "relates" | "extends">(
     sourceCollectionName: string,
-    relate: CollectionMeta["relates"][0],
-    option?: boolean | { add?: boolean }
+    metaKey: K,
+    getKey: (data: CollectionMeta[K][0], index: number) => string,
+    news: CollectionMeta[K]
   ) {
     const meta = await this.getCollectionMetaData(sourceCollectionName);
     if (!meta) {
       return this.setCollectionMetaData({
         collectionName: sourceCollectionName,
-        relates: [relate],
+        [metaKey]: news,
       });
     } else {
-      const existRelateIndex = meta.relates.findIndex(
-        ({ relateName }) => relateName === relate.relateName
-      );
-      if ((typeof option === "object" ? option.add : option) !== false) {
-        meta.relates.splice(
-          existRelateIndex === -1 ? meta.relates.length : existRelateIndex,
-          1,
-          relate
-        );
-      } else {
-        meta.relates = [relate];
+      type UnionToIntersection = ((
+        k: CollectionMeta["extends" | "props" | "relates"]
+      ) => void) extends (k: Array<infer I>) => void
+        ? I
+        : never;
+      const newIndexs = this.check(news, getKey);
+      const length = meta[metaKey].length;
+      for (let i = 0; i < length; i++) {
+        const k = getKey(meta[metaKey][i], i);
+        const newIndex = newIndexs.get(k);
+        if (newIndex != undefined) {
+          meta[metaKey].splice(i, 1, news[newIndex] as UnionToIntersection);
+          newIndexs.delete(k);
+        }
       }
+      newIndexs.forEach((newIndex) => {
+        meta[metaKey].push(news[newIndex] as UnionToIntersection);
+      });
       return this.setCollectionMetaData(meta);
     }
   }
-  async updateProps(
+  updateRelates(
     sourceCollectionName: string,
-    ...props: CollectionMeta["props"]
+    ...relates: CollectionMeta["relates"]
   ) {
-    const meta = await this.getCollectionMetaData(sourceCollectionName);
-    if (!meta) {
-      return this.setCollectionMetaData({
-        collectionName: sourceCollectionName,
-        props,
-      });
-    } else {
-      const newPropIndexs = this.checkProps(props);
-      const length = meta.props.length;
-      for (let i = 0; i < length; i++) {
-        const { prop } = meta.props[i];
-        const newPropIndex = newPropIndexs.get(prop.name);
-        if (newPropIndex != undefined) {
-          meta.props.splice(i, 1, props[newPropIndex]);
-          newPropIndexs.delete(prop.name);
-        }
-      }
-      newPropIndexs.forEach((propIndex) => {
-        meta.props.push(props[propIndex]);
-      });
-      return this.setCollectionMetaData(meta);
-    }
+    return this.__update(
+      sourceCollectionName,
+      "relates",
+      ({ relateName }) => relateName,
+      relates
+    );
+  }
+  updateProps(sourceCollectionName: string, ...props: CollectionMeta["props"]) {
+    return this.__update(
+      sourceCollectionName,
+      "props",
+      ({ prop }) => prop.name,
+      props
+    );
+  }
+  updateExtends(
+    sourceCollectionName: string,
+    ..._extends: CollectionMeta["extends"]
+  ) {
+    return this.__update(
+      sourceCollectionName,
+      "extends",
+      ({ collectionName }) => collectionName,
+      _extends
+    );
   }
   fillMate(meta: NotFilledCollectionMeta): CollectionMeta {
     return {
@@ -166,15 +176,18 @@ export class Db extends _Db {
       collectionName: meta.collectionName,
     };
   }
-  private checkProps(props: CollectionMeta["props"]) {
+  private check<T extends unknown[]>(
+    props: T,
+    getKey: <N extends number>(data: T[N], index: N) => string
+  ) {
     const propIndexs = new Map<string, number>();
 
     for (let index = 0; index < props.length; index++) {
-      const { prop } = props[index];
-      if (propIndexs.has(prop.name)) {
+      const key = getKey(props[index], index);
+      if (propIndexs.has(key)) {
         throw Error("has repeat propName!");
       }
-      propIndexs.set(prop.name, index);
+      propIndexs.set(key, index);
     }
     return propIndexs;
   }
