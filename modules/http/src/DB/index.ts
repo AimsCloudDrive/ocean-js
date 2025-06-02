@@ -96,7 +96,7 @@ export class Db extends _Db {
         collectionName: meta.collectionName,
       },
       {
-        $set: this.fillMate(meta),
+        $set: meta,
       },
       {
         upsert: true,
