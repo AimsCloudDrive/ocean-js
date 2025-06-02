@@ -3,9 +3,24 @@ import { RequestHandler } from "express";
 const express: typeof import("express") = require("express");
 const cors: typeof import("cors") = require("cors");
 
+type RequestMethod =
+  | "get"
+  | "post"
+  | "put"
+  | "delete"
+  | "copy"
+  | "head"
+  | "options"
+  | "link"
+  | "unlink"
+  | "purge"
+  | "lock"
+  | "unlock"
+  | "propfind";
+
 export type ServerRoute<T extends string | RegExp = any> = {
   path: T;
-  method?: "get" | "post";
+  method?: RequestMethod;
   children?: ServerRoute[];
   handlers?: RequestHandler[];
 };
@@ -65,8 +80,8 @@ export function createServer(
         let { path, children, method, handlers = [] } = route;
         path = parentPath + path;
         if (method) {
-          const r = server[method].bind(server);
-          r(path, ...handlers);
+          const requestF = server[method].bind(server);
+          requestF(path, ...handlers);
         }
         if (children) {
           parseRoute(children, path);
