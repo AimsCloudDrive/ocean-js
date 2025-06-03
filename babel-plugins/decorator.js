@@ -1,48 +1,15 @@
 import { types as t } from "@babel/core";
-import { NodePath, Visitor } from "@babel/traverse";
-import {
-  ClassDeclaration,
-  ClassExpression,
-  ClassMethod,
-  ClassProperty,
-  Decorator,
-  Identifier,
-  StringLiteral,
-  PrivateName,
-} from "@babel/types";
-
-interface DecoratorQueueItem {
-  type: "property" | "accessor" | "method";
-  kinds?: string[];
-  kind?: string;
-}
-
-interface ClassElement {
-  decorators?: Decorator[] | null;
-  static?: boolean;
-  key: Identifier | StringLiteral | PrivateName;
-  kind?: string;
-}
-
-function transformClass(
-  path: NodePath<ClassDeclaration | ClassExpression>
-): void {
+function transformClass(path) {
   const { node } = path;
-  if (node.id.name === "Component2") {
+  if (node.id.name === "Ref") {
     console.log("node: " + node.id.name + "--->", node);
   }
-  if (
-    !node.decorators?.length &&
-    !hasClassElementDecorators(node.body.body as any)
-  ) {
+  if (!node.decorators?.length && !hasClassElementDecorators(node.body.body)) {
     return;
   }
-
   const tempClassId = path.scope.generateUidIdentifier("_cls");
-  const statements: any[] = [];
-
+  const statements = [];
   statements.push(t.variableDeclarator(tempClassId, buildClassNode(node)));
-
   if (node.decorators) {
     node.decorators.reverse().forEach((decorator) => {
       statements.push(
@@ -60,38 +27,33 @@ function transformClass(
       );
     });
   }
-
-  const decoratorApplies: Array<() => any> = [];
+  const decoratorApplies = [];
   const body = node.body.body;
-
-  const decoratorsQueue: DecoratorQueueItem[] = [
+  const decoratorsQueue = [
     { type: "property", kind: "property" },
     { type: "accessor", kinds: ["get", "set"] },
     { type: "method", kind: "method" },
   ];
-
   decoratorsQueue.forEach(({ type, kinds, kind }) => {
     body.forEach((_element) => {
-      const element = _element as ClassElement;
+      const element = _element;
       if (!element.decorators) return;
-
       let shouldProcess = false;
       if (type === "property" && t.isClassProperty(_element)) {
         shouldProcess = true;
       } else if (
         type === "accessor" &&
-        t.isClassMethod(element as ClassMethod) &&
-        (kinds || []).includes((element as ClassMethod).kind)
+        t.isClassMethod(element) &&
+        (kinds || []).includes(element.kind)
       ) {
         shouldProcess = true;
       } else if (
         type === "method" &&
-        t.isClassMethod(element as ClassMethod) &&
-        (element as ClassMethod).kind === "method"
+        t.isClassMethod(element) &&
+        element.kind === "method"
       ) {
         shouldProcess = true;
       }
-
       if (shouldProcess) {
         element.decorators.reverse().forEach((decorator) => {
           decoratorApplies.push(() => {
@@ -106,13 +68,12 @@ function transformClass(
               ),
               [prototype, t.stringLiteral(name)]
             );
-
             const contextProperties = [
               t.objectProperty(
                 t.identifier("kind"),
                 type === "accessor"
-                  ? t.stringLiteral((element as ClassMethod).kind)
-                  : t.stringLiteral(kind!)
+                  ? t.stringLiteral(element.kind)
+                  : t.stringLiteral(kind)
               ),
               t.objectProperty(t.identifier("name"), t.stringLiteral(name)),
               t.objectProperty(t.identifier("descriptor"), descriptor),
@@ -138,13 +99,11 @@ function transformClass(
                 )
               ),
             ];
-
             const context = t.objectExpression(contextProperties);
             const decoratorCall = t.callExpression(decorator.expression, [
               prototype,
               context,
             ]);
-
             return t.expressionStatement(
               t.assignmentExpression(
                 "=",
@@ -165,11 +124,9 @@ function transformClass(
       }
     });
   });
-
   decoratorApplies.forEach((apply) => {
     statements.push(apply());
   });
-
   const iife = t.callExpression(
     t.arrowFunctionExpression(
       [],
@@ -181,15 +138,13 @@ function transformClass(
     ),
     []
   );
-
   path.replaceWith(
     t.variableDeclaration("const", [
       t.variableDeclarator(node.id || t.identifier("_AnonymousClass"), iife),
     ])
   );
 }
-
-function buildClassNode(node: ClassDeclaration | ClassExpression) {
+function buildClassNode(node) {
   return t.classExpression(
     node.id,
     node.superClass,
@@ -202,29 +157,26 @@ function buildClassNode(node: ClassDeclaration | ClassExpression) {
     )
   );
 }
-
-function getElementName(element: ClassElement): string {
+function getElementName(element) {
   return t.isIdentifier(element.key)
     ? element.key.name
     : t.isStringLiteral(element.key)
     ? element.key.value
     : "";
 }
-
-function hasClassElementDecorators(elements: ClassElement[]): boolean {
+function hasClassElementDecorators(elements) {
   return elements.some((el) => el.decorators && el.decorators.length > 0);
 }
-
 export default function createDecoratorPlugin() {
   return {
     name: "custom-decorators-plugin",
     visitor: {
-      ClassDeclaration(path: NodePath<ClassDeclaration>) {
+      ClassDeclaration(path) {
         transformClass(path);
       },
-      ClassExpression(path: NodePath<ClassExpression>) {
+      ClassExpression(path) {
         transformClass(path);
       },
-    } as Visitor,
+    },
   };
 }
