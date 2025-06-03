@@ -252,7 +252,7 @@ async function runParallelBuild(packages, command) {
             () => {
               console.log(chalk.green(`✅ ${pkg} 构建成功`));
             },
-            () => {
+            (error) => {
               hasError = true;
               console.log(chalk.red(`❌ ${pkg} 构建失败:`), error.message);
               reject(false);
