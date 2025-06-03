@@ -17,6 +17,7 @@ export default defineConfig({
         dts({
           tsconfig: "./tsconfig.json",
           paths: {},
+          noCheck: true,
         }),
         babel({
           babelHelpers: "bundled",
@@ -26,7 +27,7 @@ export default defineConfig({
           ],
           plugins: viteRollupBabelPlugins,
           sourceMaps: "inline",
-          exclude: "node_modules/**",
+          exclude: ["node_modules/**", "@ocean/**"],
           extensions: [".ts", ".js", ".tsx", ".jsx"],
           babelrc: false,
         }),

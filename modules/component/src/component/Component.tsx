@@ -30,7 +30,7 @@ interface IComponent<P> {
 export type ComponentProps<C = never> = {
   $context?: Partial<Component.Context>;
   $key?: string | number;
-  $ref?: IRef<unknown>;
+  $ref?: IRef<unknown> | IRef<unknown>[];
   class?: _ClassType;
   style?: CSSStyle;
   children?: C;
@@ -54,23 +54,26 @@ export abstract class Component<
     E extends ComponentEvents = ComponentEvents
   >
   extends Event<E>
-  implements IComponent<P>
+  implements IComponent<P & E>
 {
+  // region: react
   setState: unknown;
   state: unknown;
   refs: unknown;
   forceUpdate(): void {}
   declare context: Partial<Component.Context>;
+  // reginend
+
   @option()
   private $key: string | number | Nullable;
   @option()
   private $context?: Partial<Component.Context>;
-  declare props: P;
+  declare props: P & E;
   declare el: HTMLElement;
   constructor(props: P) {
     super();
     this.init();
-    this.props = props;
+    this.props = props as P & E;
     this.set(props);
   }
 
@@ -135,20 +138,14 @@ export abstract class Component<
     const observers = definition.$observers;
     const observerKeys = ownKeysAndPrototypeOwnKeys(observers);
     if (observerKeys.hasElement(name)) {
-      // TODO: 普通属性、计算属性、方法属性
       const observer = getObserver.call(this, name);
       observer && observer.notify();
     } else {
-      if (typeof name === "symbol") {
-        console.warn(
-          name,
-          ` of [Component.${definition.componentName}] is not a Observer Property`
-        );
-      } else {
-        console.warn(
-          `The ${name} of [Component.${definition.componentName}] is not a Observer Property`
-        );
-      }
+      console.warn(
+        `The ${String(name)} of [Component.${
+          definition.componentName
+        }] is not a Observerable Property`
+      );
     }
   }
 
@@ -192,6 +189,7 @@ export abstract class Component<
         p.removeChild(this.el);
         this.unmounted();
       }
+      this.el.remove();
       Object.assign(this, { el: null });
     }
   }
@@ -205,7 +203,6 @@ export abstract class Component<
     while (this.clean.length) {
       this.clean.shift()?.();
     }
-    Object.assign(this, { el: null });
     this.unmount();
   }
 }

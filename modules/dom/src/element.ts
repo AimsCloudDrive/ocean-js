@@ -10,15 +10,16 @@ import {
   parseClass,
   parseStyle,
   setGlobalData,
+  isComponent,
 } from "@ocean/common";
 import {
   Component,
   ComponentEvents,
   ComponentProps,
   IRef,
-  isComponent,
 } from "@ocean/component";
 import { createReaction, withoutTrack } from "@ocean/reaction";
+import { DOMElement } from "./Node";
 
 type $DOM = {
   rendering?: Component;
@@ -38,20 +39,6 @@ declare global {
 }
 
 export const TEXT_NODE = "TEXT_NODE";
-
-export type DOMElement<T> = {
-  type: T;
-  props: Omit<React.HTMLAttributes<T>, "style" | "children" | "class"> & {
-    $ref?: IRef<any> | IRef<any>[];
-    $key?: string | number;
-    style?: CSSStyle;
-    class?: ClassType;
-    nodeValue?: string;
-    context?: Partial<Component.Context>;
-  } & {
-    children: DOMElement<any>[];
-  };
-};
 
 export function createElement(
   type: keyof HTMLElementTagNameMap | string,
@@ -109,7 +96,7 @@ function createDom<T = any>(element: DOMElement<T>) {
     .forEach((key: string) => {
       const event = Reflect.get(props, key, props);
       Reflect.deleteProperty(props, key);
-      dom.addEventListener(key.slice(2), event);
+      dom.addEventListener(key.slice(2).toLowerCase(), event);
     });
 
   Object.assign(dom, props);

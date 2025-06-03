@@ -3,6 +3,7 @@ import {
   JSTypes,
   OptionDecoratorUsedError,
   initComponentDefinition,
+  isComponent,
 } from "@ocean/common";
 /**
  * 仅允许附着在实例属性或实例访问器属性（有setter）
@@ -16,26 +17,26 @@ export function option(option: { type?: JSTypes } = {}): PropertyDecorator {
     // 静态属性target为类构造器
     // 非静态
     if (typeof target === "function") {
-      console.error("静态");
-      throw new OptionDecoratorUsedError();
+      throw new OptionDecoratorUsedError({ NotStatic: true });
     }
-    // 获取属性描述符
+    if (!isComponent(target)) {
+      throw new OptionDecoratorUsedError({ NotInComponent: true });
+    }
+    // 原型对象上有key，则表示该属性是访问器属性或方法
     const descriptor = Object.getOwnPropertyDescriptor(target, propKey);
     if (descriptor) {
       // 非没有setter的计算属性
       if (descriptor.get && !descriptor.set) {
-        console.error("计算属性没有setter");
-        throw new OptionDecoratorUsedError();
+        throw new OptionDecoratorUsedError({ NotSetter: true });
       }
       // 非实例方法
       if (typeof descriptor.value === "function") {
-        console.error("非实例方法");
-        throw new OptionDecoratorUsedError();
+        throw new OptionDecoratorUsedError({ NotMethod: true });
       }
     }
     const definition = initComponentDefinition(target);
     // 更新$option
-    defineProperty(definition.$preOptions, propKey, 7, {
+    defineProperty(definition.$options, propKey, 7, {
       propName: propKey,
       type,
     });

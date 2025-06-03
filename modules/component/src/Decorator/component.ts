@@ -25,13 +25,15 @@ export function component(
     componentMap: Map<string, object>;
   };
   const isExist = componentMap.has(name);
-  if (isExist) throw Error(`Component '${name}' is already exist.`);
-  return function (ctor, ...args: unknown[]) {
+  if (isExist)
+    throw new ComponentDecoratorUsedError({
+      defineMessage: `Component '${name}' is already exist.`,
+    });
+  return function (ctor) {
     // 非类构造器
-    if (typeof ctor !== "function" || (args && args.length > 0)) {
-      throw new ComponentDecoratorUsedError();
+    if (typeof ctor !== "function") {
+      throw new ComponentDecoratorUsedError({ NotClass: true });
     }
-    // ctor为类的构造器,获取其原型对象
     // 初始化组件定义
     const definition = initComponentDefinition(ctor.prototype);
     // 设置组件名称
@@ -42,37 +44,7 @@ export function component(
         definition.$events[ek] = type;
       });
     }
-    // 处理preOptions
-    if (Object.keys(definition.$preOptions)) {
-      Object.assign(definition.$options, definition.$preOptions);
-    }
     // 记录组件
     componentMap.set(name, ctor);
   };
-}
-
-/**
- * 判断是否使用 @component 装饰器标记
- * @param ctor 类构造器或原型对象
- * @returns
- */
-export function isComponent(
-  ctor: ((...args: unknown[]) => unknown) | object
-): boolean {
-  const { componentDefinitionKey } = getGlobalData("@ocean/component") as {
-    componentDefinitionKey: symbol;
-  };
-  // 如果是类构造器，则获取其原型对象
-  const target = typeof ctor === "function" ? ctor.prototype : ctor;
-  // 保存原型对象的原型
-  const prototype = Object.getPrototypeOf(target);
-  try {
-    // 置空原型
-    Object.setPrototypeOf(target, null);
-    // 判断原型对象有没有组件定义
-    return Reflect.has(target, componentDefinitionKey);
-  } finally {
-    // 恢复原型
-    Object.setPrototypeOf(target, prototype);
-  }
 }

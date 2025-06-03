@@ -7,15 +7,15 @@ export type ComputedOption<T> = {
 };
 
 export class Computed<T extends unknown = unknown> implements IObserver {
-  declare dirty: boolean;
+  private declare dirty: boolean;
   private declare cache: T;
   private declare handles: Set<Reaction>;
   private declare equal: (oldValue: T, newValue: T) => boolean;
   private declare method: () => T;
-  private declare loaded: Reaction | undefined;
+  private declare subReaction: Reaction | undefined;
   constructor(props: ComputedOption<T>) {
     Object.assign(this, props);
-    this.dirty = false;
+    this.dirty = true;
   }
   track() {
     const running = getGlobalData("@ocean/reaction") as $REACTION;
@@ -26,20 +26,22 @@ export class Computed<T extends unknown = unknown> implements IObserver {
 
   get(): T {
     this.track();
-    // 首次运行数据未脏但缓存没值
-    if (!this.dirty && this.loaded) {
+    if (!this.dirty && typeof this.cache !== undefined) {
       return this.cache;
     } else {
-      this.load();
+      this.compute();
       return this.cache;
     }
   }
 
-  private load() {
+  private compute() {
     const { method } = this;
-    this.loaded?.destroy();
+    if (!method) {
+      return;
+    }
+    this.subReaction?.destroy();
     // 将运行method收集到的依赖和computed的响应关联
-    this.loaded = createReaction(
+    this.subReaction = createReaction(
       () => {
         this.cache = method();
         this.dirty = false;
@@ -64,8 +66,9 @@ export class Computed<T extends unknown = unknown> implements IObserver {
     this.handles.delete(reaction);
   }
   destroy() {
-    this.dirty = false;
-    this.loaded = undefined;
+    this.dirty = true;
+    this.subReaction?.destroy();
+    this.subReaction = undefined;
     this.handles.forEach((reaction) => {
       reaction.removeObserver(this);
     });

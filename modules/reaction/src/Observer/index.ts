@@ -14,16 +14,16 @@ export type ObserverOption<T> = {
 };
 
 export class Observer<T = unknown> implements IObserver {
-  private declare handles: Set<Reaction>;
+  private declare handlers: Set<Reaction>;
   private declare value: T;
   private declare equal: (oldValue: T, newValue: T) => boolean;
   constructor(option: ObserverOption<T> = {}) {
     this.equal = option.equal || equal;
-    this.handles = new Set();
+    this.handlers = new Set();
     if (Object.prototype.hasOwnProperty.call(option, "initValue")) {
       const value = option.initValue;
       assert(value);
-      this.value = this.value;
+      this.value = value;
     }
   }
   track() {
@@ -47,19 +47,19 @@ export class Observer<T = unknown> implements IObserver {
     }
   }
   notify(): void {
-    const handles = [...this.handles];
+    const handles = [...this.handlers];
     for (const reaction of handles) {
       reaction.notify();
     }
   }
   addReaction(reaction: Reaction): void {
-    this.handles.add(reaction);
+    this.handlers.add(reaction);
   }
   removeReaction(reaction: Reaction): void {
-    this.handles.delete(reaction);
+    this.handlers.delete(reaction);
   }
   destroy() {
-    this.handles.forEach((reaction) => {
+    this.handlers.forEach((reaction) => {
       reaction.removeObserver(this);
     });
   }
