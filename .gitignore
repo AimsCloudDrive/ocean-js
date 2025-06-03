@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+!babel-plugins/dist
 dist-ssr
 *.local
 
