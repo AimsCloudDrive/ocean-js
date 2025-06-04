@@ -15,13 +15,13 @@ import { createReaction, withoutTrack } from "@ocean/reaction";
 import { DOMElement, VNode } from "./Node";
 
 type $DOM = {
-  rendering?: Component.IComponent<ComponentProps<any>>;
+  rendering?: Ocean.IComponent<ComponentProps<any>>;
 };
 
 setGlobalData("@ocean/dom", {} as $DOM);
 
 const componentVDOMMap = new WeakMap<
-  Component.IComponent<ComponentProps<any>>,
+  Ocean.IComponent<ComponentProps<any>>,
   VNode | Nullable
 >();
 
@@ -103,7 +103,7 @@ const eventBindingMap = new WeakMap<
 
 const componentCache = new Map<
   any,
-  Component.IComponent<ComponentProps<any>, ComponentEvents>
+  Ocean.IComponent<ComponentProps<any>, ComponentEvents>
 >();
 
 export function mountComponent(
@@ -137,7 +137,7 @@ export function mountComponent(
     const component = (() => {
       let component = componentCache.get(_props.$key);
       if (!component) {
-        component = new element.type(_props) as Component.IComponent<
+        component = new element.type(_props) as Ocean.IComponent<
           ComponentProps<any>,
           ComponentEvents
         >;

@@ -7,40 +7,33 @@ export as namespace Ocean;
 declare global {
   export namespace Component {
     export interface Context {}
-    export interface IComponent<
-      Props extends { children?: any } = { children: never },
-      Events extends {} = {}
-    > extends IEvent<Events> {
-      props: Ocean.JSX.ComponentPropsConverter<Props, Events>;
-      $owner?: IComponent;
-      el: HTMLElement | Text;
-      isMounted(): boolean;
-      set(props: Partial<Props>): void;
-      setJSX(jsx: Props["children"]): void;
-      render(): VNode | undefined | null;
-      rendered(): void;
-      created(): void;
-      mount(): VNode | undefined | null;
-      mounted(): void;
-      onmounted(handle: () => void): void;
-      unmount(): void;
-      unmounted(): void;
-      onunmounted(handle: () => void): void;
-      destroy(): void;
-    }
   }
 }
 
 declare namespace Ocean {
+  export interface IComponent<
+    Props extends { children?: any } = { children: never },
+    Events extends {} = {}
+  > extends IEvent<Events> {
+    props: Ocean.JSX.ComponentPropsConverter<Props>;
+    $owner?: IComponent;
+    el: HTMLElement | Text;
+    isMounted(): boolean;
+    set(props: Partial<Props>): void;
+    setJSX(jsx: Props["children"]): void;
+    render(): VNode | undefined | null;
+    rendered(): void;
+    created(): void;
+    mount(): VNode | undefined | null;
+    mounted(): void;
+    onmounted(handle: () => void): void;
+    unmount(): void;
+    unmounted(): void;
+    onunmounted(handle: () => void): void;
+    destroy(): void;
+  }
   export namespace JSX {
     export interface Element extends React.JSX.Element {}
-
-    // 自定义事件类型（用于类组件）
-    interface ComponentEvent<EventMap extends {}, K extends keyof EventMap> {
-      data: EventMap[K];
-      type: K;
-      nativeEvent: Event<EventMap>;
-    }
     // 转换React内置元素属性：驼峰事件 -> 小写事件
     type WithLowercaseEvents<T> = {
       [K in keyof T as K extends `on${infer EventName}`
@@ -54,7 +47,7 @@ declare namespace Ocean {
         : T[K];
     };
     // 类组件属性转换器
-    export type ComponentPropsConverter<Props, Events extends {}> = Omit<
+    export type ComponentPropsConverter<Props, Events extends {} = {}> = Omit<
       Props,
       "children"
     > & {

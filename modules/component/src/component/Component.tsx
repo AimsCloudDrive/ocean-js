@@ -43,27 +43,27 @@ export type ComponentEvents = {
     unmounted: "null",
   },
 })
-export abstract class Component<
+class CComponent<
     P extends ComponentProps<unknown> = ComponentProps,
     E extends ComponentEvents = ComponentEvents
   >
   extends Event<E>
-  implements Component.IComponent<P, E>
+  implements Ocean.IComponent<P, E>
 {
   @option()
   private $key: string | number | Nullable;
   @option()
   private $context?: Partial<Component.Context>;
-  declare props: Ocean.JSX.ComponentPropsConverter<P, {}>;
-  declare el: HTMLElement;
-  constructor(props: P) {
+  declare props: Ocean.JSX.ComponentPropsConverter<P>;
+  declare el: HTMLElement | Text;
+  constructor(props: Ocean.JSX.ComponentPropsConverter<P>) {
     super();
     this.init();
     this.props = props;
     this.set(props);
   }
 
-  declare $owner?: Component<ComponentProps<unknown>, ComponentEvents>;
+  declare $owner?: CComponent<ComponentProps<any>, ComponentEvents>;
 
   // 设置JSX
   setJSX(jsx: P["children"]) {}
@@ -156,7 +156,7 @@ export abstract class Component<
   }
   mount() {
     const DomData = getGlobalData("@ocean/dom") as {
-      rendering: Component | undefined;
+      rendering: CComponent | undefined;
     };
     const { rendering } = DomData;
     try {
@@ -169,7 +169,7 @@ export abstract class Component<
   mounted() {
     this.emit("mounted", null);
   }
-  onmounted(cb: Parameters<Event<E>["on"]>[1]) {
+  onmounted(cb: () => void) {
     this.on("mounted", cb);
   }
   unmount() {
@@ -197,3 +197,19 @@ export abstract class Component<
     this.unmount();
   }
 }
+
+interface ComponentConstructor<
+  Props extends ComponentProps<unknown> = ComponentProps,
+  Events extends ComponentEvents = ComponentEvents
+> {
+  new <
+    Props extends ComponentProps<unknown> = ComponentProps,
+    Events extends ComponentEvents = ComponentEvents
+  >(
+    props: Ocean.JSX.ComponentPropsConverter<Props, Events>
+  ): CComponent<Props, Events>;
+
+  prototype: CComponent<Props, Events>;
+}
+
+export const Component: ComponentConstructor = CComponent;

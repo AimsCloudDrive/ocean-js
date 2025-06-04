@@ -8,10 +8,13 @@ import {
 } from "@ocean/component";
 import { VNode } from "../Node";
 
-export type ContextProps = {} & ComponentProps<() => Ocean.JSX.Element>;
+export type ContextProps = {} & ComponentProps<VNode | (() => VNode)>;
 
 @component("context")
-export class Context extends Component<ContextProps, ComponentEvents> {
+export class Context extends Component<
+  ContextProps,
+  ComponentEvents & { a: 1 }
+> {
   private declare content: VNode | (() => VNode) | undefined;
 
   setJSX(jsx: ContextProps["children"]): void {
