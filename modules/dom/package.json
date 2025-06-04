@@ -1,14 +1,25 @@
 {
   "name": "@ocean/dom",
-  "version": "0.0.7",
+  "version": "0.0.12",
   "description": "@ocean/dom",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
   "files": [
     "dist",
+    "jsx-runtime.d.ts",
     "README.md"
   ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./jsx-runtime": {
+      "types": "./jsx-runtime.d.ts",
+      "default": "./jsx-runtime.d.ts"
+    }
+  },
   "keywords": [
     "ocean",
     "dom"

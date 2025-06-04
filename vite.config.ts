@@ -18,6 +18,7 @@ export default defineConfig({
           tsconfig: "./tsconfig.json",
           paths: {},
           noCheck: true,
+          jsxImportSource: undefined,
         }),
         babel({
           babelHelpers: "bundled",

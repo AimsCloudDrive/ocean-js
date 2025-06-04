@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    // "types": ["modules/**/src"],
+    // "types": ["modules/dom/jsx-runtime.d.ts"],
     "baseUrl": "./",
     "paths": { "@ocean/*": ["modules/*/src"] },
     // "incremental": true, // 增量编译
@@ -18,7 +18,7 @@
     "emitDecoratorMetadata": true, // 为装饰器提供元数据支持
 
     "jsx": "preserve",
-    "jsxImportSource": "modules/dom/src",
+    "jsxImportSource": "modules/dom",
 
     "declaration": true, // 生成声明文件
     "declarationDir": "dist/types", // 声明文件的路径

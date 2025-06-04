@@ -1,6 +1,6 @@
 import { Event, IEvent } from "@ocean/common";
 import { IRef } from "@ocean/component";
-import { VNode } from "./Node";
+import { VNode } from "./src/Node";
 
 export = Ocean;
 export as namespace Ocean;
