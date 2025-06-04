@@ -30,6 +30,9 @@ export class Context extends Component<
     e.target;
   }}
   onclick={(e) => {}}
+  class={{
+    a: true,
+  }}
 >
-  <Context></Context>
+  <Context class={[""]}></Context>
 </div>;

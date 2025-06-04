@@ -6,7 +6,7 @@ export interface IRef<T> {
 
 export class Ref<T> implements IRef<T> {
   @observer()
-  data: T[];
+  declare data: T[];
 
   set(el: T) {
     if (this.data) {
@@ -26,7 +26,7 @@ export function createRef<T>(): Ref<T> {
 
 export class MapRef<T> implements IRef<T> {
   @observer()
-  data: Map<any, T>;
+  declare data: Map<any, T>;
   set(el: T) {
     if (this.data) {
       this.data.set(
@@ -48,7 +48,7 @@ export function createMapRef<T>(): MapRef<T> {
 
 export class SingleRef<T> implements IRef<T> {
   @observer()
-  data: T;
+  declare data: T;
   current: T;
   set(el: T) {
     this.current = el;

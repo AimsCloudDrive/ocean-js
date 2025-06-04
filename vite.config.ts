@@ -5,6 +5,7 @@ import { defineConfig } from "vite";
 import addSourceCommentPlugin from "./vite-plugins/addSourceCommentPlugin";
 import addTsIgnorePlugin from "./vite-plugins/addTsIgnorePlugin";
 import viteRollupBabelPlugins from "./vite.rollup.babel.plugins";
+import path from "path";
 
 const SourceCommentRegExp = /^\*[\s\S]*?Source:[\s\S]*?$/;
 
@@ -22,12 +23,8 @@ export default defineConfig({
         }),
         babel({
           babelHelpers: "bundled",
-          presets: [
-            ["@babel/preset-env", { targets: "> 0.25%, not dead" }],
-            // ["@babel/preset-typescript", { allowDeclareFields: true }],
-          ],
+          presets: [["@babel/preset-env", { targets: "> 0.25%, not dead" }]],
           plugins: viteRollupBabelPlugins,
-          sourceMaps: "inline",
           exclude: ["node_modules/**", "@ocean/**"],
           extensions: [".ts", ".js", ".tsx", ".jsx"],
           babelrc: false,
@@ -50,7 +47,7 @@ export default defineConfig({
     },
     target: ["esnext"],
     emptyOutDir: true,
-    sourcemap: "inline",
+    sourcemap: true,
     minify: false,
     outDir: "./dist",
     lib: {

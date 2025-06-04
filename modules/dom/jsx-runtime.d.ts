@@ -1,4 +1,4 @@
-import { Event, IEvent } from "@ocean/common";
+import { ClassType, Event, IEvent, CSSStyle } from "@ocean/common";
 import { IRef } from "@ocean/component";
 import { VNode } from "./src/Node";
 
@@ -65,8 +65,13 @@ declare namespace Ocean {
     type _IntrinsicElements = {
       [K in keyof React.JSX.IntrinsicElements]: Omit<
         WithLowercaseEvents<React.JSX.IntrinsicElements[K]>,
-        "ref" | "key"
-      > & { $ref?: IRef<any> | IRef<any>[]; $key?: string | number | bigint };
+        "ref" | "key" | "style"
+      > & {
+        $ref?: IRef<any> | IRef<any>[];
+        $key?: string | number | bigint;
+        class?: ClassType;
+        style?: CSSStyle;
+      };
     };
     export interface IntrinsicElements extends _IntrinsicElements {}
   }

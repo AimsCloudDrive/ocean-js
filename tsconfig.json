@@ -25,6 +25,7 @@
     // "emitDeclarationOnly": true, // 只生成声明文件
     // "sourceMap": true, // 生成目标文件的 sourceMap
     "inlineSourceMap": true, // 生成目标文件的 inline sourceMap
+    "sourceRoot": "./",
     "declarationMap": true, // 生成声明文件的 sourceMap
     "removeComments": false, // 删除注释
     "noEmit": true, // 不输出文件
