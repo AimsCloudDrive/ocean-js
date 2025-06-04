@@ -10,6 +10,7 @@ import {
   ownKeysAndPrototypeOwnKeys,
   parseClass,
 } from "@ocean/common";
+import { VNode } from "@ocean/dom";
 import { getObserver } from "@ocean/reaction";
 import { component, option } from "../Decorator";
 import { IRef } from "./Ref";
@@ -20,16 +21,9 @@ declare global {
   }
 }
 
-interface IComponent<P> {
-  props: P;
-  context: Partial<Component.Context>;
-  setProps(props: P): void;
-  forceUpdate(): void;
-}
-
 export type ComponentProps<C = never> = {
   $context?: Partial<Component.Context>;
-  $key?: string | number;
+  $key?: string | number | bigint;
   $ref?: IRef<unknown> | IRef<unknown>[];
   class?: _ClassType;
   style?: CSSStyle;
@@ -54,26 +48,18 @@ export abstract class Component<
     E extends ComponentEvents = ComponentEvents
   >
   extends Event<E>
-  implements IComponent<P & E>
+  implements Component.IComponent<P, E>
 {
-  // region: react
-  setState: unknown;
-  state: unknown;
-  refs: unknown;
-  forceUpdate(): void {}
-  declare context: Partial<Component.Context>;
-  // reginend
-
   @option()
   private $key: string | number | Nullable;
   @option()
   private $context?: Partial<Component.Context>;
-  declare props: P & E;
+  declare props: Ocean.JSX.ComponentPropsConverter<P, {}>;
   declare el: HTMLElement;
   constructor(props: P) {
     super();
     this.init();
-    this.props = props as P & E;
+    this.props = props;
     this.set(props);
   }
 
@@ -83,7 +69,7 @@ export abstract class Component<
   setJSX(jsx: P["children"]) {}
 
   getClassName(): string {
-    const p = this.props as ComponentProps<unknown>;
+    const p = this.props;
     return p.class ? parseClass(p.class) : "";
   }
   getStyle(): string {
@@ -148,8 +134,9 @@ export abstract class Component<
       );
     }
   }
-
-  render(): any {}
+  render(): VNode | Nullable {
+    return <div></div>;
+  }
   rendered(): void {}
   init() {
     this.clean = [];
@@ -164,14 +151,17 @@ export abstract class Component<
     return !!this.el && this.el.parentElement != null;
   }
   // lifeCircle
-  created() {}
+  created() {
+    this.emit("created", null);
+  }
   mount() {
     const DomData = getGlobalData("@ocean/dom") as {
       rendering: Component | undefined;
     };
     const { rendering } = DomData;
     try {
-      return this.render();
+      const vDOM = this.render();
+      return vDOM;
     } finally {
       DomData.rendering = rendering;
     }
@@ -179,7 +169,7 @@ export abstract class Component<
   mounted() {
     this.emit("mounted", null);
   }
-  onmounted(cb: () => void) {
+  onmounted(cb: Parameters<Event<E>["on"]>[1]) {
     this.on("mounted", cb);
   }
   unmount() {
@@ -192,6 +182,7 @@ export abstract class Component<
       this.el.remove();
       Object.assign(this, { el: null });
     }
+    this;
   }
   unmounted() {
     this.emit("unmounted", null);

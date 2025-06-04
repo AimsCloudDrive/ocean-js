@@ -1,15 +1,20 @@
 /**@jsx createElement */
 import { createElement } from "../element";
-import { Component, ComponentProps, component } from "@ocean/component";
+import {
+  Component,
+  ComponentEvents,
+  ComponentProps,
+  component,
+} from "@ocean/component";
 import { VNode } from "../Node";
 
-export type ContextProps = {} & ComponentProps<(() => VNode) | VNode>;
+export type ContextProps = {} & ComponentProps<() => Ocean.JSX.Element>;
 
 @component("context")
-export class Context extends Component<ContextProps> {
+export class Context extends Component<ContextProps, ComponentEvents> {
   private declare content: VNode | (() => VNode) | undefined;
 
-  setJSX(jsx: (() => VNode) | VNode | undefined): void {
+  setJSX(jsx: ContextProps["children"]): void {
     this.content = jsx;
   }
   render() {
@@ -17,8 +22,11 @@ export class Context extends Component<ContextProps> {
   }
 }
 
-<>
-  <div onClick={(e) => {}}>
-    <Context></Context>
-  </div>
-</>;
+<div
+  onchange={(e) => {
+    e.target;
+  }}
+  onclick={(e) => {}}
+>
+  <Context></Context>
+</div>;

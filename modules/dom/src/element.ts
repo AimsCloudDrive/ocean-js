@@ -1,35 +1,28 @@
 import {
-  CSSStyle,
-  ClassType,
   Event,
   Nullable,
   compareObjects,
   getComponentDefinition,
   getGlobalData,
+  isComponent,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
   parseStyle,
   setGlobalData,
-  isComponent,
 } from "@ocean/common";
-import {
-  Component,
-  ComponentEvents,
-  ComponentProps,
-  IRef,
-} from "@ocean/component";
+import { ComponentEvents, ComponentProps, IRef } from "@ocean/component";
 import { createReaction, withoutTrack } from "@ocean/reaction";
-import { DOMElement } from "./Node";
+import { DOMElement, VNode } from "./Node";
 
 type $DOM = {
-  rendering?: Component;
+  rendering?: Component.IComponent<ComponentProps<any>>;
 };
 
 setGlobalData("@ocean/dom", {} as $DOM);
 
 const componentVDOMMap = new WeakMap<
-  Component<ComponentProps<any>>,
-  DOMElement<any>
+  Component.IComponent<ComponentProps<any>>,
+  VNode | Nullable
 >();
 
 declare global {
@@ -108,7 +101,10 @@ const eventBindingMap = new WeakMap<
   { [K in PropertyKey]: Parameters<Event["on"]>[1] }
 >();
 
-const componentCache = new Map<any, Component<ComponentProps<any>>>();
+const componentCache = new Map<
+  any,
+  Component.IComponent<ComponentProps<any>, ComponentEvents>
+>();
 
 export function mountComponent(
   element: DOMElement<any>,
@@ -139,10 +135,12 @@ export function mountComponent(
 
     // lifeCircle: create
     const component = (() => {
-      let component: Component<ComponentProps<any>> | undefined =
-        componentCache.get(_props.$key);
+      let component = componentCache.get(_props.$key);
       if (!component) {
-        component = new element.type(_props) as Component;
+        component = new element.type(_props) as Component.IComponent<
+          ComponentProps<any>,
+          ComponentEvents
+        >;
         _props.$key != undefined && componentCache.set(_props.$key, component);
       } else {
         component.set(_props);
@@ -191,7 +189,8 @@ export function mountComponent(
     const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
     const { rendering } = domGlobalData;
     component.$owner = rendering;
-    component.onunmounted(
+    component.on(
+      "unmounted",
       createReaction(
         () => {
           const prevVDOM = componentVDOMMap.get(component);
@@ -322,13 +321,16 @@ export function mountWith(
  * @param prevVDOM
  * @returns 返回时否有变
  */
-function patchVDOM(
-  vDOM: DOMElement<any>,
-  prevVDOM: DOMElement<any> | Nullable
-) {
+function patchVDOM(vDOM: VNode | Nullable, prevVDOM: VNode | Nullable) {
   if (!prevVDOM) {
     return true;
   } else {
-    return compareObjects(vDOM, prevVDOM);
+    if (vDOM === null || prevVDOM === null) {
+      return Object.is(vDOM, prevVDOM);
+    } else if (typeof vDOM === "object" && typeof prevVDOM === "object") {
+      return compareObjects(vDOM, prevVDOM);
+    } else {
+      return Object.is(vDOM, prevVDOM);
+    }
   }
 }
