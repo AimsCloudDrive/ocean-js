@@ -1,6 +1,7 @@
 {
+  "$schema": "https://json.schemastore.org/package",
   "name": "@ocean/reaction",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "@ocean/reaction",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@ocean/dom",
-  "version": "0.0.17",
+  "version": "0.0.19",
   "description": "@ocean/dom",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
@@ -9,6 +9,7 @@
   "files": [
     "dist",
     "./jsx-runtime.d.ts",
+    "./jsx-dev-runtime.d.ts",
     "README.md"
   ],
   "keywords": [

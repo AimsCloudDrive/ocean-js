@@ -322,12 +322,9 @@ importers:
 
   modules/http:
     dependencies:
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.17
-      '@types/express':
-        specifier: ^5.0.0
-        version: 5.0.0
+      '@ocean/http':
+        specifier: 'file:'
+        version: 'link:'
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -338,9 +335,15 @@ importers:
         specifier: ^6.16.0
         version: 6.16.0
     devDependencies:
-      '@ocean/common':
-        specifier: workspace:^
-        version: link:../common
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.17
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.0
+      '@types/mongodb':
+        specifier: ^4.0.7
+        version: 4.0.7
 
   modules/reaction:
     devDependencies:
@@ -1571,6 +1574,10 @@ packages:
 
   '@types/mime@1.3.5':
     resolution: {integrity: sha512-/pyBZWSLD2n0dcHE3hq8s8ZvcETHtEuF+3E7XVt0Ig2nvsVQXdghHVcEkIWjy9A0wKfTn97a/PSDYohKIlnP/w==}
+
+  '@types/mongodb@4.0.7':
+    resolution: {integrity: sha512-lPUYPpzA43baXqnd36cZ9xxorprybxXDzteVKCPAdp14ppHtFJHnXYvNpmBvtMUTb5fKXVv6sVbzo1LHkWhJlw==}
+    deprecated: mongodb provides its own types. @types/mongodb is no longer needed.
 
   '@types/node@22.15.21':
     resolution: {integrity: sha512-EV/37Td6c+MgKAbkcLG6vqZ2zEYHD7bvSrzqqs2RIhbA6w3x+Dqz8MZM3sP6kGTeLrdoOgKZe+Xja7tUB2DNkQ==}
@@ -4068,6 +4075,18 @@ snapshots:
   '@types/json-schema@7.0.15': {}
 
   '@types/mime@1.3.5': {}
+
+  '@types/mongodb@4.0.7':
+    dependencies:
+      mongodb: 6.16.0
+    transitivePeerDependencies:
+      - '@aws-sdk/credential-providers'
+      - '@mongodb-js/zstd'
+      - gcp-metadata
+      - kerberos
+      - mongodb-client-encryption
+      - snappy
+      - socks
 
   '@types/node@22.15.21':
     dependencies:
