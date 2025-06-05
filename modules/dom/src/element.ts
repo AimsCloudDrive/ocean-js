@@ -12,7 +12,6 @@ import {
 } from "@ocean/common";
 import { ComponentEvents, ComponentProps, IRef } from "@ocean/component";
 import { createReaction, withoutTrack } from "@ocean/reaction";
-import { DOMElement, VNode } from "./Node";
 
 type $DOM = {
   rendering?: IComponent<ComponentProps<any>>;

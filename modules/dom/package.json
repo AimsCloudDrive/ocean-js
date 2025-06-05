@@ -1,25 +1,16 @@
 {
+  "$schema": "https://json.schemastore.org/package",
   "name": "@ocean/dom",
-  "version": "0.0.15",
+  "version": "0.0.17",
   "description": "@ocean/dom",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
   "files": [
     "dist",
-    "jsx-runtime.d.ts",
+    "./jsx-runtime.d.ts",
     "README.md"
   ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
-    },
-    "./jsx-runtime": {
-      "types": "./jsx-runtime.d.ts",
-      "default": "./jsx-runtime.d.ts"
-    }
-  },
   "keywords": [
     "ocean",
     "dom"

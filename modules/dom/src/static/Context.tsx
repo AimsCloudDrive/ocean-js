@@ -6,7 +6,6 @@ import {
   ComponentProps,
   component,
 } from "@ocean/component";
-import { VNode } from "../Node";
 
 export type ContextProps = {} & ComponentProps<VNode | (() => VNode)>;
 

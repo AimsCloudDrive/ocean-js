@@ -10,7 +10,6 @@ import {
   ownKeysAndPrototypeOwnKeys,
   parseClass,
 } from "@ocean/common";
-import { VNode } from "@ocean/dom";
 import { getObserver } from "@ocean/reaction";
 import { component, option } from "../Decorator";
 import { IRef } from "./Ref";
