@@ -18,7 +18,7 @@
     "emitDecoratorMetadata": true, // 为装饰器提供元数据支持
 
     "jsx": "preserve",
-    "jsxImportSource": "modules/dom",
+    "jsxImportSource": "modules/dom/src",
 
     "declaration": true, // 生成声明文件
     "declarationDir": "dist/types", // 声明文件的路径

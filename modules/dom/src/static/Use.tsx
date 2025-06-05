@@ -4,14 +4,14 @@ import { observer } from "@ocean/reaction";
 import { VNode } from "..";
 
 type UseProps = ComponentProps & {
-  instance: Ocean.IComponent<any>;
+  instance: IComponent<any>;
 };
 
 @component("use")
 export class Use extends Component<UseProps> {
   @option()
   @observer()
-  instance: Ocean.IComponent<any>;
+  instance: IComponent<any>;
 
   render() {
     return this.instance.render();

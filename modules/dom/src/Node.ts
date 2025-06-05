@@ -6,7 +6,7 @@ export type VNode =
   | string
   | number
   | bigint
-  | Ocean.JSX.Element
+  | JSX.Element
   | VNodeArray
   | DOMElement;
 export interface HTMLAttributes<T> extends React.AllHTMLAttributes<T> {

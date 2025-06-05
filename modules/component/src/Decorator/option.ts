@@ -20,6 +20,7 @@ export function option(option: { type?: JSTypes } = {}): PropertyDecorator {
       throw new OptionDecoratorUsedError({ NotStatic: true });
     }
     if (!isComponent(target)) {
+      console.log(target);
       throw new OptionDecoratorUsedError({ NotInComponent: true });
     }
     // 原型对象上有key，则表示该属性是访问器属性或方法

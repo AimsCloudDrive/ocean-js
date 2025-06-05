@@ -54,7 +54,8 @@ export default defineConfig({
       entry: ["src/index.ts"],
       name: "index.js",
       formats: ["es", "cjs"],
-      fileName: (format) => {
+      fileName: (format, entryName) => {
+        console.log(entryName);
         if (/^esm?$/.test(format)) {
           return "index.js";
         }

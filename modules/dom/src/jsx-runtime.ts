@@ -1,37 +1,8 @@
 import { ClassType, Event, IEvent, CSSStyle } from "@ocean/common";
 import { IRef } from "@ocean/component";
-import { VNode } from "./src/Node";
+import { VNode } from "./Node";
 
-export = Ocean;
-export as namespace Ocean;
 declare global {
-  export namespace Component {
-    export interface Context {}
-  }
-}
-
-declare namespace Ocean {
-  export interface IComponent<
-    Props extends { children?: any } = { children: never },
-    Events extends {} = {}
-  > extends IEvent<Events> {
-    props: Ocean.JSX.ComponentPropsConverter<Props>;
-    $owner?: IComponent;
-    el: HTMLElement | Text;
-    isMounted(): boolean;
-    set(props: Partial<Props>): void;
-    setJSX(jsx: Props["children"]): void;
-    render(): VNode | undefined | null;
-    rendered(): void;
-    created(): void;
-    mount(): VNode | undefined | null;
-    mounted(): void;
-    onmounted(handle: () => void): void;
-    unmount(): void;
-    unmounted(): void;
-    onunmounted(handle: () => void): void;
-    destroy(): void;
-  }
   export namespace JSX {
     export interface Element extends React.JSX.Element {}
     // 转换React内置元素属性：驼峰事件 -> 小写事件
@@ -74,5 +45,26 @@ declare namespace Ocean {
       };
     };
     export interface IntrinsicElements extends _IntrinsicElements {}
+  }
+  export interface IComponent<
+    Props extends { children?: any } = { children: never },
+    Events extends {} = {}
+  > extends IEvent<Events> {
+    props: JSX.ComponentPropsConverter<Props>;
+    $owner?: IComponent;
+    el: HTMLElement | Text;
+    isMounted(): boolean;
+    set(props: Partial<Props>): void;
+    setJSX(jsx: Props["children"]): void;
+    render(): VNode | undefined | null;
+    rendered(): void;
+    created(): void;
+    mount(): VNode | undefined | null;
+    mounted(): void;
+    onmounted(handle: () => void): void;
+    unmount(): void;
+    unmounted(): void;
+    onunmounted(handle: () => void): void;
+    destroy(): void;
   }
 }

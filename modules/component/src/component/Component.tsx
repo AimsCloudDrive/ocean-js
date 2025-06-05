@@ -43,27 +43,27 @@ export type ComponentEvents = {
     unmounted: "null",
   },
 })
-class CComponent<
+class ClassComponent<
     P extends ComponentProps<unknown> = ComponentProps,
     E extends ComponentEvents = ComponentEvents
   >
   extends Event<E>
-  implements Ocean.IComponent<P, E>
+  implements IComponent<P, E>
 {
   @option()
   private $key: string | number | Nullable;
   @option()
   private $context?: Partial<Component.Context>;
-  declare props: Ocean.JSX.ComponentPropsConverter<P>;
+  declare props: JSX.ComponentPropsConverter<P>;
   declare el: HTMLElement | Text;
-  constructor(props: Ocean.JSX.ComponentPropsConverter<P>) {
+  constructor(props: JSX.ComponentPropsConverter<P>) {
     super();
     this.init();
     this.props = props;
     this.set(props);
   }
 
-  declare $owner?: CComponent<ComponentProps<any>, ComponentEvents>;
+  declare $owner?: ClassComponent<ComponentProps<any>, ComponentEvents>;
 
   // 设置JSX
   setJSX(jsx: P["children"]) {}
@@ -156,7 +156,7 @@ class CComponent<
   }
   mount() {
     const DomData = getGlobalData("@ocean/dom") as {
-      rendering: CComponent | undefined;
+      rendering: ClassComponent | undefined;
     };
     const { rendering } = DomData;
     try {
@@ -206,10 +206,10 @@ interface ComponentConstructor<
     Props extends ComponentProps<unknown> = ComponentProps,
     Events extends ComponentEvents = ComponentEvents
   >(
-    props: Ocean.JSX.ComponentPropsConverter<Props, Events>
-  ): CComponent<Props, Events>;
+    props: JSX.ComponentPropsConverter<Props, Events>
+  ): ClassComponent<Props, Events>;
 
-  prototype: CComponent<Props, Events>;
+  prototype: ClassComponent<Props, Events>;
 }
 
-export const Component: ComponentConstructor = CComponent;
+export const Component: ComponentConstructor = ClassComponent;

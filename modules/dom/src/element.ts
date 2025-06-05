@@ -15,13 +15,13 @@ import { createReaction, withoutTrack } from "@ocean/reaction";
 import { DOMElement, VNode } from "./Node";
 
 type $DOM = {
-  rendering?: Ocean.IComponent<ComponentProps<any>>;
+  rendering?: IComponent<ComponentProps<any>>;
 };
 
 setGlobalData("@ocean/dom", {} as $DOM);
 
 const componentVDOMMap = new WeakMap<
-  Ocean.IComponent<ComponentProps<any>>,
+  IComponent<ComponentProps<any>>,
   VNode | Nullable
 >();
 
@@ -103,7 +103,7 @@ const eventBindingMap = new WeakMap<
 
 const componentCache = new Map<
   any,
-  Ocean.IComponent<ComponentProps<any>, ComponentEvents>
+  IComponent<ComponentProps<any>, ComponentEvents>
 >();
 
 export function mountComponent(
@@ -137,7 +137,7 @@ export function mountComponent(
     const component = (() => {
       let component = componentCache.get(_props.$key);
       if (!component) {
-        component = new element.type(_props) as Ocean.IComponent<
+        component = new element.type(_props) as IComponent<
           ComponentProps<any>,
           ComponentEvents
         >;
@@ -189,8 +189,7 @@ export function mountComponent(
     const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
     const { rendering } = domGlobalData;
     component.$owner = rendering;
-    component.on(
-      "unmounted",
+    component.onunmounted(
       createReaction(
         () => {
           const prevVDOM = componentVDOMMap.get(component);
