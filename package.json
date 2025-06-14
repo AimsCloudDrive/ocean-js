@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@ocean/js",
+  "name": "@oceancommon/js",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,6 @@
     "release": "node ./scripts/xbuild.js --release"
   },
   "publishConfig": {
-    "registry": "http://never.aims.nevermonarch.cn:64873",
     "access": "public"
   },
   "workspaces": [

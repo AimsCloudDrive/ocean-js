@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@ocean/dom",
-  "version": "0.0.19",
-  "description": "@ocean/dom",
+  "name": "@oceancommon/dom",
+  "version": "0.0.20",
+  "description": "@oceancommon/dom",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
@@ -19,7 +19,6 @@
   "author": "OceanCommon",
   "license": "MIT",
   "publishConfig": {
-    "registry": "http://never.aims.nevermonarch.cn:64873",
     "access": "public"
   },
   "scripts": {

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@ocean/component",
-  "version": "0.0.18",
-  "description": "@ocean/component",
+  "name": "@oceancommon/component",
+  "version": "0.0.19",
+  "description": "@oceancommon/component",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
@@ -31,7 +31,6 @@
     "@ocean/reaction": "workspace:^"
   },
   "publishConfig": {
-    "registry": "http://never.aims.nevermonarch.cn:64873",
     "access": "public"
   }
 }

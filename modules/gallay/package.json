@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@ocean/gallay",
+  "name": "@oceancommon/gallay",
   "version": "0.0.1",
-  "description": "@ocean/gallay",
+  "description": "@oceancommon/gallay",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
@@ -17,7 +17,6 @@
   "author": "OceanCommon",
   "license": "MIT",
   "publishConfig": {
-    "registry": "http://never.aims.nevermonarch.cn:64873",
     "access": "public"
   },
   "scripts": {

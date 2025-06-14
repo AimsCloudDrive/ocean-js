@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@ocean/common",
-  "version": "2.0.12",
-  "description": "@ocean/common",
+  "name": "@oceancommon/common",
+  "version": "2.0.13",
+  "description": "@oceancommon/common",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
@@ -27,7 +27,6 @@
     "dev": "pnpm run -r --filter=./example dev"
   },
   "publishConfig": {
-    "registry": "http://never.aims.nevermonarch.cn:64873",
     "access": "public"
   },
   "dependencies": {

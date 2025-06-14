@@ -9,12 +9,9 @@
     "release": "node ./scripts/xbuild.js --release"
   },
   "publishConfig": {
-    "registry": "http://never.aims.nevermonarch.cn:64873",
     "access": "public"
   },
-  "workspaces": [
-    "modules/*"
-  ],
+  "workspaces": ["modules/*"],
   "devDependencies": {
     "@babel/cli": "^7.27.1",
     "@babel/core": "^7.26.10",
