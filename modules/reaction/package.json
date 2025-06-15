@@ -29,6 +29,6 @@
     "rel": "pnpm publish"
   },
   "devDependencies": {
-    "@ocean/common": "workspace:^"
+    "@oceancommon/common": "workspace:^"
   }
 }

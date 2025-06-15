@@ -13,12 +13,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@ocean/common-example": "file:"
+    "@oceancommon/common-example": "file:"
   },
   "devDependencies": {
-    "@ocean/common": "workspace:*",
-    "@ocean/gallay": "workspace:*",
-    "@ocean/http": "workspace:*",
+    "@oceancommon/common": "workspace:*",
+    "@oceancommon/gallay": "workspace:*",
+    "@oceancommon/http": "workspace:*",
     "esbuild": "^0.25.2",
     "express": "^4.21.2"
   }

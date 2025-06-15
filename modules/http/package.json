@@ -30,7 +30,7 @@
     "rel": "pnpm publish"
   },
   "dependencies": {
-    "@ocean/http": "file:",
+    "@oceancommon/http": "file:",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "mongodb": "^6.16.0"

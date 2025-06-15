@@ -29,9 +29,9 @@
     "rel": "pnpm publish"
   },
   "devDependencies": {
-    "@ocean/common": "workspace:*",
-    "@ocean/dom": "workspace:*",
-    "@ocean/component": "workspace:*",
-    "@ocean/reaction": "workspace:*"
+    "@oceancommon/common": "workspace:*",
+    "@oceancommon/dom": "workspace:*",
+    "@oceancommon/component": "workspace:*",
+    "@oceancommon/reaction": "workspace:*"
   }
 }

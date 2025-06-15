@@ -30,6 +30,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@ocean/common": "file:"
+    "@oceancommon/common": "file:"
   }
 }

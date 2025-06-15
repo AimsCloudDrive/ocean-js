@@ -1,5 +1,5 @@
 {
-  "name": "example",
+  "name": "@oceancommon/dom-example",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@babel/plugin-proposal-decorators": "latest",
-    "@ocean/common": "workspace:^",
-    "@ocean/component": "workspace:^",
-    "@ocean/dom": "workspace:^",
-    "example": "file:",
+    "@oceancommon/common": "workspace:^",
+    "@oceancommon/component": "workspace:^",
+    "@oceancommon/dom": "workspace:^",
+    "@oceancommon/dom-example": "file:",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "vite-plugin-babel": "^1.3.0"

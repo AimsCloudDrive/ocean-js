@@ -1,5 +1,5 @@
 {
-  "name": "example",
+  "name": "@oceancommon/gallay-example",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -14,11 +14,11 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@ocean/common": "workspace:^",
-    "@ocean/dom": "workspace:^",
-    "@ocean/component": "workspace:^",
-    "@ocean/reaction": "workspace:^",
-    "@ocean/gallay": "workspace:^",
+    "@oceancommon/common": "workspace:^",
+    "@oceancommon/dom": "workspace:^",
+    "@oceancommon/component": "workspace:^",
+    "@oceancommon/reaction": "workspace:^",
+    "@oceancommon/gallay": "workspace:^",
     "@eslint/js": "^9.21.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",

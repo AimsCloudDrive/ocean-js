@@ -22,6 +22,8 @@ export default defineConfig({
           jsxImportSource: undefined,
         }),
         babel({
+          ast: true,
+          cloneInputAst: false,
           babelHelpers: "bundled",
           presets: [["@babel/preset-env", { targets: "> 0.25%, not dead" }]],
           plugins: viteRollupBabelPlugins,
@@ -29,19 +31,6 @@ export default defineConfig({
           extensions: [".ts", ".js", ".tsx", ".jsx"],
           babelrc: false,
         }),
-        // terser({
-        //   ecma: 2020,
-        //   compress: {
-        //     keep_fargs: false,
-        //   },
-        //   mangle: { properties: { keep_quoted: "strict" } },
-        //   keep_classnames: true,
-        //   keep_fnames: true,
-        //   format: {
-        //     braces: true,
-        //     comments: SourceCommentRegExp,
-        //   },
-        // }),
       ] as any[],
       external: [/^@ocean\//, "fs", "path"],
     },

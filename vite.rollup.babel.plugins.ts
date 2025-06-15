@@ -2,7 +2,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const viteRollupBabelPlugins = [
-  // ["@babel/plugin-proposal-decorators", { version: "legacy" }],
+  ["@babel/plugin-proposal-decorators", { version: "legacy" }],
   [
     path.resolve(
       fileURLToPath(import.meta.url),
