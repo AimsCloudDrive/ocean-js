@@ -1,19 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@msom/http",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "@msom/http",
   "main": "dist/index.cjs.js",
   "module": "dist/index.js",
   "typings": "dist/types/index.d.ts",
-  "type": "module",
-  "exports": {
-    ".": {
-      "require": "./dist/index.cjs.js",
-      "import": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
-    }
-  },
+  "type": "commonjs",
   "files": [
     "dist",
     "README.md"
@@ -41,9 +34,7 @@
     "@msom/http": "file:",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "mongodb": "^6.16.0"
-  },
-  "devDependencies": {
+    "mongodb": "^6.16.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/mongodb": "^4.0.7"

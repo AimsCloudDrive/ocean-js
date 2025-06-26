@@ -12,11 +12,11 @@ import {
   Rejected,
   Canceled,
   PENDDING,
-  thenable,
+  OcPromiseLike,
   ReturnTypeNotUndeF,
   OcPromiseStatus,
 } from "./types";
-import { isPromiseLike } from "./utils";
+import { isOcPromiseLike, isPromiseLike } from "./utils";
 import { nextTick } from "../nextTick";
 
 /**
@@ -29,7 +29,8 @@ export class OcPromise<
   R,
   E extends Error | unknown = OcPromiseRejectError,
   C = unknown
-> {
+> implements OcPromiseLike<R, E, C>
+{
   /** 当前 Promise 的状态 */
   declare status: OcPromiseStatus;
 
@@ -63,7 +64,7 @@ export class OcPromise<
 
     // 创建 resolve 处理函数
     const resolve: Resolve<R> = (data: R) => {
-      if (isOcPromise(data)) {
+      if (isOcPromise(data) || isOcPromiseLike(data)) {
         data.then(resolve, reject, cancel);
       } else if (isPromiseLike(data)) {
         data.then(resolve, reject);
@@ -168,7 +169,7 @@ export class OcPromise<
         try {
           // 执行处理函数
           const data = exe();
-          if (isOcPromise(data)) {
+          if (isOcPromise(data) || isOcPromiseLike(data)) {
             // 如果返回值是 OcPromise，则链接它的处理函数
             nextTick(() => {
               data.then(
@@ -253,7 +254,7 @@ export class OcPromise<
    * @returns 包含所有结果的 Promise
    */
   static all<T>(
-    proms: Iterable<T | thenable<Awaited<T>, Error>>
+    proms: Iterable<T | OcPromiseLike<Awaited<T>, Error>>
   ): OcPromise<Awaited<T>[]> {
     // 存储所有 Promise 的结果
     const result: Awaited<T>[] = [];

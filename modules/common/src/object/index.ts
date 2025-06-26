@@ -67,6 +67,36 @@ export function compareObjects<T extends object>(obj1: T, obj2: T): boolean {
   return true;
 }
 
-export function isObject(value: unknown): boolean {
+export function isObject(value: unknown): value is object {
   return typeof value === "object" && value !== null;
+}
+
+export function cloneObject<T extends object>(data: T, deep?: boolean): T {
+  function _clone<T extends object>(data: T, cache = new WeakMap<T, T>()): T {
+    const _cache = cache.get(data);
+    if (_cache) {
+      return _cache;
+    }
+    const cloned = Object.create(Reflect.getPrototypeOf(data)) as T;
+    cache.set(data, cloned);
+    const keys = Reflect.ownKeys(data);
+    for (let i = 0; i < keys.length; i++) {
+      const desc = Reflect.getOwnPropertyDescriptor(data, keys[i]);
+      if (!desc) {
+        continue;
+      }
+      if (Reflect.has(desc, "value")) {
+        const value = Reflect.get(desc, "value", desc);
+        Reflect.set(
+          desc,
+          "value",
+          deep && isObject(value) ? _clone<object>(value, cache) : value,
+          desc
+        );
+      }
+      Reflect.defineProperty(cloned, keys[i], desc);
+    }
+    return cloned;
+  }
+  return _clone(data);
 }

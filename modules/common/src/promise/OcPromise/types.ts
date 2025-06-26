@@ -1,16 +1,24 @@
-import { Nullable, createFunction } from "../../global";
+import { createFunction } from "../../global";
 import { OcPromiseRejectError } from "./OcPromiseError";
 
-export interface thenable<R, E extends Error | unknown = Error> {
-  then<
-    TR extends Nullable | createFunction<[R, unknown]>,
-    TE extends Nullable | createFunction<[E, unknown]>,
-    FR = ReturnTypeNotUndeF<TR | TE>
-  >(
-    onfulfilled: TR,
-    onrejected: TE
-  ): thenable<FR, Error | unknown>;
-  cancel?(): void;
+export interface PromiseLike<R, E extends Error | unknown = Error> {
+  then<TR, TE = never>(
+    onfulfilled?: createFunction<[R, TR | OcPromiseLike<TR>]>,
+    onrejected?: createFunction<[E, TE | OcPromiseLike<TE>]>
+  ): OcPromiseLike<TR | TE, Error | unknown, unknown>;
+}
+
+export interface OcPromiseLike<
+  R,
+  E extends Error | unknown = Error,
+  C extends unknown = unknown
+> extends PromiseLike<R, E> {
+  then<TR, TE = never, TC = never>(
+    onfulfilled?: createFunction<[R, TR | OcPromiseLike<TR>]>,
+    onrejected?: createFunction<[E, TE | OcPromiseLike<TE>]>,
+    oncanceled?: createFunction<[C, TC | OcPromiseLike<TC>]>
+  ): OcPromiseLike<TR | TE | TC, Error | unknown, unknown>;
+  cancel?(reason?: C): void;
 }
 
 export type ReturnTypeNotUndeF<T> = T extends (...args: unknown[]) => infer R
@@ -29,7 +37,7 @@ export type Canceled = typeof CANCELED;
 
 export type OcPromiseStatus = Fulfilled | Rejected | Canceled | Pendding;
 
-export type Resolve<R> = (data: R | thenable<R>) => void;
+export type Resolve<R> = (data: R | OcPromiseLike<R>) => void;
 export type Reject<E extends Error | unknown = OcPromiseRejectError> = (
   reason: E
 ) => void;

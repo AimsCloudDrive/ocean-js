@@ -1,5 +1,5 @@
 export * from "./Event";
-export * from "./const";
+export * from "./utils";
 export * from "./global";
 export * from "./performChunk";
 export * from "./assert";
