@@ -1,20 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@oceancommon/http",
-  "version": "0.0.7",
-  "description": "@oceancommon/http",
+  "name": "@msom/http",
+  "version": "0.0.1",
+  "description": "@msom/http",
   "main": "dist/index.cjs.js",
+  "module": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs.js",
+      "import": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
   "files": [
     "dist",
     "README.md"
   ],
   "keywords": [
-    "ocean",
+    "msom",
     "http"
   ],
-  "author": "OceanCommon",
+  "author": "msom",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -30,7 +38,7 @@
     "rel": "pnpm publish"
   },
   "dependencies": {
-    "@oceancommon/http": "file:",
+    "@msom/http": "file:",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "mongodb": "^6.16.0"

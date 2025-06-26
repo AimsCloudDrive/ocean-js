@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@oceancommon/component",
-  "version": "0.0.19",
-  "description": "@oceancommon/component",
+  "name": "@msom/component",
+  "version": "0.0.1",
+  "description": "@msom/component",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
@@ -11,10 +11,10 @@
     "README.md"
   ],
   "keywords": [
-    "ocean",
+    "msom",
     "component"
   ],
-  "author": "OceanCommon",
+  "author": "msom",
   "license": "MIT",
   "scripts": {
     "clean": "rimraf dist",
@@ -23,12 +23,11 @@
     "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
-    "rel": "pnpm publish",
-    "b2": "pnpm run clean && pnpm run check && rollup -c ../../rollup.config.js"
+    "rel": "pnpm publish"
   },
   "devDependencies": {
-    "@oceancommon/common": "workspace:^",
-    "@oceancommon/reaction": "workspace:^"
+    "@msom/common": "workspace:^",
+    "@msom/reaction": "workspace:^"
   },
   "publishConfig": {
     "access": "public"

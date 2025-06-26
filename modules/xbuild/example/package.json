@@ -1,5 +1,5 @@
 {
-  "name": "@oceancommon/xbuild-example",
+  "name": "@msom/xbuild-example",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -11,6 +11,6 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@oceancommon/xbuild": "workspace:^"
+    "@msom/xbuild": "workspace:^"
   }
 }

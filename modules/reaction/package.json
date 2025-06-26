@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@oceancommon/reaction",
-  "version": "0.0.13",
-  "description": "@oceancommon/reaction",
+  "name": "@msom/reaction",
+  "version": "0.0.1",
+  "description": "@msom/reaction",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
@@ -11,10 +11,10 @@
     "README.md"
   ],
   "keywords": [
-    "ocean",
+    "msom",
     "reaction"
   ],
-  "author": "OceanCommon",
+  "author": "msom",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -29,6 +29,6 @@
     "rel": "pnpm publish"
   },
   "devDependencies": {
-    "@oceancommon/common": "workspace:^"
+    "@msom/common": "workspace:^"
   }
 }

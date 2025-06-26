@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@oceancommon/common-example",
+  "name": "@msom/common-example",
   "version": "0.0.0",
   "description": "",
   "main": "index.js",
@@ -13,12 +13,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@oceancommon/common-example": "file:"
+    "@msom/common-example": "file:"
   },
   "devDependencies": {
-    "@oceancommon/common": "workspace:*",
-    "@oceancommon/gallay": "workspace:*",
-    "@oceancommon/http": "workspace:*",
+    "@msom/common": "workspace:*",
+    "@msom/gallay": "workspace:*",
+    "@msom/http": "workspace:*",
     "esbuild": "^0.25.2",
     "express": "^4.21.2"
   }

@@ -81,23 +81,23 @@ importers:
 
   modules/common:
     dependencies:
-      '@oceancommon/common':
+      '@msom/common':
         specifier: 'file:'
         version: 'link:'
 
   modules/common/example:
     dependencies:
-      '@oceancommon/common-example':
+      '@msom/common-example':
         specifier: 'file:'
         version: 'link:'
     devDependencies:
-      '@oceancommon/common':
+      '@msom/common':
         specifier: workspace:*
         version: link:..
-      '@oceancommon/gallay':
+      '@msom/gallay':
         specifier: workspace:*
         version: link:../../gallay
-      '@oceancommon/http':
+      '@msom/http':
         specifier: workspace:*
         version: link:../../http
       esbuild:
@@ -109,10 +109,10 @@ importers:
 
   modules/component:
     devDependencies:
-      '@oceancommon/common':
+      '@msom/common':
         specifier: workspace:^
         version: link:../common
-      '@oceancommon/reaction':
+      '@msom/reaction':
         specifier: workspace:^
         version: link:../reaction
 
@@ -134,13 +134,13 @@ importers:
       '@eslint/js':
         specifier: ^9.22.0
         version: 9.22.0
-      '@oceancommon/common':
+      '@msom/common':
         specifier: workspace:^
         version: link:../../common
-      '@oceancommon/component':
+      '@msom/component':
         specifier: workspace:^
         version: link:..
-      '@oceancommon/dom':
+      '@msom/dom':
         specifier: workspace:^
         version: link:../../dom
       '@types/react':
@@ -176,13 +176,13 @@ importers:
 
   modules/dom:
     devDependencies:
-      '@oceancommon/common':
+      '@msom/common':
         specifier: workspace:^
         version: link:../common
-      '@oceancommon/component':
+      '@msom/component':
         specifier: workspace:^
         version: link:../component
-      '@oceancommon/reaction':
+      '@msom/reaction':
         specifier: workspace:^
         version: link:../reaction
 
@@ -191,16 +191,16 @@ importers:
       '@babel/plugin-proposal-decorators':
         specifier: latest
         version: 7.27.1(@babel/core@7.26.10)
-      '@oceancommon/common':
+      '@msom/common':
         specifier: workspace:^
         version: link:../../common
-      '@oceancommon/component':
+      '@msom/component':
         specifier: workspace:^
         version: link:../../component
-      '@oceancommon/dom':
+      '@msom/dom':
         specifier: workspace:^
         version: link:..
-      '@oceancommon/dom-example':
+      '@msom/dom-example':
         specifier: 'file:'
         version: file:modules/dom/example(@babel/core@7.26.10)(vite@6.2.2(@types/node@22.15.29)(jiti@1.21.7)(terser@5.39.0))
       react:
@@ -249,16 +249,16 @@ importers:
 
   modules/gallay:
     devDependencies:
-      '@oceancommon/common':
+      '@msom/common':
         specifier: workspace:*
         version: link:../common
-      '@oceancommon/component':
+      '@msom/component':
         specifier: workspace:*
         version: link:../component
-      '@oceancommon/dom':
+      '@msom/dom':
         specifier: workspace:*
         version: link:../dom
-      '@oceancommon/reaction':
+      '@msom/reaction':
         specifier: workspace:*
         version: link:../reaction
 
@@ -274,19 +274,19 @@ importers:
       '@eslint/js':
         specifier: ^9.21.0
         version: 9.22.0
-      '@oceancommon/common':
+      '@msom/common':
         specifier: workspace:^
         version: link:../../common
-      '@oceancommon/component':
+      '@msom/component':
         specifier: workspace:^
         version: link:../../component
-      '@oceancommon/dom':
+      '@msom/dom':
         specifier: workspace:^
         version: link:../../dom
-      '@oceancommon/gallay':
+      '@msom/gallay':
         specifier: workspace:^
         version: link:..
-      '@oceancommon/reaction':
+      '@msom/reaction':
         specifier: workspace:^
         version: link:../../reaction
       '@types/react':
@@ -322,7 +322,7 @@ importers:
 
   modules/http:
     dependencies:
-      '@oceancommon/http':
+      '@msom/http':
         specifier: 'file:'
         version: 'link:'
       cors:
@@ -347,13 +347,13 @@ importers:
 
   modules/reaction:
     devDependencies:
-      '@oceancommon/common':
+      '@msom/common':
         specifier: workspace:^
         version: link:../common
 
   modules/reaction/example:
     dependencies:
-      '@oceancommon/reaction-example':
+      '@msom/reaction-example':
         specifier: 'file:'
         version: 'link:'
       react:
@@ -447,7 +447,7 @@ importers:
 
   modules/xbuild/example:
     devDependencies:
-      '@oceancommon/xbuild':
+      '@msom/xbuild':
         specifier: workspace:^
         version: link:..
 
@@ -1568,6 +1568,9 @@ packages:
   '@mongodb-js/saslprep@1.2.2':
     resolution: {integrity: sha512-EB0O3SCSNRUFk66iRCpI+cXzIjdswfCs7F6nOC3RAGJ7xr5YhaicvsRwJ9eyzYvYRlCSDUO/c7g4yNulxKC1WA==}
 
+  '@msom/dom-example@file:modules/dom/example':
+    resolution: {directory: modules/dom/example, type: directory}
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -1579,9 +1582,6 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
-
-  '@oceancommon/dom-example@file:modules/dom/example':
-    resolution: {directory: modules/dom/example, type: directory}
 
   '@rollup/plugin-babel@6.0.4':
     resolution: {integrity: sha512-YF7Y52kFdFT/xVSuVdjkV5ZdX/3YtmX0QulG+x0taQOtJdHYzVU61aSSkAgVJ7NOv6qPkIYiJSgSWWN/DM5sGw==}
@@ -4499,6 +4499,20 @@ snapshots:
     dependencies:
       sparse-bitfield: 3.0.3
 
+  '@msom/dom-example@file:modules/dom/example(@babel/core@7.26.10)(vite@6.2.2(@types/node@22.15.29)(jiti@1.21.7)(terser@5.39.0))':
+    dependencies:
+      '@babel/plugin-proposal-decorators': 7.27.1(@babel/core@7.26.10)
+      '@msom/common': link:modules/common
+      '@msom/component': link:modules/component
+      '@msom/dom': link:modules/dom
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+      vite-plugin-babel: 1.3.0(@babel/core@7.26.10)(vite@6.2.2(@types/node@22.15.29)(jiti@1.21.7)(terser@5.39.0))
+    transitivePeerDependencies:
+      - '@babel/core'
+      - supports-color
+      - vite
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -4510,20 +4524,6 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
-
-  '@oceancommon/dom-example@file:modules/dom/example(@babel/core@7.26.10)(vite@6.2.2(@types/node@22.15.29)(jiti@1.21.7)(terser@5.39.0))':
-    dependencies:
-      '@babel/plugin-proposal-decorators': 7.27.1(@babel/core@7.26.10)
-      '@oceancommon/common': link:modules/common
-      '@oceancommon/component': link:modules/component
-      '@oceancommon/dom': link:modules/dom
-      react: 19.0.0
-      react-dom: 19.0.0(react@19.0.0)
-      vite-plugin-babel: 1.3.0(@babel/core@7.26.10)(vite@6.2.2(@types/node@22.15.29)(jiti@1.21.7)(terser@5.39.0))
-    transitivePeerDependencies:
-      - '@babel/core'
-      - supports-color
-      - vite
 
   '@rollup/plugin-babel@6.0.4(@babel/core@7.26.10)(@types/babel__core@7.20.5)(rollup@4.43.0)':
     dependencies:

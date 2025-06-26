@@ -1,6 +1,6 @@
 import babel from "@rollup/plugin-babel";
 import dts from "@rollup/plugin-typescript";
-import { defineConfig } from "@oceancommon/xbuild";
+import { defineConfig } from "@msom/xbuild";
 
 // https://vite.dev/config/
 export default defineConfig({

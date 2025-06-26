@@ -1,20 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@oceancommon/common",
-  "version": "2.0.13",
-  "description": "@oceancommon/common",
-  "main": "dist/index.js",
+  "name": "@msom/common",
+  "version": "0.0.1",
+  "description": "@msom/common",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs.js",
+      "import": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
   "files": [
     "dist",
     "README.md"
   ],
   "keywords": [
-    "ocean",
+    "msom",
     "common"
   ],
-  "author": "OceanCommon",
+  "author": "msom",
   "license": "MIT",
   "scripts": {
     "clean": "rimraf dist",
@@ -30,6 +38,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@oceancommon/common": "file:"
+    "@msom/common": "file:"
   }
 }

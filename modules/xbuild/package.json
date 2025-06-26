@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@oceancommon/xbuild",
+  "name": "@msom/xbuild",
   "version": "1.0.1",
-  "description": "@oceancommon/xbuild",
+  "description": "@msom/xbuild",
   "main": "dist/cli.js",
   "typings": "dist/types/index.d.ts",
   "type": "commonjs",
@@ -15,10 +15,10 @@
     "xbuild": "./bin/xbuild.js"
   },
   "keywords": [
-    "ocean",
+    "msom",
     "xbuild"
   ],
-  "author": "OceanCommon",
+  "author": "msom",
   "license": "MIT",
   "scripts": {
     "clean": "rimraf dist",
