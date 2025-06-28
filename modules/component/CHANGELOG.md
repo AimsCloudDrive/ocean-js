@@ -1,4 +1,4 @@
-# @ocean/component
+# @msom/component
 
 ## 0.0.3
 

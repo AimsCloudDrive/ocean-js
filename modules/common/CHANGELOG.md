@@ -1,4 +1,4 @@
-# @ocean/common
+# @msom/common
 
 ## 0.0.3
 

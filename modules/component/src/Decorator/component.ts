@@ -3,7 +3,7 @@ import {
   JSTypes,
   getGlobalData,
   initComponentDefinition,
-} from "@ocean/common";
+} from "@msom/common";
 
 export type ComponentOption = {
   events?: {
@@ -21,7 +21,7 @@ export function component(
   name: Exclude<string, "">,
   option?: ComponentOption
 ): ClassDecorator {
-  const { componentMap } = getGlobalData("@ocean/component") as {
+  const { componentMap } = getGlobalData("@msom/component") as {
     componentMap: Map<string, object>;
   };
   const isExist = componentMap.has(name);

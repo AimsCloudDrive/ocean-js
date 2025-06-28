@@ -1,7 +1,7 @@
 /** @jsx createElement */
 
-import { createElement, render } from "@ocean/dom";
-import { component, Component, ComponentProps, option } from "@ocean/component";
+import { createElement, render } from "@msom/dom";
+import { component, Component, ComponentProps, option } from "@msom/component";
 
 @component("a")
 class AA extends Component<ComponentProps & { a: string }> {

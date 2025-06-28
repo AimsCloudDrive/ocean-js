@@ -7,8 +7,8 @@ import { fileURLToPath } from "url";
 
 export default {
   external: (id) => {
-    // 使用正则表达式来匹配所有以 @ocean/ 开头的模块
-    return /^@ocean\//.test(id);
+    // 使用正则表达式来匹配所有以 @msom/ 开头的模块
+    return /^@msom\//.test(id);
   },
   input: "src/index.ts", // 你的主要输入文件
   output: {

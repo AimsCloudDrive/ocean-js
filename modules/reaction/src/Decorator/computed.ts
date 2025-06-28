@@ -3,7 +3,7 @@ import {
   defineProperty,
   initComponentDefinition,
   isComponent,
-} from "@ocean/common";
+} from "@msom/common";
 import { _computed, generateIObserver } from "../utils";
 import { ComputedOption } from "../Computed";
 

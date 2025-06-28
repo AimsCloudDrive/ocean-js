@@ -4,7 +4,7 @@ import {
   defineProperty,
   initComponentDefinition,
   isComponent,
-} from "@ocean/common";
+} from "@msom/common";
 import { ObserverOption } from "../Observer";
 import { _observer, generateIObserver } from "../utils";
 

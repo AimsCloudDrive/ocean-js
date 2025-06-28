@@ -1,4 +1,4 @@
-import { getGlobalData } from "@ocean/common";
+import { getGlobalData } from "@msom/common";
 import { IObserver, Reaction, $REACTION, createReaction } from "../Reaction";
 
 export type ComputedOption<T> = {
@@ -18,7 +18,7 @@ export class Computed<T extends unknown = unknown> implements IObserver {
     this.dirty = true;
   }
   track() {
-    const running = getGlobalData("@ocean/reaction") as $REACTION;
+    const running = getGlobalData("@msom/reaction") as $REACTION;
     if (running?.tracking) {
       running.tracking(this);
     }

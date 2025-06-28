@@ -6,9 +6,9 @@ import {
   SingleRef,
   component,
   createSingleRef,
-} from "@ocean/component";
-import { type VNode, createElement, mountWith } from "@ocean/dom";
-import { observer } from "@ocean/reaction";
+} from "@msom/component";
+import { type VNode, createElement, mountWith } from "@msom/dom";
+import { observer } from "@msom/reaction";
 
 declare global {
   namespace Component {

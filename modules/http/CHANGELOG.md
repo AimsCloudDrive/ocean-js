@@ -1,4 +1,4 @@
-# @ocean/http
+# @msom/http
 
 ## 0.0.3
 

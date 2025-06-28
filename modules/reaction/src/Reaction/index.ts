@@ -1,4 +1,4 @@
-import { getGlobalData, setGlobalData } from "@ocean/common";
+import { getGlobalData, setGlobalData } from "@msom/common";
 
 export interface IObserver {
   notify(): void;
@@ -11,7 +11,7 @@ export type $REACTION = {
   reaction?: Reaction;
 };
 
-setGlobalData("@ocean/reaction", {} as $REACTION);
+setGlobalData("@msom/reaction", {} as $REACTION);
 
 export type ReactionOption = {
   tracker: () => void;
@@ -44,7 +44,7 @@ export class Reaction {
       // 判断浏览器环境还是node环境
       if (typeof process !== "undefined" && process.nextTick) {
         // node环境
-        this.nextTick = function (cb: () => void) {
+        this.nextTick = function (this: Reaction, cb: () => void) {
           // 取消上一次的nextTick
           this._cancel();
           let canceled = false;
@@ -61,7 +61,7 @@ export class Reaction {
         };
       } else {
         // 浏览器环境
-        this.nextTick = function (cb: () => void) {
+        this.nextTick = function (this: Reaction, cb: () => void) {
           // 取消上一次的nextTick
           this._cancel();
           let canceled = false;
@@ -78,7 +78,7 @@ export class Reaction {
         };
       }
     } else if (scheduler === "nextFrame") {
-      this.nextTick = function (cb: () => void) {
+      this.nextTick = function (this: Reaction, cb: () => void) {
         this._cancel();
         if (Reflect.has(globalThis, "requestAnimationFrame")) {
           const rafId = requestAnimationFrame(() => {
@@ -88,6 +88,7 @@ export class Reaction {
           this.cancel = () => {
             // 取消requestAnimationFrame的对调函数执行
             cancelAnimationFrame(rafId);
+            this.cancel = undefined;
           };
         } else {
           const id = setTimeout(() => {
@@ -111,9 +112,8 @@ export class Reaction {
   }
   track() {
     const { tracker } = this.option;
-    // 增量更新 先清空关联
     this.destroy();
-    const reactionData = getGlobalData("@ocean/reaction") as $REACTION;
+    const reactionData = getGlobalData("@msom/reaction") as $REACTION;
     // 保存原始的tracking函数
     const { tracking, reaction } = reactionData;
     try {
@@ -127,7 +127,7 @@ export class Reaction {
     } catch (e) {
       // 清空已经追踪的observer
       this.destroy();
-      throw e;
+      console.error(e);
     } finally {
       // 恢复原始的tracking函数
       Object.assign(reactionData, { tracking, reaction });
@@ -135,7 +135,7 @@ export class Reaction {
   }
 
   notify() {
-    const { reaction } = getGlobalData("@ocean/reaction") as $REACTION;
+    const { reaction } = getGlobalData("@msom/reaction") as $REACTION;
     if (reaction && reaction === this) {
       console.error(
         "The value of the dependent observer is being changed in the current tracking"
@@ -205,7 +205,7 @@ export function createReaction(
 }
 
 export function withoutTrack<T>(callback: () => T): T {
-  const reactionData = getGlobalData("@ocean/reaction") as $REACTION;
+  const reactionData = getGlobalData("@msom/reaction") as $REACTION;
   const { tracking, reaction } = reactionData;
   reactionData.tracking = undefined;
   reactionData.reaction = undefined;

@@ -1,13 +1,8 @@
 /**@jsx createElement */
 import { createElement } from "../element";
-import {
-  Component,
-  ComponentEvents,
-  ComponentProps,
-  component,
-} from "@ocean/component";
+import { Component, component } from "@msom/component";
 
-export type ContextProps = {} & ComponentProps<VNode | (() => VNode)>;
+export type ContextProps = {} & ComponentProps<MsomNode | (() => MsomNode)>;
 
 @component("context")
 export class Context extends Component<
@@ -33,5 +28,5 @@ export class Context extends Component<
     a: true,
   }}
 >
-  <Context class={[""]}></Context>
+  <Context class={[""]} a={() => {}}></Context>
 </div>;

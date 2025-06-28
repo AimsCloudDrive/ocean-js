@@ -1,4 +1,4 @@
-import { addSample } from "@ocean/gallay";
+import { addSample } from "@msom/gallay";
 
 addSample({}, (target, gui) => {
   const a = document.createElement("a");

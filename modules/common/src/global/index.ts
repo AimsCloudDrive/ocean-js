@@ -23,7 +23,7 @@ export function getGlobalData(key: string): unknown {
   const symbolKey = GeneratSymbolKey(key);
   const data = Reflect.get(globalThis, symbolKey);
   if (!data) {
-    if (key.startsWith("@ocean/")) {
+    if (key.startsWith("@msom/")) {
       throw `The GlobalData of ${key} is must init before get.`;
     }
     return setGlobalData(key, {});

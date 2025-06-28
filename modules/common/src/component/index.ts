@@ -2,7 +2,7 @@ import { assert } from "../assert";
 import { defineProperty, setGlobalData } from "../global";
 import { JSTypes } from "../types";
 
-const componentGlobalData = setGlobalData("@ocean/component", {
+const componentGlobalData = setGlobalData("@msom/component", {
   componentDefinitionKey: Symbol("component_definition"),
   componentMap: new Map(),
 });

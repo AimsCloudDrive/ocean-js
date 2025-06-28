@@ -1,6 +1,6 @@
-import { Nullable } from "@ocean/common";
-import { Component, ComponentProps, component, option } from "@ocean/component";
-import { observer } from "@ocean/reaction";
+import { Nullable } from "@msom/common";
+import { Component, component, option } from "@msom/component";
+import { observer } from "@msom/reaction";
 
 type UseProps = ComponentProps & {
   instance: IComponent<any>;
@@ -15,7 +15,7 @@ export class Use extends Component<UseProps> {
   render() {
     return this.instance.render();
   }
-  mount(): VNode | Nullable {
+  mount() {
     return this.instance.mount();
   }
 }

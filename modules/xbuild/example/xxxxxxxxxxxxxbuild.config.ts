@@ -17,7 +17,7 @@ export default defineConfig({
         sourceMaps: false,
         babelHelpers: "bundled",
         presets: [["@babel/preset-env", { targets: "> 0.25%, not dead" }]],
-        exclude: ["node_modules/**", "@ocean/**"],
+        exclude: ["node_modules/**", "@msom/**"],
         extensions: [".ts", ".js", ".tsx", ".jsx"],
         babelrc: false,
       }),

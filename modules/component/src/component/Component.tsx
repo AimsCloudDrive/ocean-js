@@ -9,31 +9,15 @@ import {
   isArray,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
-} from "@ocean/common";
-import { getObserver } from "@ocean/reaction";
+} from "@msom/common";
+import { getObserver } from "@msom/reaction";
 import { component, option } from "../Decorator";
-import { IRef } from "./Ref";
 
 declare global {
   export namespace Component {
     export interface Context {}
   }
 }
-
-export type ComponentProps<C = never> = {
-  $context?: Partial<Component.Context>;
-  $key?: string | number | bigint;
-  $ref?: IRef<unknown> | IRef<unknown>[];
-  class?: _ClassType;
-  style?: CSSStyle;
-  children?: C;
-};
-
-export type ComponentEvents = {
-  created: null;
-  mounted: null;
-  unmounted: null;
-};
 
 @component("component", {
   events: {
@@ -43,7 +27,7 @@ export type ComponentEvents = {
   },
 })
 class ClassComponent<
-    P extends ComponentProps<unknown> = ComponentProps,
+    P extends ComponentProps<unknown> = ComponentProps<unknown>,
     E extends ComponentEvents = ComponentEvents
   >
   extends Event<E>
@@ -53,7 +37,7 @@ class ClassComponent<
   private $key: string | number | Nullable;
   @option()
   private $context?: Partial<Component.Context>;
-  declare props: JSX.ComponentPropsConverter<P>;
+  declare props: JSX.ComponentPropsConverter<P, E>;
   declare el: HTMLElement | Text;
   constructor(props: JSX.ComponentPropsConverter<P>) {
     super();
@@ -62,7 +46,7 @@ class ClassComponent<
     this.set(props);
   }
 
-  declare $owner?: ClassComponent<ComponentProps<any>, ComponentEvents>;
+  declare $owner?: ClassComponent<ComponentProps, ComponentEvents>;
 
   // 设置JSX
   setJSX(jsx: P["children"]) {}
@@ -133,9 +117,7 @@ class ClassComponent<
       );
     }
   }
-  render(): VNode | Nullable {
-    return <div></div>;
-  }
+  render(): MsomNode | Nullable | void {}
   rendered(): void {}
   init() {
     this.clean = [];
@@ -154,7 +136,7 @@ class ClassComponent<
     this.emit("created", null);
   }
   mount() {
-    const DomData = getGlobalData("@ocean/dom") as {
+    const DomData = getGlobalData("@msom/dom") as {
       rendering: ClassComponent | undefined;
     };
     const { rendering } = DomData;
@@ -197,18 +179,15 @@ class ClassComponent<
   }
 }
 
-interface ComponentConstructor<
-  Props extends ComponentProps<unknown> = ComponentProps,
-  Events extends ComponentEvents = ComponentEvents
-> {
+interface ComponentConstructor {
   new <
-    Props extends ComponentProps<unknown> = ComponentProps,
-    Events extends ComponentEvents = ComponentEvents
+    P extends ComponentProps<unknown> = ComponentProps<unknown>,
+    E extends ComponentEvents = ComponentEvents
   >(
-    props: JSX.ComponentPropsConverter<Props, Events>
-  ): ClassComponent<Props, Events>;
+    props: JSX.ComponentPropsConverter<P>
+  ): ClassComponent<P, E>;
 
-  prototype: ClassComponent<Props, Events>;
+  readonly prototype: ClassComponent;
 }
 
 export const Component: ComponentConstructor = ClassComponent;

@@ -5,38 +5,33 @@ import {
   getComponentDefinition,
   getGlobalData,
   isComponent,
+  isPromiseLike,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
   parseStyle,
   setGlobalData,
-} from "@ocean/common";
-import { ComponentEvents, ComponentProps, IRef } from "@ocean/component";
-import { createReaction, withoutTrack } from "@ocean/reaction";
+} from "@msom/common";
+import { IRef } from "@msom/component";
+import { createReaction, withoutTrack } from "@msom/reaction";
 
 type $DOM = {
   rendering?: IComponent<ComponentProps<any>>;
 };
 
-setGlobalData("@ocean/dom", {} as $DOM);
+setGlobalData("@msom/dom", {} as $DOM);
 
 const componentVDOMMap = new WeakMap<
   IComponent<ComponentProps<any>>,
   VNode | Nullable
 >();
 
-declare global {
-  export namespace Component {
-    export interface Context {}
-  }
-}
-
 export const TEXT_NODE = "TEXT_NODE";
 
 export function createElement(
   type: keyof HTMLElementTagNameMap | string,
   config: {} | null,
-  ...children: DOMElement<any>[]
-) {
+  ...children: MsomElement<any>[]
+): MsomElement {
   return {
     type,
     props: {
@@ -48,7 +43,7 @@ export function createElement(
   };
 }
 
-function createTextElement(text: string) {
+function createTextElement(text: string): MsomElement {
   return {
     type: TEXT_NODE,
     props: {
@@ -57,15 +52,19 @@ function createTextElement(text: string) {
     },
   };
 }
-
-function createDom<T = any>(element: DOMElement<T>) {
+function createDom<
+  T extends
+    | string
+    | keyof JSX.IntrinsicElements
+    | JSXElementConstructor<unknown>
+>(element: MsomElement<T>) {
   const {
     children,
     class: _class,
     style,
     $key,
     $ref,
-    context,
+    $context,
     ...props
   } = element.props;
   // 创建元素
@@ -88,7 +87,19 @@ function createDom<T = any>(element: DOMElement<T>) {
     .forEach((key: string) => {
       const event = Reflect.get(props, key, props);
       Reflect.deleteProperty(props, key);
-      dom.addEventListener(key.slice(2).toLowerCase(), event);
+      dom.addEventListener(
+        key.slice(2).toLowerCase(),
+        function (this: typeof dom, e) {
+          const _e = new Proxy(e, {
+            get: (taget, prop, receiver) => {
+              const value = Reflect.get(taget, prop, receiver);
+              return typeof value === "function" ? value.bind(taget) : value;
+            },
+            set: Reflect.set,
+          });
+          event.bind(this)(_e);
+        }
+      );
     });
 
   Object.assign(dom, props);
@@ -105,10 +116,7 @@ const componentCache = new Map<
   IComponent<ComponentProps<any>, ComponentEvents>
 >();
 
-export function mountComponent(
-  element: DOMElement<any>,
-  container: HTMLElement
-) {
+function _mountComponent(element: MsomElement<any>, container: HTMLElement) {
   withoutTrack(() => {
     const { children, $ref, ...props } = element.props;
     const componentDefinition = getComponentDefinition(element.type);
@@ -185,24 +193,24 @@ export function mountComponent(
     // lifeCircle: created
     component.created();
     // 挂载组件
-    const domGlobalData = getGlobalData("@ocean/dom") as $DOM;
+    const domGlobalData = getGlobalData("@msom/dom") as $DOM;
     const { rendering } = domGlobalData;
     component.$owner = rendering;
     component.onunmounted(
       createReaction(
         () => {
           const prevVDOM = componentVDOMMap.get(component);
-          const vDOM = component.mount();
+          const mounted = component.isMounted();
+          if (component.el) {
+            container.removeChild(component.el);
+          }
+          const vDOM = component.mount() || undefined;
           componentVDOMMap.set(component, vDOM);
           const isChanged = patchVDOM(vDOM, prevVDOM);
           const dom = renderer(vDOM, container);
           component.rendered();
           if (!isChanged) {
             return;
-          }
-          const mounted = component.isMounted();
-          if (component.el) {
-            container.removeChild(component.el);
           }
           component.el = dom as HTMLElement;
           if (dom) {
@@ -218,11 +226,12 @@ export function mountComponent(
           }
         },
         {
-          scheduler: (cb) => {
-            requestIdleCallback(({ timeRemaining }) => {
-              timeRemaining() > 0 && cb();
-            });
-          },
+          scheduler: "nextFrame",
+          // scheduler: (cb) => {
+          //   requestIdleCallback(({ timeRemaining }) => {
+          //     timeRemaining() > 0 && cb();
+          //   });
+          // },
         }
       ).disposer()
     );
@@ -234,7 +243,7 @@ function isValidChild(child: Array<any> | Nullable): boolean {
 }
 
 export function renderFunctionComponent(
-  element: DOMElement<any>,
+  element: MsomElement<any>,
   container: HTMLElement
 ) {
   let dom: any = undefined;
@@ -271,15 +280,33 @@ export function renderFunctionComponent(
 }
 
 function renderer(
-  element: any,
+  element: MsomNode | undefined | null,
   container: HTMLElement
 ): HTMLElement | Text | undefined {
-  const _element = element as DOMElement<any>;
+  if (!element) {
+    return;
+  }
+  if (typeof element !== "object") {
+    element = createTextElement(String(element));
+  }
+  if (isPromiseLike(element)) {
+    element.then((e) => {
+      renderer(e, container);
+    });
+    return;
+  }
+  if (element[Symbol.iterator]) {
+    for (const e of element as Iterable<MsomNode>) {
+      renderer(e, container);
+    }
+    return;
+  }
+  const _element = element as Exclude<typeof element, Iterable<any>>;
   const { children, $ref } = _element.props;
   if (typeof _element.type === "function") {
     if (isComponent(_element.type)) {
       // 类组件
-      mountComponent(_element, container);
+      _mountComponent(_element, container);
     } else {
       // TODO: 函数组件
       // renderFunctionComponent(_element, container);
@@ -307,10 +334,15 @@ function renderer(
 }
 
 export function mountWith(
-  mount: () => DOMElement<any>,
+  mount: () => MsomElement | void,
   container: HTMLElement
 ) {
-  renderer(mount(), container);
+  const element = mount();
+  element && renderer(element, container);
+}
+export function mountComponent(component: IComponent, container: HTMLElement) {
+  const element = component.mount();
+  element && renderer(element, container);
 }
 
 /**

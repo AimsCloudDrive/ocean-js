@@ -1,4 +1,4 @@
-import { Nullable } from "@ocean/common";
+import { Nullable } from "@msom/common";
 
 class CodeResultConstructor<
   C extends number = number,

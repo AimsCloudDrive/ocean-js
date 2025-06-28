@@ -1,4 +1,4 @@
-import { assert, equal, getGlobalData, isObject } from "@ocean/common";
+import { assert, equal, getGlobalData, isObject } from "@msom/common";
 import {
   OPERATORMAPS,
   OPERATORTYPES,
@@ -27,7 +27,7 @@ export class Observer<T = unknown> implements IObserver {
     }
   }
   track() {
-    const running = getGlobalData("@ocean/reaction") as $REACTION;
+    const running = getGlobalData("@msom/reaction") as $REACTION;
     if (running?.tracking) {
       running.tracking(this);
     }

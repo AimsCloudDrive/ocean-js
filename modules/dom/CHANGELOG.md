@@ -1,4 +1,4 @@
-# @ocean/dom
+# @msom/dom
 
 ## 0.0.3
 

@@ -1,5 +1,5 @@
 /**@jsx createElement */
-import { VNode, createElement, render } from "@ocean/dom";
+import { VNode, createElement, render } from "@msom/dom";
 import {
   component,
   Component,
@@ -7,7 +7,7 @@ import {
   createSingleRef,
   SingleRef,
   observer,
-} from "@ocean/component";
+} from "@msom/component";
 
 type GUIProps = ComponentProps & {};
 

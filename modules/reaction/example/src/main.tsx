@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createReaction, reactive } from "@ocean/reaction";
+import { createReaction, reactive } from "@msom/reaction";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <button

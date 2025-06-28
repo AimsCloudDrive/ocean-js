@@ -1,4 +1,4 @@
-# @ocean/reaction
+# @msom/reaction
 
 ## 0.0.3
 

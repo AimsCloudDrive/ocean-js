@@ -4,7 +4,7 @@ import {
   OptionDecoratorUsedError,
   initComponentDefinition,
   isComponent,
-} from "@ocean/common";
+} from "@msom/common";
 /**
  * 仅允许附着在实例属性或实例访问器属性（有setter）
  * @param type
