@@ -28,5 +28,5 @@ export class Context extends Component<
     a: true,
   }}
 >
-  <Context class={[""]} a={() => {}}></Context>
+  <Context $context={{}} class={[""]} a={() => {}}></Context>
 </div>;

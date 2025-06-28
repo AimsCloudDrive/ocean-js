@@ -745,7 +745,6 @@ declare global {
     }
     interface Attributes {
       $key?: string | number | bigint | null | undefined;
-      $context?: Partial<Component.Context>;
     }
     interface RefAttributes<T> extends Attributes {
       $ref?: IRef<T> | IRef<T>[];
