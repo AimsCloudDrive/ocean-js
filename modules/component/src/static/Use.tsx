@@ -1,6 +1,7 @@
-import { Nullable } from "@msom/common";
-import { Component, component, option } from "@msom/component";
+import { Component, ComponentProps } from "../component";
+import { option, component } from "../decorators";
 import { observer } from "@msom/reaction";
+import { IComponent } from "@msom/dom";
 
 type UseProps = ComponentProps & {
   instance: IComponent<any>;

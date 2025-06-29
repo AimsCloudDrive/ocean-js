@@ -1,11 +1,12 @@
 import {
+  CSSStyle,
   ClassType,
   Event as MEvent,
-  IEvent,
-  CSSStyle,
   PromiseLike,
 } from "@msom/common";
-import { IRef } from "@msom/component";
+import { IComponent, IComponentEvents, IComponentProps, IRef } from "@msom/dom";
+
+interface HTMLWebViewElement extends HTMLElement {}
 
 type NativeAnimationEvent = AnimationEvent;
 type NativeClipboardEvent = ClipboardEvent;
@@ -24,7 +25,10 @@ type NativeWheelEvent = WheelEvent;
 type Booleanish = boolean | "true" | "false";
 type CrossOrigin = "anonymous" | "use-credentials" | "" | undefined;
 
-declare global {
+export = Msom;
+export as namespace Msom;
+
+declare namespace Msom {
   // 转换内置元素属性：驼峰事件 -> 小写事件
   type WithLowercaseEvents<
     T extends PropAttributesSystem.DOMEventAttibuties<unknown>
@@ -749,7 +753,6 @@ declare global {
     interface RefAttributes<T> extends Attributes {
       $ref?: IRef<T> | IRef<T>[];
     }
-    type TE<T> = T extends IComponent<any, infer E> ? E : {};
     interface ClassAttributes<T> extends RefAttributes<T> {}
     type AriaRole =
       | "alert"
@@ -2397,12 +2400,13 @@ declare global {
 
   type JSXElementConstructor<P> =
     | ((props: P) => MsomNode | Promise<MsomNode>)
-    | (new (props: P) => IComponent<any, ComponentEvents>);
+    | (new (props: P) => IComponent);
 
   namespace JSX {
     type ElementType = string | JSXElementConstructor<any>;
     interface Element extends MsomElement<any, any> {}
-    interface ElementClass extends IComponent<any> {}
+    interface ElementClass
+      extends IComponent<IComponentProps<any>, IComponentEvents> {}
     interface ElementAttributesProperty {
       props: {};
     }
@@ -2965,41 +2969,6 @@ declare global {
       view: PropAttributesSystem.SVGProps<SVGViewElement>;
     }
   }
-  export type ComponentProps<C = never> = {
-    $context?: Partial<Component.Context>;
-    $key?: string | number | bigint | null | undefined;
-    $ref?: IRef<unknown> | IRef<unknown>[];
-    class?: ClassType;
-    style?: CSSStyle;
-    children?: C;
-  };
-
-  export type ComponentEvents = {
-    created: null;
-    mounted: null;
-    unmounted: null;
-  };
-  interface IComponent<
-    Props extends ComponentProps<unknown> = ComponentProps<unknown>,
-    Events extends ComponentEvents = ComponentEvents
-  > extends IEvent<Events> {
-    props: JSX.ComponentPropsConverter<Props, Events>;
-    $owner?: IComponent;
-    el: HTMLElement | Text;
-    isMounted(): boolean;
-    set(props: Partial<Props>): void;
-    setJSX(jsx: Props["children"]): void;
-    render(): MsomNode | undefined | null | void;
-    rendered(): void;
-    created(): void;
-    mount(): MsomNode | undefined | null | void;
-    mounted(): void;
-    onmounted(handle: () => void): void;
-    unmount(): void;
-    unmounted(): void;
-    onunmounted(handle: () => void): void;
-    destroy(): void;
-  }
 
   export type VNodeArray = Iterable<VNode>;
   export type VNode = VNodeArray | MsomNode;
@@ -3008,7 +2977,7 @@ declare global {
     PropAttributesSystem.AllHTMLAttributes<T>,
     "children"
   > & {
-    $context?: Partial<Component.Context>;
+    $context?: Partial<IComponent.Context>;
   } & PropAttributesSystem.ClassAttributes<T> & {
       nodeValue?: string;
     } & {
@@ -3024,7 +2993,4 @@ declare global {
     type: T;
     props: P;
   };
-  export namespace Component {
-    export interface Context {}
-  }
 }

@@ -312,6 +312,11 @@ export class OcPromise<
     if (isOcPromise<T>(value)) {
       return value;
     }
+    if (isOcPromiseLike<T>(value)) {
+      return new OcPromise<T>((resolve, reject, cancel) => {
+        value.then(resolve, reject, cancel);
+      });
+    }
     if (isPromiseLike<T>(value)) {
       return new OcPromise<T>((resolve, reject) => {
         value.then(resolve, reject);

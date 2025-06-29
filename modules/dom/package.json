@@ -1,17 +1,31 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@msom/dom",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "@msom/dom",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
   "type": "module",
   "files": [
     "dist",
-    "./jsx-runtime.d.ts",
-    "./jsx-dev-runtime.d.ts",
-    "README.md"
+    "README.md",
+    "jsx-runtime.d.ts",
+    "jsx-dev-runtime.d.ts"
   ],
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./jsx-runtime": {
+      "default": "./dist/jsx-runtime.js",
+      "types": "./jsx-runtime.d.ts"
+    },
+    "./jsx-dev-runtime": {
+      "default": "./dist/jsx-dev-runtime.js",
+      "types": "./jsx-dev-runtime.d.ts"
+    }
+  },
   "keywords": [
     "msom",
     "dom"
@@ -25,7 +39,7 @@
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
-    "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
+    "build": "npm run clean && npm run check && vite build -c ./vite.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
     "rel": "pnpm publish"

@@ -18,6 +18,7 @@
     "emitDecoratorMetadata": true, // 为装饰器提供元数据支持
 
     "jsx": "preserve",
+    "jsxFactory": "Msom.createElement",
     "jsxImportSource": "modules/dom",
 
     "declaration": true, // 生成声明文件

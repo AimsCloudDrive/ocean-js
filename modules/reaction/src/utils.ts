@@ -36,7 +36,7 @@ export function generateIObserver<T, K extends keyof typeof observerTypeMap>(
   // 继承对象的监听器也存在当前对象
   const observersMap: Map<PropertyKey, IObserver> =
     Reflect.get(this, observerMapSymbolKey, this) || new Map();
-  Reflect.set(this, key, observersMap, this);
+  Reflect.set(this, observerMapSymbolKey, observersMap, this);
   const observer =
     observersMap.get(key) ||
     new observerTypeMap[type](option as ObserverOption<T> & ComputedOption<T>);

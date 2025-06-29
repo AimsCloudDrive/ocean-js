@@ -6,5 +6,4 @@ export default addSample({}, (target, gui) => {
   target.appendChild(demo);
   gui.add({ kkk: "" }).onChange(console.info);
 });
-
-export const names = "app.demo";
+export const names = "app2.demo";

@@ -1,7 +1,9 @@
 import {
   CSSStyle,
+  ClassType,
   ComponentDefinition,
   Event,
+  IEvent,
   Nullable,
   ClassType as _ClassType,
   getGlobalData,
@@ -11,13 +13,23 @@ import {
   parseClass,
 } from "@msom/common";
 import { getObserver } from "@msom/reaction";
-import { component, option } from "../Decorator";
+import { component, option } from "../decorators";
+import { IRef, IComponent, IComponentProps, IComponentEvents } from "@msom/dom";
 
-declare global {
-  export namespace Component {
-    export interface Context {}
-  }
-}
+export type ComponentProps<C = never> = IComponentProps<C> & {
+  $context?: Partial<IComponent.Context>;
+  $key?: string | number | bigint | null | undefined;
+  $ref?: IRef<unknown> | IRef<unknown>[];
+  class?: ClassType;
+  style?: CSSStyle;
+  children?: C;
+};
+
+export type ComponentEvents = IComponentEvents & {
+  created: null;
+  mounted: null;
+  unmounted: null;
+};
 
 @component("component", {
   events: {
@@ -36,10 +48,10 @@ class ClassComponent<
   @option()
   private $key: string | number | Nullable;
   @option()
-  private $context?: Partial<Component.Context>;
-  declare props: JSX.ComponentPropsConverter<P, E>;
+  private $context?: Partial<IComponent.Context>;
+  declare props: Msom.JSX.ComponentPropsConverter<P, E>;
   declare el: HTMLElement | Text;
-  constructor(props: JSX.ComponentPropsConverter<P>) {
+  constructor(props: Msom.JSX.ComponentPropsConverter<P>) {
     super();
     this.init();
     this.props = props;
@@ -59,15 +71,15 @@ class ClassComponent<
     return "";
   }
 
-  getContext<T extends keyof Partial<Component.Context>>(
+  getContext<T extends keyof Partial<IComponent.Context>>(
     key: T
-  ): Partial<Component.Context>[T] {
+  ): Partial<IComponent.Context>[T] {
     const $ctx = this.$context;
     const $p = this.getUpComp();
     if ($ctx && Object.hasOwnProperty.call($ctx, key)) {
       return $ctx[key];
     }
-    return $p?.getContext(key) as Partial<Component.Context>[T];
+    return $p?.getContext(key) as Partial<IComponent.Context>[T];
   }
 
   private getUpComp() {
@@ -117,7 +129,7 @@ class ClassComponent<
       );
     }
   }
-  render(): MsomNode | Nullable | void {}
+  render(): Msom.MsomNode | Nullable | void {}
   rendered(): void {}
   init() {
     this.clean = [];
@@ -184,7 +196,7 @@ interface ComponentConstructor {
     P extends ComponentProps<unknown> = ComponentProps<unknown>,
     E extends ComponentEvents = ComponentEvents
   >(
-    props: JSX.ComponentPropsConverter<P>
+    props: Msom.JSX.ComponentPropsConverter<P>
   ): ClassComponent<P, E>;
 
   readonly prototype: ClassComponent;

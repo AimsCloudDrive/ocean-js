@@ -1,6 +1,7 @@
 import {
   Event,
   Nullable,
+  assert,
   compareObjects,
   getComponentDefinition,
   getGlobalData,
@@ -11,39 +12,39 @@ import {
   parseStyle,
   setGlobalData,
 } from "@msom/common";
-import { IRef } from "@msom/component";
+import { IComponent, IComponentProps } from "./IComponent";
+import { IRef } from "./Ref";
 import { createReaction, withoutTrack } from "@msom/reaction";
 
 type $DOM = {
-  rendering?: IComponent<ComponentProps<any>>;
+  rendering?: IComponent;
 };
 
 setGlobalData("@msom/dom", {} as $DOM);
 
-const componentVDOMMap = new WeakMap<
-  IComponent<ComponentProps<any>>,
-  VNode | Nullable
->();
+const componentVDOMMap = new WeakMap<IComponent, Msom.MsomNode | Nullable>();
 
 export const TEXT_NODE = "TEXT_NODE";
 
-export function createElement(
-  type: keyof HTMLElementTagNameMap | string,
-  config: {} | null,
-  ...children: MsomElement<any>[]
-): MsomElement {
+export function createElement<T extends Msom.JSX.ElementType>(
+  type: T,
+  config: Omit<Msom.H<T>, "children"> | null | undefined,
+  ...children: Msom.MsomElement<any>[]
+): Msom.MsomElement {
+  config = config || {};
+  const _config = {
+    ...config,
+    children: children.map((v: any) =>
+      v && typeof v === "object" ? v : createTextElement(v)
+    ),
+  };
   return {
     type,
-    props: {
-      ...(config || {}),
-      children: children.map((v: any) =>
-        v && typeof v === "object" ? v : createTextElement(v)
-      ),
-    },
+    props: _config,
   };
 }
 
-function createTextElement(text: string): MsomElement {
+function createTextElement(text: string): Msom.MsomElement {
   return {
     type: TEXT_NODE,
     props: {
@@ -55,9 +56,9 @@ function createTextElement(text: string): MsomElement {
 function createDom<
   T extends
     | string
-    | keyof JSX.IntrinsicElements
-    | JSXElementConstructor<unknown>
->(element: MsomElement<T>) {
+    | keyof Msom.JSX.IntrinsicElements
+    | Msom.JSXElementConstructor<unknown>
+>(element: Msom.MsomElement<T>) {
   const {
     children,
     class: _class,
@@ -111,12 +112,12 @@ const eventBindingMap = new WeakMap<
   { [K in PropertyKey]: Parameters<Event["on"]>[1] }
 >();
 
-const componentCache = new Map<
-  any,
-  IComponent<ComponentProps<any>, ComponentEvents>
->();
+const componentCache = new Map<any, IComponent>();
 
-function _mountComponent(element: MsomElement<any>, container: HTMLElement) {
+function _mountComponent(
+  element: Msom.MsomElement<any>,
+  container: HTMLElement
+) {
   withoutTrack(() => {
     const { children, $ref, ...props } = element.props;
     const componentDefinition = getComponentDefinition(element.type);
@@ -144,13 +145,10 @@ function _mountComponent(element: MsomElement<any>, container: HTMLElement) {
     const component = (() => {
       let component = componentCache.get(_props.$key);
       if (!component) {
-        component = new element.type(_props) as IComponent<
-          ComponentProps<any>,
-          ComponentEvents
-        >;
+        component = new element.type(_props) as IComponent;
         _props.$key != undefined && componentCache.set(_props.$key, component);
       } else {
-        component.set(_props);
+        component.set(_props as IComponentProps);
       }
       return component;
     })();
@@ -178,7 +176,12 @@ function _mountComponent(element: MsomElement<any>, container: HTMLElement) {
       const binding = eventBindingMap.get(component) || {};
       eventBindingMap.set(component, binding);
       for (const _key of $eventKeys) {
-        const key = _key as keyof ComponentEvents;
+        const key = _key as keyof (typeof component extends IComponent<
+          any,
+          infer Es
+        >
+          ? Es
+          : never);
         // 清除上次注册的事件
         component.un(key, binding[key]);
         Reflect.deleteProperty(binding, key);
@@ -243,7 +246,7 @@ function isValidChild(child: Array<any> | Nullable): boolean {
 }
 
 export function renderFunctionComponent(
-  element: MsomElement<any>,
+  element: Msom.MsomElement<any>,
   container: HTMLElement
 ) {
   let dom: any = undefined;
@@ -280,7 +283,7 @@ export function renderFunctionComponent(
 }
 
 function renderer(
-  element: MsomNode | undefined | null,
+  element: Msom.MsomNode | undefined | null,
   container: HTMLElement
 ): HTMLElement | Text | undefined {
   if (!element) {
@@ -296,7 +299,7 @@ function renderer(
     return;
   }
   if (element[Symbol.iterator]) {
-    for (const e of element as Iterable<MsomNode>) {
+    for (const e of element as Iterable<Msom.MsomNode>) {
       renderer(e, container);
     }
     return;
@@ -334,7 +337,7 @@ function renderer(
 }
 
 export function mountWith(
-  mount: () => MsomElement | void,
+  mount: () => Msom.MsomElement | void,
   container: HTMLElement
 ) {
   const element = mount();
@@ -351,7 +354,10 @@ export function mountComponent(component: IComponent, container: HTMLElement) {
  * @param prevVDOM
  * @returns 返回时否有变
  */
-function patchVDOM(vDOM: VNode | Nullable, prevVDOM: VNode | Nullable) {
+function patchVDOM(
+  vDOM: Msom.MsomNode | Nullable,
+  prevVDOM: Msom.MsomNode | Nullable
+) {
   if (!prevVDOM) {
     return true;
   } else {

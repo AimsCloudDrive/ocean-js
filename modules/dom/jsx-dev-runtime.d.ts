@@ -1,1 +1,2 @@
-export * from "./jsx-runtime.d";
+import * as Msom from "./src/jsx-runtime";
+export default Msom;

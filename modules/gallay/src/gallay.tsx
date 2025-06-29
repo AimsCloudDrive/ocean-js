@@ -1,11 +1,5 @@
-/**@jsx createElement */
-import { createElement, mountWith } from "@msom/dom";
-import {
-  component,
-  Component,
-  createSingleRef,
-  SingleRef,
-} from "@msom/component";
+import { Component, ComponentProps, component } from "@msom/component";
+import { SingleRef, createSingleRef, mountWith } from "@msom/dom";
 import { observer } from "@msom/reaction";
 
 type GUIProps = ComponentProps & {};
@@ -13,7 +7,7 @@ type GUIProps = ComponentProps & {};
 @component("GUI")
 class GUI extends Component<GUIProps> {
   @observer()
-  declare options: MsomNode[];
+  declare options: Msom.MsomNode[];
   init(): void {
     super.init();
     this.options = [];

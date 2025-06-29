@@ -1,2 +1,3 @@
 export * from "./component";
-export * from "./Decorator";
+export * from "./decorators";
+export * from "./static";
