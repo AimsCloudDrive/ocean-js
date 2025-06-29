@@ -1,20 +1,19 @@
 /**@jsx createElement */
-import { VNode, createElement, render } from "@msom/dom";
+import { createElement, mountWith } from "@msom/dom";
 import {
   component,
   Component,
-  ComponentProps,
   createSingleRef,
   SingleRef,
-  observer,
 } from "@msom/component";
+import { observer } from "@msom/reaction";
 
 type GUIProps = ComponentProps & {};
 
 @component("GUI")
 class GUI extends Component<GUIProps> {
   @observer()
-  declare options: VNode[];
+  declare options: MsomNode[];
   init(): void {
     super.init();
     this.options = [];
@@ -59,11 +58,13 @@ export function addSample(
   const body = document.body;
   const targetRef: SingleRef<HTMLDivElement> = createSingleRef();
   const guiRef: SingleRef<GUI> = createSingleRef();
-  render(
-    <div class={["sample"]}>
-      <div class={["active"]} $ref={targetRef} />
-      <GUI $ref={guiRef}></GUI>
-    </div>,
+  mountWith(
+    () => (
+      <div class={["sample"]}>
+        <div class={["active"]} $ref={targetRef} />
+        <GUI $ref={guiRef}></GUI>
+      </div>
+    ),
     body
   );
   sample(targetRef.current, guiRef.current);

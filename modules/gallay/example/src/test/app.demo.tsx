@@ -1,9 +1,3 @@
-// const a = import.meta.glob(["./**/*.demo.ts", "./**/*.demo.tsx"], {
-//   eager: true,
-// });
-
-// Object.assign(window, { aaa: a });
-
 import { addSample } from "@msom/gallay";
 
 export default addSample({}, (target, gui) => {
