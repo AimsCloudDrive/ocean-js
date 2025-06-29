@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@msom/component",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "@msom/component",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",

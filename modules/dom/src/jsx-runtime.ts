@@ -1,4 +1,4 @@
-import { nil } from "@msom/common";
+import { nil as MsomJsx } from "@msom/common";
 import { createElement } from "@msom/dom";
 
 function jsxDEV<T extends Msom.JSX.ElementType>(
@@ -10,8 +10,8 @@ function jsxDEV<T extends Msom.JSX.ElementType>(
   self: object
 ): Msom.MsomElement {
   const { children, ..._config } = config;
-  _config.$key = nil(_config.$key, maybeKey);
-  return createElement(type, _config, ...[nil(children, [])].flat());
+  _config.$key = MsomJsx(_config.$key, maybeKey);
+  return createElement(type, _config, ...[MsomJsx(children, [])].flat());
 }
 
 export { jsxDEV as jsx, jsxDEV as jsxs };

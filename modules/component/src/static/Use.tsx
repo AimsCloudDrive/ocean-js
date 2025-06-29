@@ -1,17 +1,16 @@
-import { Component, ComponentProps } from "../component";
+import { Component, ComponentProps } from "../component/Component";
 import { option, component } from "../decorators";
 import { observer } from "@msom/reaction";
-import { IComponent } from "@msom/dom";
 
 type UseProps = ComponentProps & {
-  instance: IComponent<any>;
+  instance: Component<any>;
 };
 
 @component("use")
 export class Use extends Component<UseProps> {
   @option()
   @observer()
-  instance: IComponent<any>;
+  instance: Component<any>;
 
   render() {
     return this.instance.render();

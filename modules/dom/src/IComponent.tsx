@@ -1,7 +1,7 @@
 import { IEvent } from "@msom/common";
 
 declare global {
-  export namespace IComponent {
+  export namespace Component {
     interface Context {}
   }
 }

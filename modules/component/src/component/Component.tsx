@@ -17,7 +17,7 @@ import { component, option } from "../decorators";
 import { IRef, IComponent, IComponentProps, IComponentEvents } from "@msom/dom";
 
 export type ComponentProps<C = never> = IComponentProps<C> & {
-  $context?: Partial<IComponent.Context>;
+  $context?: Partial<Component.Context>;
   $key?: string | number | bigint | null | undefined;
   $ref?: IRef<unknown> | IRef<unknown>[];
   class?: ClassType;
@@ -48,7 +48,7 @@ class ClassComponent<
   @option()
   private $key: string | number | Nullable;
   @option()
-  private $context?: Partial<IComponent.Context>;
+  private $context?: Partial<Component.Context>;
   declare props: Msom.JSX.ComponentPropsConverter<P, E>;
   declare el: HTMLElement | Text;
   constructor(props: Msom.JSX.ComponentPropsConverter<P>) {
@@ -71,15 +71,15 @@ class ClassComponent<
     return "";
   }
 
-  getContext<T extends keyof Partial<IComponent.Context>>(
+  getContext<T extends keyof Partial<Component.Context>>(
     key: T
-  ): Partial<IComponent.Context>[T] {
+  ): Partial<Component.Context>[T] {
     const $ctx = this.$context;
     const $p = this.getUpComp();
     if ($ctx && Object.hasOwnProperty.call($ctx, key)) {
       return $ctx[key];
     }
-    return $p?.getContext(key) as Partial<IComponent.Context>[T];
+    return $p?.getContext(key) as Partial<Component.Context>[T];
   }
 
   private getUpComp() {
@@ -202,4 +202,5 @@ interface ComponentConstructor {
   readonly prototype: ClassComponent;
 }
 
-export const Component: ComponentConstructor = ClassComponent;
+// export const Component: ComponentConstructor = ClassComponent;
+export { ClassComponent as Component };

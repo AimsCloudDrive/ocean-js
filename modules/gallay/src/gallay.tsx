@@ -49,7 +49,7 @@ export function addSample(
   info: {},
   sample: (target: HTMLDivElement, gui: GUI) => void
 ) {
-  const body = document.body;
+  const anchor = document.getElementById("root")!;
   const targetRef: SingleRef<HTMLDivElement> = createSingleRef();
   const guiRef: SingleRef<GUI> = createSingleRef();
   mountWith(
@@ -59,7 +59,7 @@ export function addSample(
         <GUI $ref={guiRef}></GUI>
       </div>
     ),
-    body
+    anchor
   );
   sample(targetRef.current, guiRef.current);
 }

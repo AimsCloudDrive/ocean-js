@@ -20,16 +20,17 @@ export class Context extends Component<
   }
 }
 
-// export const jsx = (
-//   <div
-//     onchange={(e) => {
-//       e.target;
-//     }}
-//     onclick={(e) => {}}
-//     class={{
-//       a: true,
-//     }}
-//   >
-//     <Context $context={{}} class={[""]} a={() => {}}></Context>
-//   </div>
-// );
+export const jsx = (
+  <div
+    onchange={(e) => {
+      e.target;
+    }}
+    onclick={(e) => {}}
+    class={{
+      a: true,
+    }}
+  >
+    {"true"}
+    <Context $context={{}} class={[""]} a={() => {}}></Context>
+  </div>
+);

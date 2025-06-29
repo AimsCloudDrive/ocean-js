@@ -114,12 +114,9 @@ const eventBindingMap = new WeakMap<
 
 const componentCache = new Map<any, IComponent>();
 
-function _mountComponent(
-  element: Msom.MsomElement<any>,
-  container: HTMLElement
-) {
+function _mountComponent(element: Msom.MsomElement<any>, container: Element) {
   withoutTrack(() => {
-    const { children, $ref, ...props } = element.props;
+    let { children, $ref, ...props } = element.props;
     const componentDefinition = getComponentDefinition(element.type);
     if (!componentDefinition) {
       return;
@@ -153,6 +150,7 @@ function _mountComponent(
       return component;
     })();
     // 处理传递的子元素
+    children = [children].flat();
     if (children && children.length > 0) {
       const c = children.map((c) => {
         if (c.type === TEXT_NODE && typeof c.props.nodeValue === "function") {
@@ -241,50 +239,19 @@ function _mountComponent(
   });
 }
 
-function isValidChild(child: Array<any> | Nullable): boolean {
-  return !!child && child.length > 0;
-}
-
-export function renderFunctionComponent(
-  element: Msom.MsomElement<any>,
-  container: HTMLElement
-) {
-  let dom: any = undefined;
-  const { children, $ref } = element.props;
-  let _children: any = undefined;
-  if (isValidChild(children)) {
-    _children = children.map((child) => {
-      if (
-        child.type === TEXT_NODE &&
-        typeof child.props.nodeValue === "function"
-      ) {
-        return child.props.nodeValue;
-      } else {
-        return child;
-      }
-    });
+function isValidChild(
+  child: Msom.MsomElement<any> | Msom.MsomElement<any>[] | Nullable
+): boolean {
+  if (!child) {
+    return false;
   }
-  createReaction(() => {
-    const returnElement = element.type(element.props, _children);
-    withoutTrack(() => {
-      const _dom = renderer(returnElement, container);
-      if (dom) {
-        container.removeChild(dom);
-      }
-      dom = _dom;
-      dom && container.appendChild(dom);
-      // 函数组件ref绑定生成的元素
-      if ($ref) {
-        const refs: IRef<any>[] = [$ref].flat();
-        refs.forEach((ref) => ref.set(dom));
-      }
-    });
-  });
+  child = [child].flat();
+  return child.length > 0;
 }
 
 function renderer(
   element: Msom.MsomNode | undefined | null,
-  container: HTMLElement
+  container: Element
 ): HTMLElement | Text | undefined {
   if (!element) {
     return;
@@ -305,7 +272,7 @@ function renderer(
     return;
   }
   const _element = element as Exclude<typeof element, Iterable<any>>;
-  const { children, $ref } = _element.props;
+  let { children, $ref } = _element.props;
   if (typeof _element.type === "function") {
     if (isComponent(_element.type)) {
       // 类组件
@@ -323,6 +290,7 @@ function renderer(
       refs.forEach((ref) => ref.set(dom));
     }
     // children
+    children = [children].flat();
     if (children && children.length > 0) {
       [...children].flat().forEach((child) => {
         const childDom = renderer(child, dom as HTMLElement);
@@ -338,12 +306,12 @@ function renderer(
 
 export function mountWith(
   mount: () => Msom.MsomElement | void,
-  container: HTMLElement
+  container: Element
 ) {
   const element = mount();
   element && renderer(element, container);
 }
-export function mountComponent(component: IComponent, container: HTMLElement) {
+export function mountComponent(component: IComponent, container: Element) {
   const element = component.mount();
   element && renderer(element, container);
 }
@@ -370,3 +338,7 @@ function patchVDOM(
     }
   }
 }
+
+Object.assign(globalThis, {
+  Msom: { createElement },
+});

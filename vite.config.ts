@@ -10,8 +10,8 @@ import viteRollupBabelPlugins from "./vite.rollup.babel.plugins";
 export default defineConfig({
   plugins: [
     addSourceCommentPlugin(),
-    addImportMsomPlugin(),
-    addTsIgnorePlugin(),
+    // addImportMsomPlugin(),
+    // addTsIgnorePlugin(),
   ],
   build: {
     rollupOptions: {

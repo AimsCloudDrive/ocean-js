@@ -52,7 +52,7 @@ declare namespace Msom {
     | number
     | bigint
     | Iterable<MsomNode>
-    | MsomPortal
+    | Booleanish
     | null
     | undefined
     | DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES[keyof DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES]
@@ -63,14 +63,11 @@ declare namespace Msom {
     | number
     | bigint
     | Iterable<MsomNode>
-    | MsomPortal
+    | Booleanish
     | null
     | undefined
     | DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES[keyof DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES];
 
-  interface MsomPortal extends MsomElement {
-    children: MsomNode;
-  }
   namespace EventSystem {
     interface BaseSyntheticEvent<E = object, C = any, T = any> {
       nativeEvent: E;
@@ -269,7 +266,7 @@ declare namespace Msom {
   }
   namespace PropAttributesSystem {
     interface DOMEventAttibuties<T> {
-      children?: MsomNode | undefined;
+      children?: MsomNode;
       // Clipboard Events
       onCopy?: EventSystem.ClipboardEventHandler<T> | undefined;
       onCopyCapture?: EventSystem.ClipboardEventHandler<T> | undefined;
@@ -2977,11 +2974,11 @@ declare namespace Msom {
     PropAttributesSystem.AllHTMLAttributes<T>,
     "children"
   > & {
-    $context?: Partial<IComponent.Context>;
+    $context?: Partial<Component.Context>;
   } & PropAttributesSystem.ClassAttributes<T> & {
       nodeValue?: string;
     } & {
-      children: MsomElement<any>[];
+      children: MsomElement<any> | MsomElement<any>[];
     };
 
   export type MsomElement<
