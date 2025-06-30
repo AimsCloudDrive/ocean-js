@@ -1,7 +1,8 @@
 // src/utils/config.ts
 import path from "path";
 import fs from "fs";
-import { LoadedXbuildConfig, XBuildConfig, defineConfig } from "../core/types";
+import { LoadedXbuildConfig, XBuildConfig, UserConfig } from "../core/types";
+import { XBuildENV } from "./env";
 import { PluginManager } from "../core/plugin";
 import { Logger } from "./logger";
 
@@ -9,12 +10,12 @@ const logger = new Logger("Config");
 
 export async function loadConfig(
   userConfigPath?: string
-): Promise<LoadedXbuildConfig> {
+): Promise<LoadedXbuildConfig | undefined> {
   const configPath = findConfigFile(userConfigPath);
 
   if (!configPath) {
     logger.warn("No config file found, using default configuration");
-    return getDefaultConfig();
+    return;
   }
 
   try {
@@ -28,9 +29,7 @@ export async function loadConfig(
     const resolvedConfig =
       typeof userConfig === "function"
         ? userConfig({
-            mode:
-              (process.env.NODE_ENV as "development" | "production") ||
-              "production",
+            mode: XBuildENV.env || "production",
           })
         : userConfig;
 
@@ -42,7 +41,6 @@ export async function loadConfig(
 
     // 设置默认值
     return {
-      mode: "production",
       ...finalConfig,
       plugins: pluginManager,
     };
@@ -59,7 +57,6 @@ function findConfigFile(userPath?: string): string | null {
     "xbuild.config.js",
     "xbuild.config.mjs",
     "xbuild.config.cjs",
-    "build.config.ts",
     path.join("config", "xbuild.config.ts"),
   ].filter(Boolean) as string[];
 
@@ -87,14 +84,6 @@ function findConfigFile(userPath?: string): string | null {
 
   return null;
 }
-
-function getDefaultConfig(): LoadedXbuildConfig {
-  return {
-    input: "src/index.ts",
-    output: {
-      dir: "dist",
-      format: "esm",
-    },
-    plugins: new PluginManager([]),
-  };
+export function defineConfig(config: UserConfig): UserConfig {
+  return config;
 }

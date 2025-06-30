@@ -3,10 +3,10 @@ import { Logger } from "../utils/logger";
 import { LoadedXbuildConfig } from "./types";
 
 export class TypeScriptCompiler {
-  private config: LoadedXbuildConfig;
+  private config?: LoadedXbuildConfig;
   private logger: Logger = new Logger("TypeScript");
 
-  constructor(config: LoadedXbuildConfig) {
+  constructor(config: LoadedXbuildConfig | undefined) {
     this.config = config;
   }
 

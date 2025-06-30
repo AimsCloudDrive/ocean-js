@@ -1,83 +1,127 @@
-import { OutputOptions, RollupOptions, rollup } from "rollup";
+import { createServer, staticMiddle } from "@msom/http";
+import { RolldownOptions, RolldownOutput, rolldown } from "rolldown";
 import { Logger } from "../utils/logger";
 import { PluginManager } from "./plugin";
-import { LoadedXbuildConfig } from "./types";
+import {
+  LoadedXbuildConfig,
+  XBuildContext,
+  XBuildOutputOptions,
+} from "./types";
 
 export class XBuilder {
-  private config: LoadedXbuildConfig;
-  private plugins: PluginManager;
+  private config?: XBuildContext;
   private logger: Logger = new Logger("Builder");
 
-  constructor(config: LoadedXbuildConfig) {
+  constructor(config: XBuildContext | undefined) {
     this.config = config;
-    this.plugins = new PluginManager(config.plugins || []);
   }
 
-  async runBuild(
-    rollupOptions: RollupOptions,
-    outputOptions: OutputOptions | OutputOptions[]
-  ) {
+  get pluginManager() {
+    return new PluginManager(this.config?.plugins || []);
+  }
+
+  get rolldownOptions(): RolldownOptions {
+    const { config } = this;
+    if (!config || !config.build) {
+      return {
+        input: "./index.html",
+        output: [
+          {
+            dir: "./dist",
+            format: "esm",
+          },
+        ],
+      };
+    } else {
+      let { output } = config.build;
+      config.build.output = [output]
+        .flat()
+        .filter(Boolean)
+        .map((out: XBuildOutputOptions) => {
+          return {
+            ...out,
+            chunkFileNames:
+              out.chunkFileNames &&
+              ((info) => {
+                const name =
+                  typeof out.chunkFileNames === "function"
+                    ? out.chunkFileNames(info, out.format || "esm")
+                    : out.chunkFileNames;
+                return name || info.name;
+              }),
+          };
+        });
+
+      return config.build as RolldownOptions;
+    }
+  }
+
+  async runBuild() {
     process.env.NODE_ENV = "production";
     try {
-      await this.plugins.applyHook("beforeBuild");
-
-      const bundle = await rollup({
-        ...rollupOptions,
-        plugins: [
-          ...[rollupOptions.plugins].flat(),
-          ...this.plugins.getRollupPlugins(),
-        ],
-      });
-      outputOptions = [outputOptions].flat();
-      for (let i = 0; i < outputOptions.length; i++) {
-        const element = outputOptions[i];
-        const j = i;
-        outputOptions[j] = bundle.write(element) as any;
-      }
-      await Promise.all(outputOptions);
+      const { output, ...options } = this.rolldownOptions;
+      const bundle = await rolldown(options);
+      const promiseResults = [output].flat().map(bundle.generate.bind(bundle));
+      const result = (await Promise.all(promiseResults)).map<RolldownOutput>(
+        (output) => {
+          const [chunk, deps] = output.output;
+          this.pluginManager.apply("transform", chunk.code, chunk.map);
+          return output;
+        }
+      );
       await bundle.close();
 
       this.logger.success("Build completed successfully");
-      await this.plugins.applyHook("afterBuild", true);
       return true;
     } catch (error) {
       delete process.env.NODE_ENV;
       this.logger.error("Build failed", error);
-      await this.plugins.applyHook("afterBuild", false, error);
       return false;
     }
   }
 
-  async runDev(rollupOptions: RollupOptions, outputOptions: OutputOptions) {
-    const { watch } = await import("rollup");
+  async runDev() {
+    // 启动服务器
+    let promiseHandle: ((data: any) => void)[] = [];
+    try {
+      createServer(this.config?.dev?.port || 9999, {
+        middles: [staticMiddle(this.config?.dev?.public || "public")],
+        routes: [
+          {
+            path: "/",
+            method: "get",
+            handlers: [
+              (request, response) => {
+                const { modulePath } = request.params;
+                response.send(`
+                <!DOCTYPE html>
+                <html>
+                  <head>
+                    <title>Component Preview - ${getModuleName(
+                      modulePath
+                    )}</title>
+                  </head>
+                  <body>
+                    <div id="root"></div>
+                    <script type="module" src="/src + ${modulePath.slice(1)}" />
+                  </body>
+                </html>
+              `);
+              },
+            ],
+          },
+        ],
+        createHandle: ({ port }) => {
+          promiseHandle[0](port);
+        },
+      });
+    } catch (e) {}
 
-    const watcher = watch({
-      ...rollupOptions,
-      output: outputOptions,
-      plugins: [
-        ...[rollupOptions.plugins].flat(),
-        ...this.plugins.getRollupPlugins(),
-        ...this.plugins.getDevPlugins(),
-      ],
+    return new Promise<number>((...args) => {
+      promiseHandle = args;
     });
-
-    watcher.on("event", (event) => {
-      switch (event.code) {
-        case "START":
-          this.logger.info("Checking for changes...");
-          break;
-        case "BUNDLE_START":
-          this.logger.info(`Bundling ${event.input}...`);
-          break;
-        case "BUNDLE_END":
-          this.logger.success(`Bundle written to ${event.output}`);
-          break;
-        case "ERROR":
-          this.logger.error("Build error", event.error);
-          break;
-      }
-    });
-
-    return watcher;
   }
+}
+function getModuleName(path: string): string {
+  return path.split("/").pop() || "";
 }

@@ -1,50 +1,32 @@
 // src/commands/dev.ts
-import { LoadedXbuildConfig, XBuildConfig } from "../core/types";
 import { XBuilder } from "../core/builder";
+import { XBuildContext } from "../core/types";
 import { loadConfig } from "../utils/config";
+import { XBuildENV } from "../utils/env";
 import { Logger } from "../utils/logger";
 
-export async function devCommand(options: { config?: string; port?: string }) {
+export async function devCommand(options: { port?: string }) {
   const logger = new Logger("Dev");
+  XBuildENV.to("development");
   try {
-    let config = await loadConfig(options.config);
+    let config = await loadConfig();
 
     // 合并开发模式特定配置
-    config = {
+    const _config = {
       ...config,
       mode: "development",
-      watch: true,
-      serve: true,
-      port: options.port ? parseInt(options.port, 10) : config.port || 3000,
-    } as LoadedXbuildConfig;
+    } as XBuildContext;
 
     logger.info("Starting development server...");
 
-    const builder = new XBuilder(config);
+    const builder = new XBuilder(_config);
 
-    // 开发模式 Rollup 配置
-    const rollupOptions: any = {
-      input: config.input,
-      output: config.output || {
-        dir: "dist",
-        format: "esm",
-        sourcemap: true,
-      },
-      plugins: [],
-      watch: {
-        include: ["src/**"],
-        exclude: "node_modules/**",
-      },
-      ...(config.rollupOptions || {}),
-    };
-
-    await builder.runDev(rollupOptions, rollupOptions.output);
-
-    logger.success(
-      `Development server running at http://localhost:${config.port}`
-    );
+    const port = await builder.runDev();
+    logger.success(`Development server running at http://localhost:${port}`);
   } catch (error) {
     logger.error("Error starting development server:", error);
     process.exit(1);
+  } finally {
+    XBuildENV.reset();
   }
 }

@@ -6,7 +6,6 @@ export * from "./utils";
 import { program } from "commander";
 import { checkCommand } from "./commands/check";
 import { devCommand } from "./commands/dev";
-import { compileCommand } from "./commands/compile";
 import { buildCommand } from "./commands/build";
 
 program
@@ -31,13 +30,13 @@ program
     await devCommand(options);
   });
 
-program
-  .command("compile")
-  .description("Compile TypeScript without generating .d.ts files")
-  .option("-c, --config <path>", "Path to config file")
-  .action(async (options) => {
-    await compileCommand(options);
-  });
+// program
+//   .command("compile")
+//   .description("Compile TypeScript without generating .d.ts files")
+//   .option("-c, --config <path>", "Path to config file")
+//   .action(async (options) => {
+//     await compileCommand(options);
+//   });
 
 program
   .command("build")
