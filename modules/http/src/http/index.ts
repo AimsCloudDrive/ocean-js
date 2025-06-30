@@ -59,7 +59,7 @@ export function createServer(
   port: number,
   option: {
     routes?: ServerRoute[];
-    createHandle?: () => void;
+    createHandle?: (option: { port: number }) => void;
     middles?: RequestHandler[] | RequestHandler;
   } = {}
 ): Express.Application {
@@ -91,7 +91,11 @@ export function createServer(
     parseRoute(routes, "");
   }
   server.listen(port, () => {
-    typeof createHandle === "function" && createHandle();
+    typeof createHandle === "function" && createHandle({ port });
   });
   return server;
+}
+
+export function staticMiddle(path: string): ReturnType<typeof express.static> {
+  return express.static(path);
 }
