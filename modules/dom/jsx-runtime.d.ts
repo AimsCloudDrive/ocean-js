@@ -2400,7 +2400,21 @@ declare namespace Msom {
     | (new (props: P) => IComponent);
 
   namespace JSX {
-    type ElementType = string | JSXElementConstructor<any>;
+    type ElementTypeMap = {
+      TEXT_NODE: Text;
+    } & {
+      [K in keyof IntrinsicElements]: IntrinsicElements[K] extends PropAttributesSystem.DetailedHTMLProps<
+        any,
+        infer Ele
+      >
+        ? Ele
+        : IntrinsicElements[K] extends PropAttributesSystem.SVGProps<
+            infer SVGELE
+          >
+        ? SVGELE
+        : null;
+    };
+    type ElementType = keyof ElementTypeMap | JSXElementConstructor<any>;
     interface Element extends MsomElement<any, any> {}
     interface ElementClass
       extends IComponent<IComponentProps<any>, IComponentEvents> {}
@@ -2970,7 +2984,7 @@ declare namespace Msom {
   export type VNodeArray = Iterable<VNode>;
   export type VNode = VNodeArray | MsomNode;
 
-  type H<T extends unknown = any> = Omit<
+  type H<T extends JSX.ElementType> = Omit<
     PropAttributesSystem.AllHTMLAttributes<T>,
     "children"
   > & {
@@ -2982,9 +2996,7 @@ declare namespace Msom {
     };
 
   export type MsomElement<
-    T extends string | JSXElementConstructor<any> =
-      | string
-      | JSXElementConstructor<any>,
+    T extends JSX.ElementType = JSX.ElementType,
     P extends H<T> = H<T>
   > = {
     type: T;

@@ -2,15 +2,17 @@
   "name": "@msom/xbuild-example",
   "version": "1.0.0",
   "description": "",
+  "types": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "xbuild build"
+    "clean": "rimraf dist",
+    "dev": "xbuild dev -c ../../../xbuild.config.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@msom/xbuild": "workspace:^"
+    "@msom/xbuild": "workspace:^",
+    "@msom/gallay": "workspace:^"
   }
 }

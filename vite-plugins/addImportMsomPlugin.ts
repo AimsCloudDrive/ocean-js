@@ -1,5 +1,4 @@
-import { Plugin } from "vite";
-export default function addImportMsomPlugin(): Plugin {
+export default function addImportMsomPlugin() {
   return {
     name: "add-import-msom",
     generateBundle(_, bundle) {

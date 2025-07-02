@@ -1,5 +1,4 @@
 // src/utils/logger.ts
-
 import chalk from "chalk";
 
 type LogLevel = "info" | "warn" | "error" | "success";
@@ -22,7 +21,7 @@ type ReadonlyKeys<T> = {
 type ChalkColors = Exclude<ReadonlyKeys<typeof chalk>, "reset">;
 
 const colorMap: {
-  [K in LogLevel]: { prefix: ChalkColors; message: ChalkColors };
+  [K in LogLevel]: { prefix: any; message: any };
 } = {
   info: {
     prefix: "blue",

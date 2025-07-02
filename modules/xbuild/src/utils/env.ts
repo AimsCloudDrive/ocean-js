@@ -11,11 +11,7 @@ class XBuildENV {
     return Reflect.get(process.env, this.envKey, process.env);
   }
   to(mode: XBuildMode) {
-    Reflect.defineProperty(process.env, this.envKey, {
-      value: mode,
-      enumerable: false,
-      writable: true,
-    });
+    Object.assign(process.env, { [this.envKey]: mode });
   }
   reset() {
     Reflect.deleteProperty(process.env, this.envKey);

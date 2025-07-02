@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "check": "node ./scripts/xbuild.js --check",
-    "build": "node ./scripts/xbuild.js --build",
+    "build::vite": "node ./scripts/xbuild.js --build",
     "release": "node ./scripts/xbuild.js --release"
   },
   "publishConfig": {

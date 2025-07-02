@@ -54,10 +54,7 @@ function createTextElement(text: string): Msom.MsomElement {
   };
 }
 function createDom<
-  T extends
-    | string
-    | keyof Msom.JSX.IntrinsicElements
-    | Msom.JSXElementConstructor<unknown>
+  T extends Msom.JSX.ElementType | keyof Msom.JSX.IntrinsicElements
 >(element: Msom.MsomElement<T>) {
   const {
     children,
@@ -338,7 +335,3 @@ function patchVDOM(
     }
   }
 }
-
-Object.assign(globalThis, {
-  Msom: { createElement },
-});

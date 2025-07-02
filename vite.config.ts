@@ -9,7 +9,7 @@ import viteRollupBabelPlugins from "./vite.rollup.babel.plugins";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    addSourceCommentPlugin(),
+    // addSourceCommentPlugin(),
     // addImportMsomPlugin(),
     // addTsIgnorePlugin(),
   ],
@@ -34,7 +34,22 @@ export default defineConfig({
           babelrc: false,
         }),
       ] as any[],
-      external: [/^@msom\//, "fs", "path", "mongodb", "cors", "express"],
+      external: [
+        /^@msom\//,
+        "jsdom",
+        "fs",
+        "path",
+        "mongodb",
+        "cors",
+        "express",
+        "url",
+        "rolldown",
+        "commander",
+        "chalk",
+        "tslib",
+        "typescript",
+        /^@rollup\//,
+      ],
     },
     target: ["esnext"],
     emptyOutDir: true,
@@ -42,7 +57,7 @@ export default defineConfig({
     minify: false,
     outDir: "./dist",
     lib: {
-      entry: ["src/index.ts"],
+      entry: ["./src/index.ts"],
       name: "index.js",
       formats: ["es", "cjs"],
       fileName: (format, entryName) => {

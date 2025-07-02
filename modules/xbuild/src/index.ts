@@ -4,7 +4,6 @@ export * from "./core";
 export * from "./utils";
 
 import { program } from "commander";
-import { checkCommand } from "./commands/check";
 import { devCommand } from "./commands/dev";
 import { buildCommand } from "./commands/build";
 
@@ -14,34 +13,20 @@ program
   .version("0.1.0");
 
 program
-  .command("check")
-  .description("Run TypeScript type checking")
-  .option("-c, --config <path>", "Path to config file")
-  .action(async (options) => {
-    await checkCommand(options);
-  });
-
-program
   .command("dev")
   .description("Start development server")
+  .option("-s, --static <path>", "Path to public dir")
   .option("-c, --config <path>", "Path to config file")
-  .option("-p, --port <number>", "Port number", "3000")
+  .option("-p, --port <number>", "Path to Port number, default 9999")
   .action(async (options) => {
     await devCommand(options);
   });
-
-// program
-//   .command("compile")
-//   .description("Compile TypeScript without generating .d.ts files")
-//   .option("-c, --config <path>", "Path to config file")
-//   .action(async (options) => {
-//     await compileCommand(options);
-//   });
 
 program
   .command("build")
   .description("Full build process with type checking and declaration files")
   .option("-c, --config <path>", "Path to config file")
+  .option("-C, --compile", "Path to compile mode")
   .action(async (options) => {
     await buildCommand(options);
   });

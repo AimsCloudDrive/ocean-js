@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@msom/common",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "@msom/common",
   "main": "dist/index.cjs.js",
   "module": "dist/index.js",
@@ -28,7 +28,8 @@
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
-    "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
+    "build::vite": "pnpm run clean && pnpm run check && vite build -c ../../vite.config.ts",
+    "build": "rimraf dist/types && pnpm run check && xbuild build -c ../../xbuild.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
     "rel": "pnpm publish",

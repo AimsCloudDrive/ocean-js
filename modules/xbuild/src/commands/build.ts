@@ -1,16 +1,20 @@
 // src/commands/build.ts
 import { XBuilder } from "../core/builder";
-import { TypeScriptCompiler } from "../core/compiler";
 import { XBuildContext } from "../core/types";
 import { loadConfig } from "../utils/config";
 import { XBuildENV } from "../utils/env";
 import { Logger } from "../utils/logger";
 
-export async function buildCommand(options: { config?: string }) {
+export async function buildCommand(options: {
+  config?: string;
+  compile?: true;
+}) {
   const logger = new Logger("Build");
   XBuildENV.to("production");
   try {
-    let config = await loadConfig(options.config);
+    let config = await loadConfig(options.config, {
+      compile: options.compile === true,
+    });
 
     // 构建模式配置
     const _config = {
@@ -20,27 +24,12 @@ export async function buildCommand(options: { config?: string }) {
 
     logger.info("Starting full build process...");
 
-    // 步骤1: 类型检查
-    const compiler = new TypeScriptCompiler(_config);
-    const typeCheckSuccess = await compiler.checkTypes();
-
-    if (!typeCheckSuccess) {
-      logger.error("Build failed: Type checking errors found");
-      process.exit(1);
-    }
-
-    // 步骤2: 生成类型声明文件
-    const declarationSuccess = await compiler.emitDeclarations();
-
-    if (!declarationSuccess) {
-      logger.error("Build failed: Declaration file generation failed");
-      process.exit(1);
-    }
-
     // 步骤3: 打包构建
     const builder = new XBuilder(_config);
 
+    console.time("time of build");
     const buildSuccess = await builder.runBuild();
+    console.timeEnd("time of build");
 
     if (buildSuccess) {
       logger.success("Full build completed successfully");

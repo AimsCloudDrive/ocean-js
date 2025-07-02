@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@msom/component",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "@msom/component",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
@@ -20,14 +20,15 @@
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
-    "build": "npm run clean && npm run check && vite build -c ../../vite.config.ts",
+    "build::vite": "pnpm run clean && pnpm run check && vite build -c ../../vite.config.ts",
+    "build": "pnpm run clean && pnpm run check && xbuild build -c ../../xbuild.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
-    "unrel": "pnpm unpublish --force",
-    "rel": "pnpm publish"
+    "dev": "pnpm run --filter=./example dev"
   },
   "devDependencies": {
     "@msom/common": "workspace:^",
     "@msom/dom": "workspace:^",
+    "@msom/xbuild": "workspace:^",
     "@msom/reaction": "workspace:^"
   },
   "publishConfig": {

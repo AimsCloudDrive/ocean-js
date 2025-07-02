@@ -1,11 +1,9 @@
 import { OcPromise, Resolve } from "../OcPromise";
 
-type FetchParameters = [
-  Parameters<typeof fetch>[0],
-  Exclude<Parameters<typeof fetch>[1], undefined>
-];
+type FetchUrl = Parameters<typeof fetch>[0];
+type FetchOption = Parameters<typeof fetch>[1];
 
-export function createCancelRequest(...[url, init]: FetchParameters) {
+export function createCancelRequest(url: FetchUrl, init?: FetchOption) {
   const controller = new AbortController();
   init = init || {};
   if (init.signal) {
@@ -30,25 +28,24 @@ type JsonRequestHeaders =
   | [OmitContentType, string][]
   | Record<OmitContentType, string>;
 
+type JsonRequestOptions = Omit<Exclude<FetchOption, undefined>, "headers"> & {
+  headers: JsonRequestHeaders;
+};
+
 /**
  * 创建请求体是application/json的请求
  * @param url
  * @param init
  * @returns
  */
-export function createJsonRequest(
-  url: FetchParameters[0],
-  init?: Omit<FetchParameters[1], "headers"> & {
-    headers: JsonRequestHeaders;
-  }
-) {
+export function createJsonRequest(url: FetchUrl, init?: FetchOption) {
   const headers = new Headers(init?.headers);
   headers.delete("content-type");
   headers.append("content-type", "application/json");
   return createCancelRequest(url, { ...(init || {}), headers });
 }
 
-function json(response: OcPromise<Response>) {
+function json<T>(response: OcPromise<Response>): OcPromise<T> {
   return response.then((res) => res.json());
 }
 
@@ -58,8 +55,8 @@ function json(response: OcPromise<Response>) {
  * @param init
  * @returns
  */
-export function createRequestJson(...[url, init]: FetchParameters) {
-  return json(createCancelRequest(url, init));
+export function createRequestJson<T>(url: FetchUrl, init?: FetchOption) {
+  return json<T>(createCancelRequest(url, init));
 }
 /**
  * 创建请求体是application/json、响应体是json格式的请求
@@ -67,17 +64,6 @@ export function createRequestJson(...[url, init]: FetchParameters) {
  * @param init
  * @returns
  */
-export function createJsonRequestJson(
-  url: FetchParameters[0],
-  options?: Omit<FetchParameters[1], "headers"> & {
-    headers: JsonRequestHeaders;
-  }
-) {
-  return json(createJsonRequest(url, options));
+export function createJsonRequestJson<T>(url: FetchUrl, init?: FetchOption) {
+  return json<T>(createJsonRequest(url, init));
 }
-
-createJsonRequestJson("", {
-  headers: {
-    "content-type": "",
-  },
-});

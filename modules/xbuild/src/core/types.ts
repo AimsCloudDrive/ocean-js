@@ -13,32 +13,35 @@ export type XBuildOutputOptions = Omit<OutputOptions, "chunkFileNames"> & {
   chunkFileNames?:
     | string
     | ((
-        chunkName: Parameters<ChunkFileNamesFunction>[0],
+        chunkInfo: Parameters<ChunkFileNamesFunction>[0],
         format: string
       ) => string | undefined | null | void);
 };
+
+export interface XbuildDevOptions {
+  port?: number;
+  public?: string;
+}
 
 interface BaseXbuildConfig {
   build?: Omit<RolldownOptions, "output"> & {
     output?: XBuildOutputOptions | XBuildOutputOptions[];
   };
-  dev?: {
-    port?: number;
-    public?: string;
-  };
+  dev?: XbuildDevOptions;
 }
 
 export interface XBuildConfig extends BaseXbuildConfig {
   plugins?: XBuildPlugin[];
 }
 export interface LoadedXbuildConfig extends BaseXbuildConfig {
-  plugins: PluginManager;
+  pluginManager: PluginManager;
 }
 
 export interface XBuildContext extends LoadedXbuildConfig {
   mode: XBuildMode;
 }
-
-export type UserConfig =
-  | Partial<XBuildConfig>
-  | ((env: { mode: XBuildMode }) => Partial<XBuildConfig>);
+type FuncEnable<T, Args extends any[] = []> = T | ((...args: Args) => T);
+export type UserConfig = FuncEnable<
+  XBuildConfig | Promise<XBuildConfig>,
+  [{ mode: XBuildMode }]
+>;
