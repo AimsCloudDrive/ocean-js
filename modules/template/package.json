@@ -30,10 +30,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@msom/dom": "workspace:^",
     "@msom/common": "workspace:^",
     "@msom/component": "workspace:^",
-    "@msom/reaction": "workspace:^"
-  },
-  "devDependencies": {}
+    "@msom/dom": "workspace:^",
+    "@msom/reaction": "workspace:^",
+    "@rollup/plugin-typescript": "^12.1.4"
+  }
 }

@@ -29,7 +29,7 @@ export const TEXT_NODE = "TEXT_NODE";
 export function createElement<T extends Msom.JSX.ElementType>(
   type: T,
   config: Omit<Msom.H<T>, "children"> | null | undefined,
-  ...children: Msom.MsomElement<any>[]
+  ...children: Msom.MsomNode[]
 ): Msom.MsomElement {
   config = config || {};
   const _config = {
@@ -333,5 +333,11 @@ function patchVDOM(
     } else {
       return Object.is(vDOM, prevVDOM);
     }
+  }
+}
+
+declare global {
+  export namespace Msom {
+    export { createElement };
   }
 }

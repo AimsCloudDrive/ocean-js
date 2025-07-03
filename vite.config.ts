@@ -59,12 +59,9 @@ export default defineConfig({
     lib: {
       entry: ["./src/index.ts"],
       name: "index.js",
-      formats: ["es", "cjs"],
+      formats: ["es"],
       fileName: (format, entryName) => {
-        if (/^esm?$/.test(format)) {
-          return "index.js";
-        }
-        return `index.${format}.js`;
+        return "index.js";
       },
     },
   },

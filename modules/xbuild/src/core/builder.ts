@@ -47,14 +47,14 @@ export class XBuilder {
     };
   }
 
-  private async buildHtml(filePath: string) {
+  private buildHtml(filePath: string) {
     const fileContent = fs.readFileSync(path.resolve(filePath), "utf-8");
     const html = new JSDOM(fileContent);
     const script = html.window.document.querySelector(
       "script#script-main[type=module]"
     ) as HTMLScriptElement;
     if (!script) {
-      return;
+      return filePath;
     } else {
       const src = script.src;
       const changeString = (
@@ -73,20 +73,12 @@ export class XBuilder {
         changeString(v, ".", "js")
       );
       script.src = "./" + fileName;
-      const { output, ...option } = this.rolldownOptions;
-      option.input = src;
+      const { output } = this.rolldownOptions;
       const dir = [output].flat().reduce((a, b) => b?.dir || a, "./dist");
-      const build = await rolldown(option);
       const htmlName = filePath.split("/").pop();
       assert(htmlName);
-      await this.write(path.resolve(dir, htmlName), html.serialize(), "utf-8");
-      const chunk = await this.generate(build, {
-        dir,
-        chunkFileNames: fileName,
-        format: "esm",
-        sourcemap: false,
-      }).then((v) => v[0]);
-      await this.write(path.resolve(dir, fileName), chunk.code, "utf-8");
+      this.write(path.resolve(dir, htmlName), html.serialize(), "utf-8");
+      return src;
     }
   }
 
@@ -142,19 +134,6 @@ export class XBuilder {
         });
       options.plugins = [config.build.plugins || []].flat();
       options.external = [
-        "fs",
-        "jsdom",
-        "path",
-        "mongodb",
-        "cors",
-        "express",
-        "url",
-        "rolldown",
-        "commander",
-        "chalk",
-        "tslib",
-        "typescript",
-        /^@rollup\//,
         ...([config.build.external].flat() as (
           | StringOrRegExp
           | Only<ExternalOption, Function>
@@ -217,7 +196,7 @@ export class XBuilder {
           if (!input.endsWith(".html")) {
             inputs.push(input);
           } else {
-            await this.buildHtml(input);
+            inputs.push(this.buildHtml(input));
           }
         }
         options.input = inputs;
@@ -317,7 +296,8 @@ export class XBuilder {
       createServer(option.port, {
         middles: [
           staticMiddle(path.relative(process.cwd(), option.public)),
-          staticMiddle(path.resolve("../../../template/dist")),
+          staticMiddle(path.resolve("../../template/dist")),
+          staticMiddle(path.resolve("../../template/src")),
         ],
         routes: [
           {
@@ -333,6 +313,7 @@ export class XBuilder {
                 const { output, ...options } = this.rolldownOptions;
                 options.input = path.resolve("src", modulePath);
                 const bundle = await rolldown(options);
+
                 const bundleCode = (
                   await bundle.generate({
                     format: "esm",

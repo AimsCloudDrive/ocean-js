@@ -6,25 +6,40 @@ export default defineConfig({
     {
       name: "add-import-msom",
       transform(code) {
-        const jsxHandle = "Msom.createElement";
-        const jsxHandleImport = 'import * as Msom from "@msom/dom";';
-        if (code.includes(jsxHandle) && !code.includes(jsxHandleImport)) {
-          const replaced = "#!/usr/bin/env node";
-          if (code.startsWith(replaced)) {
-            code = code.replace(
-              replaced + "\n\n",
-              replaced + "\n\n" + jsxHandleImport + "\n"
-            );
-          } else {
-            code = jsxHandleImport + "\n" + code;
-          }
-        }
+        // const jsxHandle = "Msom.createElement";
+        // const jsxHandleImport = 'import * as Msom from "@msom/dom";';
+        // if (code.includes(jsxHandle) && !code.includes(jsxHandleImport)) {
+        //   const replaced = "#!/usr/bin/env node";
+        //   if (code.startsWith(replaced)) {
+        //     code = code.replace(
+        //       replaced + "\n\n",
+        //       replaced + "\n\n" + jsxHandleImport + "\n"
+        //     );
+        //   } else {
+        //     code = jsxHandleImport + "\n" + code;
+        //   }
+        // }
         return code;
       },
     },
   ],
   build: {
-    external: [/^@msom\//],
+    external: [
+      "fs",
+      "jsdom",
+      "path",
+      "mongodb",
+      "cors",
+      "express",
+      "url",
+      "rolldown",
+      "commander",
+      "chalk",
+      "tslib",
+      "typescript",
+      /^@rollup\//,
+      /^@msom\//,
+    ],
     plugins: [
       dts({
         tsconfig: "./tsconfig.json",

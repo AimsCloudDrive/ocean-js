@@ -94,10 +94,3 @@ export function computed<T>(
     }
   };
 }
-
-class A {
-  @computed()
-  get a() {
-    return 1;
-  }
-}
