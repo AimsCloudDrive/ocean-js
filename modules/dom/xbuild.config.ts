@@ -34,7 +34,11 @@ export default defineConfig({
       factory: "Msom.createElement",
       jsxImportSource: "@msom/dom",
     },
-    input: "./src/index.ts",
+    input: [
+      "./src/index.ts",
+      "./src/jsx-runtime.ts",
+      "./src/jsx-dev-runtime.ts",
+    ],
     output: [
       {
         sourcemap: true,

@@ -1,20 +1,18 @@
 import {
   Event,
   Nullable,
-  assert,
   compareObjects,
   getComponentDefinition,
   getGlobalData,
   isComponent,
-  isPromiseLike,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
   parseStyle,
   setGlobalData,
 } from "@msom/common";
+import { createReaction, withoutTrack } from "@msom/reaction";
 import { IComponent, IComponentProps } from "./IComponent";
 import { IRef } from "./Ref";
-import { createReaction, withoutTrack } from "@msom/reaction";
 
 type $DOM = {
   rendering?: IComponent;
@@ -26,6 +24,14 @@ const componentVDOMMap = new WeakMap<IComponent, Msom.MsomNode | Nullable>();
 
 export const TEXT_NODE = "TEXT_NODE";
 
+function isIterator<T extends unknown = unknown>(v: unknown): v is Iterable<T> {
+  if ((typeof v === "object" && v !== null) || typeof v === "function") {
+    return Reflect.has(v, Symbol.iterator);
+  } else {
+    return false;
+  }
+}
+
 export function createElement<T extends Msom.JSX.ElementType>(
   type: T,
   config: Omit<Msom.H<T>, "children"> | null | undefined,
@@ -34,9 +40,21 @@ export function createElement<T extends Msom.JSX.ElementType>(
   config = config || {};
   const _config = {
     ...config,
-    children: children.map((v: any) =>
-      v && typeof v === "object" ? v : createTextElement(v)
-    ),
+    children: children.map<Msom.MsomElement<any>>((v) => {
+      const handle = (_v: Msom.MsomNode) => {
+        if (isIterator(_v)) {
+          return [..._v].map(handle);
+        } else if (
+          (typeof _v === "object" && _v !== null) ||
+          _v === undefined
+        ) {
+          return _v;
+        } else {
+          return createTextElement(String(_v));
+        }
+      };
+      return handle(v);
+    }),
   };
   return {
     type,
@@ -44,7 +62,7 @@ export function createElement<T extends Msom.JSX.ElementType>(
   };
 }
 
-function createTextElement(text: string): Msom.MsomElement {
+function createTextElement(text: string | Function): Msom.MsomElement {
   return {
     type: TEXT_NODE,
     props: {
@@ -123,9 +141,6 @@ function _mountComponent(element: Msom.MsomElement<any>, container: Element) {
     const { $events } = componentDefinition;
     const $eventKeys = ownKeysAndPrototypeOwnKeys($events);
     const { ..._props } = props;
-    // 去除props中的自带属性
-    delete _props["__self"];
-    delete _props["__source"];
     // 去除props中的事件
     if ($eventKeys.size()) {
       for (const eventKey of $eventKeys) {
@@ -236,34 +251,21 @@ function _mountComponent(element: Msom.MsomElement<any>, container: Element) {
   });
 }
 
-function isValidChild(
-  child: Msom.MsomElement<any> | Msom.MsomElement<any>[] | Nullable
-): boolean {
-  if (!child) {
-    return false;
-  }
-  child = [child].flat();
-  return child.length > 0;
-}
-
 function renderer(
-  element: Msom.MsomNode | undefined | null,
+  element: Msom.MsomNode,
   container: Element
 ): HTMLElement | Text | undefined {
   if (!element) {
     return;
   }
+
   if (typeof element !== "object") {
-    element = createTextElement(String(element));
+    element = createTextElement(
+      typeof element === "function" ? element : String(element)
+    );
   }
-  if (isPromiseLike(element)) {
-    element.then((e) => {
-      renderer(e, container);
-    });
-    return;
-  }
-  if (element[Symbol.iterator]) {
-    for (const e of element as Iterable<Msom.MsomNode>) {
+  if (isIterator(element)) {
+    for (const e of element) {
       renderer(e, container);
     }
     return;
@@ -333,11 +335,5 @@ function patchVDOM(
     } else {
       return Object.is(vDOM, prevVDOM);
     }
-  }
-}
-
-declare global {
-  export namespace Msom {
-    export { createElement };
   }
 }

@@ -205,72 +205,80 @@ export class XBuilder {
           return true;
         }
       }
-      const bundle = await rolldown(options);
-      const promiseResults = [output]
-        .flat()
-        .map((output: OutputOptions) => this.generate(bundle, output));
-      const result = await Promise.all(promiseResults);
-      const writes: Promise<unknown>[] = [];
-      const abortController = new AbortController();
-      for (let i = 0; i < result.length; i++) {
-        const bundle = result[i];
-        const _output = [output].flat()[i];
-        if (!_output) continue;
-        const { dir = "./", chunkFileNames } = _output;
-        const _chunkFileNames = chunkFileNames as ChunkFileNamesFunction;
-        abortController.signal.addEventListener("abort", () => {
-          if (dir === "./") return;
-          const dirPath = path.resolve(dir);
-          if (fs.existsSync(dirPath)) {
-            fs.rmSync(dirPath, { recursive: true });
-          }
-        });
-        const write = (_path: string, content: string) => {
-          writes.push(
-            this.write(_path, content, {
-              encoding: "utf-8",
-              signal: abortController.signal,
-            })
-          );
-        };
-        for (const chunk of bundle) {
-          if (chunk.type === "chunk") {
-            const fileName = nil(
-              _chunkFileNames &&
-                _chunkFileNames({
-                  ...chunk,
-                  facadeModuleId: chunk.facadeModuleId || "",
-                  name: chunk.fileName,
-                }),
-              chunk.fileName
-            );
-            write(path.resolve(dir, fileName), chunk.code);
-            if (chunk.map && chunk.sourcemapFileName) {
-              const sourcemapFileName = path.resolve(
-                path.dirname(path.resolve(dir, chunk.sourcemapFileName)),
-                fileName + ".map"
-              );
-              write(sourcemapFileName, chunk.map.toString());
+      const input = options.input as string[];
+      for (let i = 0; i < input.length; i++) {
+        options.input = input[i];
+        const bundle = await rolldown(options);
+        const promiseResults = [output]
+          .flat()
+          .map((output: OutputOptions) => this.generate(bundle, output));
+        const result = await Promise.all(promiseResults);
+        const writes: Promise<unknown>[] = [];
+        const abortController = new AbortController();
+        for (let i = 0; i < result.length; i++) {
+          const bundle = result[i];
+          const _output = [output].flat()[i];
+          if (!_output) continue;
+          const { dir = "./", chunkFileNames } = _output;
+          const _chunkFileNames = chunkFileNames as ChunkFileNamesFunction;
+          abortController.signal.addEventListener("abort", () => {
+            if (dir === "./") return;
+            const dirPath = path.resolve(dir);
+            if (fs.existsSync(dirPath)) {
+              fs.rmSync(dirPath, { recursive: true });
             }
-          } else {
-            chunk.source &&
-              chunk.fileName &&
-              write(path.resolve(dir, chunk.fileName), chunk.source.toString());
+          });
+          const write = (_path: string, content: string) => {
+            writes.push(
+              this.write(_path, content, {
+                encoding: "utf-8",
+                signal: abortController.signal,
+              })
+            );
+          };
+          for (const chunk of bundle) {
+            if (chunk.type === "chunk") {
+              const fileName = nil(
+                _chunkFileNames &&
+                  _chunkFileNames({
+                    ...chunk,
+                    facadeModuleId: chunk.facadeModuleId || "",
+                    name: chunk.fileName,
+                  }),
+                chunk.fileName
+              );
+              write(path.resolve(dir, fileName), chunk.code);
+              if (chunk.map && chunk.sourcemapFileName) {
+                const sourcemapFileName = path.resolve(
+                  path.dirname(path.resolve(dir, chunk.sourcemapFileName)),
+                  fileName + ".map"
+                );
+                write(sourcemapFileName, chunk.map.toString());
+              }
+            } else {
+              chunk.source &&
+                chunk.fileName &&
+                write(
+                  path.resolve(dir, chunk.fileName),
+                  chunk.source.toString()
+                );
+            }
           }
         }
+        let error: any;
+        await Promise.all(writes)
+          .catch((e) => {
+            error = e;
+            abortController.abort();
+          })
+          .finally(() => {
+            return bundle.close();
+          });
+        if (error) {
+          throw error;
+        }
       }
-      let error: any;
-      await Promise.all(writes)
-        .catch((e) => {
-          error = e;
-          abortController.abort();
-        })
-        .finally(() => {
-          return bundle.close();
-        });
-      if (error) {
-        throw error;
-      }
+
       this.logger.success("Build completed successfully");
       return true;
     } catch (error) {
@@ -297,7 +305,7 @@ export class XBuilder {
         middles: [
           staticMiddle(path.relative(process.cwd(), option.public)),
           staticMiddle(path.resolve("../../template/dist")),
-          staticMiddle(path.resolve("../../template/src")),
+          staticMiddle(path.resolve("../../template")),
         ],
         routes: [
           {

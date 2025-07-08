@@ -24,7 +24,7 @@
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
-    "compile": "xbuild build -C -c ../../xbuild.config.ts",
+    "compile": "xbuild build -C -c ./xbuild.config.ts",
     "build::vite": "pnpm run clean && vite build -c ../../vite.config.ts",
     "build": "xbuild build -c ../../xbuild.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",

@@ -1,6 +1,7 @@
+/** @jsx createElement */
 import { Component, component } from "@msom/component";
 import { createRequestJson } from "@msom/common";
-import { SingleRef, createSingleRef } from "@msom/dom";
+import { SingleRef, createSingleRef, createElement } from "@msom/dom";
 import { observer } from "@msom/reaction";
 
 type File = "file";

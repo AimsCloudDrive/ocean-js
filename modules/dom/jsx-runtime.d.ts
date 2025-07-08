@@ -47,6 +47,7 @@ declare namespace Msom {
   };
   interface DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES {}
   type MsomNode =
+    | Function
     | MsomElement
     | string
     | number
@@ -55,8 +56,8 @@ declare namespace Msom {
     | Booleanish
     | null
     | undefined
-    | DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES[keyof DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES]
-    | PromiseLike<AwaitedMsomNode>;
+    | DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES[keyof DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES];
+
   type AwaitedMsomNode =
     | MsomElement
     | string
@@ -2990,7 +2991,7 @@ declare namespace Msom {
   > & {
     $context?: Partial<Component.Context>;
   } & PropAttributesSystem.ClassAttributes<T> & {
-      nodeValue?: string;
+      nodeValue?: string | Function;
     } & {
       children: MsomElement<any> | MsomElement<any>[];
     };
