@@ -7,8 +7,8 @@
   "typings": "dist/types/index.d.ts",
   "type": "module",
   "files": [
-    "bin",
     "dist",
+    "src",
     "README.md"
   ],
   "keywords": [
@@ -35,5 +35,8 @@
     "@msom/dom": "workspace:^",
     "@msom/reaction": "workspace:^",
     "@rollup/plugin-typescript": "^12.1.4"
+  },
+  "devDependencies": {
+    "@amap/amap-jsapi-loader": "^1.0.1"
   }
 }

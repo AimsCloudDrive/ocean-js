@@ -9,6 +9,7 @@
   "type": "commonjs",
   "files": [
     "dist",
+    "src",
     "README.md"
   ],
   "keywords": [

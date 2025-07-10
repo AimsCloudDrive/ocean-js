@@ -7,8 +7,9 @@
   "typings": "dist/types/index.d.ts",
   "type": "module",
   "files": [
-    "bin",
     "dist",
+    "src",
+    "bin",
     "README.md"
   ],
   "bin": {

@@ -8,6 +8,7 @@
   "type": "module",
   "files": [
     "dist",
+    "src",
     "README.md",
     "jsx-runtime.d.ts",
     "jsx-dev-runtime.d.ts"
