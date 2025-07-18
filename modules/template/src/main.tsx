@@ -1,8 +1,4 @@
-import { mountComponent, mountWith, createElement } from "@msom/dom";
-import AMap from "@amap/amap-jsapi-loader";
-AMap.load({} as any).then((map) => {
-  map;
-});
+import { mountComponent, mountWith } from "@msom/dom";
 import "./index.css";
 import { App } from "./App";
 

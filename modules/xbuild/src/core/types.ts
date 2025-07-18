@@ -1,5 +1,3 @@
-// src/core/types.ts
-
 import {
   ChunkFileNamesFunction,
   OutputOptions,

@@ -1,7 +1,8 @@
 import { RequestHandler } from "express";
-
-const express: typeof import("express") = require("express");
-const cors: typeof import("cors") = require("cors");
+import express from "express";
+import cors from "cors";
+// const express: typeof import("express") = require("express");
+// const cors: typeof import("cors") = require("cors");
 
 type RequestMethod =
   | "get"

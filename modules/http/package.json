@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@msom/http",
-  "version": "0.0.7",
+  "version": "0.0.9",
   "description": "@msom/http",
-  "main": "dist/index.cjs.js",
+  "main": "dist/index.js",
   "module": "dist/index.js",
   "typings": "dist/types/index.d.ts",
-  "type": "commonjs",
+  "type": "module",
   "files": [
     "dist",
     "src",
@@ -26,15 +26,18 @@
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
     "build::vite": "pnpm run clean && pnpm run check && vite build -c ../../vite.config.ts",
-    "build": "rimraf dist/types && pnpm run check && xbuild build -c ../../xbuild.config.ts",
+    "build": "rimraf dist/types && pnpm run check && xbuild build",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "dev": "pnpm run --filter=./example dev"
   },
   "dependencies": {
     "@msom/http": "file:",
+    "@msom/common": "workspace:^",
+    "@types/body-parser": "^1.19.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/mongodb": "^4.0.7",
+    "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "mongodb": "^6.16.0"

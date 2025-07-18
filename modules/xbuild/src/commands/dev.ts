@@ -1,4 +1,3 @@
-// src/commands/dev.ts
 import { XBuilder } from "../core/builder";
 import { XBuildContext, XbuildDevOptions } from "../core/types";
 import { loadConfig } from "../utils/config";

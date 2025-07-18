@@ -1,20 +1,18 @@
-import { OcPromise, assert, nil } from "@msom/common";
+import { assert, nil } from "@msom/common";
 import { createServer, staticMiddle } from "@msom/http";
 import { RollupTypescriptOptions } from "@rollup/plugin-typescript";
 import * as fs from "fs";
+import { JSDOM } from "jsdom";
 import path from "path";
 import {
   ChunkFileNamesFunction,
   ExternalOption,
-  InputOption,
   OutputOptions,
   RolldownBuild,
   RolldownOptions,
-  RolldownOutput,
   rolldown,
 } from "rolldown";
 import { Only, StringOrRegExp, getModuleName } from "../utils/common";
-import { JSDOM } from "jsdom";
 import { Logger } from "../utils/logger";
 import { PluginManager } from "./plugin";
 import {
@@ -132,8 +130,14 @@ export class XBuilder {
               }),
           };
         });
-      options.plugins = [config.build.plugins || []].flat();
+      options.plugins = [config.build.plugins || []];
       options.external = [
+        /rolldown/,
+        /@babel/,
+        "fs",
+        "path",
+        "url",
+        "typescript",
         ...([config.build.external].flat() as (
           | StringOrRegExp
           | Only<ExternalOption, Function>
@@ -357,12 +361,12 @@ export class XBuilder {
           },
         ],
         createHandle: ({ port }) => {
-          promiseHandle[0](port);
+          promiseHandle[0]({ port });
         },
       });
     } catch (e) {}
 
-    return new Promise<number>((...args) => {
+    return new Promise<{ port: number }>((...args) => {
       promiseHandle = args;
     });
   }

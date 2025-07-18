@@ -1,126 +1,96 @@
+import { types as babelTypes } from "@babel/core";
 import generate from "@babel/generator";
+import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
-import * as t from "@babel/types";
-import { createFilter } from "@rollup/pluginutils";
-import type { Plugin } from "rolldown";
-export const xbuildExternal = [
-  "fs",
-  "jsdom",
-  "path",
-  "mongodb",
-  "cors",
-  "express",
-  "url",
-  "rolldown",
-  "commander",
-  "chalk",
-  "tslib",
-  "typescript",
-  /^@rollup\//,
-  /^@msom\//,
-];
 
-interface ClassDecoratorFirstPluginOptions {
-  include?: string | RegExp | (string | RegExp)[];
-  exclude?: string | RegExp | (string | RegExp)[];
+function getDefault<T extends object>(d: T): T {
+  const _default = Reflect.get(d, "default", d);
+  if (_default) {
+    return _default as T;
+  } else {
+    return d;
+  }
 }
 
-export function classDecoratorFirst(
-  options: ClassDecoratorFirstPluginOptions = {}
-): Plugin {
-  const filter = createFilter(
-    options.include ?? ["**/*.js", "**/*.ts", "**/*.tsx", "**/*.jsx"],
-    options.exclude ?? ["node_modules/**"]
-  );
-
+export function __decoratorHandle() {
   return {
     name: "class-decorator-first",
     transform(code, id) {
-      console.log("=================running==================");
-      if (!filter(id)) return null;
+      console.log(
+        "=================running plugin [class-decorator-first]=================="
+      );
       try {
-        const ast = this.parse(code, {
+        const ast = parse(code, {
           sourceType: "module",
-          lang: "js",
+          plugins: ["decorators-legacy", "typescript"],
         });
 
-        traverse.default(ast, {
-          ClassDeclaration(path) {
-            const className = path.node.id?.name;
-            if (!className) return;
-
-            let classDecoratorCall: t.ExpressionStatement | null = null;
-            const otherDecoratorCalls: t.ExpressionStatement[] = [];
-            const toRemove: t.Node[] = [];
-
-            // 收集当前类相关的所有装饰器调用
-            let nextSibling = path.getNextSibling();
-            while (
-              nextSibling &&
-              nextSibling.isExpressionStatement() &&
-              t.isCallExpression(nextSibling.node.expression)
-            ) {
-              const callExpr = nextSibling.node.expression;
-
-              // 检查是否是 __decorate 调用
-              if (
-                t.isIdentifier(callExpr.callee, { name: "__decorate" }) ||
-                (t.isMemberExpression(callExpr.callee) &&
-                  t.isIdentifier(callExpr.callee.object, { name: "tslib" }) &&
-                  t.isIdentifier(callExpr.callee.property, {
-                    name: "__decorate",
-                  }))
-              ) {
-                const args = callExpr.arguments;
-
-                // 识别类装饰器 (签名: [装饰器], 类名)
-                if (
-                  args.length === 2 &&
-                  t.isIdentifier(args[1], { name: className })
-                ) {
-                  classDecoratorCall = nextSibling.node;
-                  toRemove.push(nextSibling.node);
+        getDefault(traverse)(ast, {
+          Program(path: any) {
+            const programBody = path.node.body;
+            // 判断是否有装饰器语法，__decorate函数的使用
+            if (!Array.isArray(programBody)) {
+              return;
+            }
+            const decorators: any[] = [];
+            let changed = false;
+            const newBody: any[] = [];
+            const cleanDecorators = () => {
+              if (decorators.length) {
+                newBody.push(...decorators);
+                decorators.length = 0;
+              }
+            };
+            programBody.forEach((node) => {
+              if (babelTypes.isExpressionStatement(node)) {
+                const expression = node.expression;
+                if (babelTypes.isCallExpression(expression)) {
+                  const callee = expression.callee;
+                  if (
+                    babelTypes.isIdentifier(callee) &&
+                    callee.name === "__decorate"
+                  ) {
+                    /* 普通装饰器 __decorate([  _property, __metadata("design:type", Object) ], AAA.prototype, "AAA", void 0); */
+                    decorators.push(node);
+                    changed = true;
+                    return;
+                  }
                 }
-                // 识别成员装饰器 (签名: [装饰器], 类名.prototype, ...)
-                else if (
-                  args.length >= 2 &&
-                  t.isMemberExpression(args[1]) &&
-                  t.isIdentifier(args[1].object, { name: className }) &&
-                  t.isIdentifier(args[1].property, { name: "prototype" })
-                ) {
-                  otherDecoratorCalls.push(nextSibling.node);
-                  toRemove.push(nextSibling.node);
+                if (babelTypes.isAssignmentExpression(expression)) {
+                  const right = expression.right;
+                  if (babelTypes.isCallExpression(right)) {
+                    const callee = right.callee;
+                    if (
+                      babelTypes.isIdentifier(callee) &&
+                      callee.name === "__decorate"
+                    ) {
+                      /* 类装饰器 AAA = __decorate([ _class ], AAA); */
+                      newBody.push(node, ...decorators);
+                      decorators.length = 0;
+                      changed = true;
+                      return;
+                    }
+                  }
                 }
               }
-
-              nextSibling = nextSibling.getNextSibling();
-            }
-
-            // 如果找到类装饰器，重新排序
-            if (classDecoratorCall) {
-              // 移除原始节点
-              const body = path.parentPath.node.body as t.Statement[];
-              path.parentPath.node.body = body.filter(
-                (node) => !toRemove.includes(node)
-              );
-
-              // 按正确顺序重新插入：先类装饰器，后其他装饰器
-              const insertIndex = body.indexOf(path.node) + 1;
-              const newNodes = [classDecoratorCall, ...otherDecoratorCalls];
-
-              body.splice(insertIndex, 0, ...newNodes);
-            }
+              // 当前不是装饰器的声明，表示上一个类的装饰器已经声明完成，检查是否有未添加的装饰器声明
+              cleanDecorators();
+              newBody.push(node);
+            });
+            // 防止最后一段body是普通装饰器声明
+            cleanDecorators();
+            changed && (path.node.body = newBody);
           },
         });
 
-        const output = generate.default(ast, { retainLines: true }, code);
+        const output = getDefault(generate)(ast, { retainLines: true }, code);
         return {
           code: output.code,
           map: output.map,
         };
       } catch (err) {
         console.error(`[class-decorator-first] Error processing ${id}:`, err);
-        return null;
+        return code;
       }
     },
   };

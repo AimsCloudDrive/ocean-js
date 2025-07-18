@@ -1,45 +1,32 @@
 import { defineConfig } from "@msom/xbuild";
 import dts from "@rollup/plugin-typescript";
-import { JsxEmit } from "typescript";
 
 export default defineConfig({
-  plugins: [],
   build: {
     external: [
-      "fs",
       "jsdom",
-      "path",
       "mongodb",
       "cors",
       "express",
-      "url",
       "rolldown",
       "commander",
       "chalk",
-      "typescript",
+      "tslib",
+      "body-parser",
       /^@rollup\//,
+      /^@msom\//,
     ],
     plugins: [
       dts({
         tsconfig: "./tsconfig.json",
         paths: {},
-        declaration: false,
-        declarationDir: undefined,
-        jsx: JsxEmit.ReactNative,
-        declarationMap: false,
         noCheck: true,
+        sourceMap: true,
       }),
     ],
-    jsx: {
-      mode: "automatic",
-      jsxImportSource: "@msom/dom",
-    },
-    input: "./index.html",
+    input: "./src/index.ts",
     output: [
       {
-        advancedChunks: {
-          groups: [{ name: "vender", test: /node_modules/ }],
-        },
         sourcemap: true,
         dir: "./dist",
         format: "esm",

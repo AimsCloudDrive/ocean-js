@@ -1,7 +1,7 @@
-import { pathToFileURL } from "url";
-import path from "path";
-import * as fs from "fs";
 import { OcPromise, assert } from "@msom/common";
+import * as fs from "fs";
+import path from "path";
+import { pathToFileURL } from "url";
 
 export type Only<T, U> = U extends T ? U : never;
 

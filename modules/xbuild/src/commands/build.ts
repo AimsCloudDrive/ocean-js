@@ -1,4 +1,3 @@
-// src/commands/build.ts
 import { XBuilder } from "../core/builder";
 import { XBuildContext } from "../core/types";
 import { loadConfig } from "../utils/config";
@@ -12,8 +11,9 @@ export async function buildCommand(options: {
   const logger = new Logger("Build");
   XBuildENV.to("production");
   try {
+    const isCompile = options.compile === true;
     let config = await loadConfig(options.config, {
-      compile: options.compile === true,
+      compile: isCompile,
     });
 
     // 构建模式配置
@@ -22,14 +22,16 @@ export async function buildCommand(options: {
       mode: "production",
     } as XBuildContext;
 
-    logger.info("Starting full build process...");
+    logger.info(
+      `Starting ${isCompile ? "compile" : "build"} of full build process...`
+    );
 
     // 步骤3: 打包构建
     const builder = new XBuilder(_config);
-
-    console.time("time of build");
+    const timeFlag = `time of ${isCompile ? "compile" : "build"}`;
+    console.time(timeFlag);
     const buildSuccess = await builder.runBuild();
-    console.timeEnd("time of build");
+    console.timeEnd(timeFlag);
 
     if (buildSuccess) {
       logger.success("Full build completed successfully");

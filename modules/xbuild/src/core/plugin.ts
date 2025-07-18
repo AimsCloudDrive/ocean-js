@@ -1,4 +1,4 @@
-import { FunctionPluginHooks, SourceMap } from "rolldown";
+import { SourceMap } from "rolldown";
 
 export interface XBuildPlugin {
   name: string;

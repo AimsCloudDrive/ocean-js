@@ -1,12 +1,18 @@
 import { defineConfig } from "@msom/xbuild";
 import dts from "@rollup/plugin-typescript";
 
-const XBUILD_ENV = process.env.XBUILD_ENV;
-console.log("process.env.XBUILD_ENV: " + XBUILD_ENV);
-
 export default defineConfig({
-  plugins: [],
   build: {
+    external: [
+      "mongodb",
+      "cors",
+      "express",
+      "chalk",
+      "tslib",
+      "body-parser",
+      /^@rollup\//,
+      /^@msom\//,
+    ],
     plugins: [
       dts({
         tsconfig: "./tsconfig.json",
@@ -15,10 +21,6 @@ export default defineConfig({
         sourceMap: true,
       }),
     ],
-    jsx: {
-      mode: "automatic",
-      jsxImportSource: "@msom/dom",
-    },
     input: "./src/index.ts",
     output: [
       {
