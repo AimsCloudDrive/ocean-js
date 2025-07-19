@@ -10,6 +10,7 @@ export default defineConfig({
       "chalk",
       "tslib",
       "body-parser",
+      /^@babel\//,
       /^@rollup\//,
       /^@msom\//,
     ],

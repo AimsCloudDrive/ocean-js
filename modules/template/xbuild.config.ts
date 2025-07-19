@@ -6,18 +6,13 @@ export default defineConfig({
   plugins: [],
   build: {
     external: [
-      "fs",
       "jsdom",
-      "path",
       "mongodb",
       "cors",
       "express",
-      "url",
-      "rolldown",
       "commander",
       "chalk",
       "typescript",
-      /^@rollup\//,
     ],
     plugins: [
       dts({
@@ -37,9 +32,9 @@ export default defineConfig({
     input: "./index.html",
     output: [
       {
-        advancedChunks: {
-          groups: [{ name: "vender", test: /node_modules/ }],
-        },
+        // advancedChunks: {
+        //   groups: [{ name: "vender", test: /node_modules/ }],
+        // },
         sourcemap: true,
         dir: "./dist",
         format: "esm",

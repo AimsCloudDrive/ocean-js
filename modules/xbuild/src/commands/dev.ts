@@ -25,7 +25,9 @@ export async function devCommand(options: DevCommandOption) {
     const builder = new XBuilder(_config);
 
     const port = await builder.runDev(options);
-    logger.success(`Development server running at http://localhost:${port}`);
+    logger.success(
+      `Development server running at http://localhost:${port.port}`
+    );
   } catch (error) {
     logger.error("Error starting development server:", error);
     process.exit(1);

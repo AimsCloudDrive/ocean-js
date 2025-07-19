@@ -4,22 +4,7 @@ import dts from "@rollup/plugin-typescript";
 export default defineConfig({
   plugins: [],
   build: {
-    external: [
-      "fs",
-      "jsdom",
-      "path",
-      "mongodb",
-      "cors",
-      "express",
-      "url",
-      "rolldown",
-      "commander",
-      "chalk",
-      "tslib",
-      "typescript",
-      /^@rollup\//,
-      /^@msom\//,
-    ],
+    external: ["tslib", /^@rollup\//, /^@msom\//],
     plugins: [
       dts({
         tsconfig: "./tsconfig.json",

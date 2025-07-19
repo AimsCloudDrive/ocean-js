@@ -22,6 +22,24 @@ import {
   XbuildDevOptions,
 } from "./types";
 
+enum FileLikeType {
+  File = "file",
+  Directory = "directory",
+}
+
+interface IFile {
+  name: string;
+  path: string;
+  type: FileLikeType.File;
+}
+
+interface IDirectory extends Omit<IFile, "type"> {
+  type: FileLikeType.Directory;
+  children: Tree;
+}
+
+type Tree = (IFile | IDirectory)[];
+
 export class XBuilder {
   private config: XBuildContext;
   private logger: Logger = new Logger("Builder");
@@ -307,7 +325,7 @@ export class XBuilder {
     try {
       createServer(option.port, {
         middles: [
-          staticMiddle(path.relative(process.cwd(), option.public)),
+          staticMiddle(path.resolve(process.cwd(), option.public)),
           staticMiddle(path.resolve("../../template/dist")),
           staticMiddle(path.resolve("../../template")),
         ],
@@ -324,6 +342,10 @@ export class XBuilder {
                 }
                 const { output, ...options } = this.rolldownOptions;
                 options.input = path.resolve("src", modulePath);
+                if (!fs.existsSync(options.input)) {
+                  response.sendStatus(404);
+                  return;
+                }
                 const bundle = await rolldown(options);
 
                 const bundleCode = (
@@ -353,9 +375,76 @@ export class XBuilder {
             ],
             children: [
               {
-                path: "file-tree",
+                path: "/file-tree",
                 method: "get",
-                handlers: [(request, response) => {}],
+                handlers: [
+                  (request, response) => {
+                    // 在什么地方运行，root就是什么路径
+                    const src = path.resolve(process.cwd(), "src");
+                    /**
+                     * 构建符合 Tree 类型的文件结构
+                     * @param rootDir 扫描根目录
+                     * @returns 符合 Tree 类型的文件结构
+                     */
+                    function buildFileTree(rootPath: string): Tree {
+                      if (!fs.existsSync(rootPath)) return [];
+
+                      /**
+                       * 递归构建文件树
+                       * @param currentDir 当前目录绝对路径
+                       * @param relativePath 当前目录相对根目录的路径
+                       */
+                      function buildTree(
+                        currentDir: string,
+                        relativePath: string
+                      ): Tree {
+                        const items = fs.readdirSync(currentDir, {
+                          withFileTypes: true,
+                        });
+                        const tree: Tree = [];
+
+                        for (const item of items) {
+                          const itemPath = path.join(currentDir, item.name);
+                          const itemRelativePath = relativePath
+                            ? `${relativePath}/${item.name}`
+                            : item.name;
+
+                          if (item.isDirectory()) {
+                            // 处理目录
+                            const children = buildTree(
+                              itemPath,
+                              itemRelativePath
+                            );
+                            if (children.length > 0) {
+                              tree.push({
+                                name: item.name,
+                                path: itemRelativePath,
+                                type: FileLikeType.Directory,
+                                children,
+                              });
+                            }
+                          } else if (
+                            item.isFile() &&
+                            /.*\.(demo|dev)\.tsx?$/.test(item.name)
+                          ) {
+                            // 处理匹配的文件 (保留扩展名)
+                            tree.push({
+                              name: item.name,
+                              path: itemRelativePath,
+                              type: FileLikeType.File,
+                            });
+                          }
+                        }
+
+                        return tree;
+                      }
+
+                      return buildTree(rootPath, "");
+                    }
+                    const res = buildFileTree(src);
+                    response.status(200).json(res);
+                  },
+                ],
               },
             ],
           },

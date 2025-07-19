@@ -5,6 +5,7 @@ import {
   getComponentDefinition,
   getGlobalData,
   isComponent,
+  isObject,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
   parseStyle,
@@ -45,8 +46,10 @@ export function createElement<T extends Msom.JSX.ElementType>(
         if (isIterator(_v)) {
           return [..._v].map(handle);
         } else if (
-          (typeof _v === "object" && _v !== null) ||
-          _v === undefined
+          typeof _v === "object" ||
+          _v === undefined ||
+          _v === false ||
+          _v === null
         ) {
           return _v;
         } else {
@@ -328,12 +331,10 @@ function patchVDOM(
   if (!prevVDOM) {
     return true;
   } else {
-    if (vDOM === null || prevVDOM === null) {
-      return Object.is(vDOM, prevVDOM);
-    } else if (typeof vDOM === "object" && typeof prevVDOM === "object") {
-      return compareObjects(vDOM, prevVDOM);
+    if (isObject(vDOM) && isObject(prevVDOM)) {
+      return !compareObjects(vDOM, prevVDOM);
     } else {
-      return Object.is(vDOM, prevVDOM);
+      return !Object.is(vDOM, prevVDOM);
     }
   }
 }

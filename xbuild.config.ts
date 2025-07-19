@@ -7,6 +7,7 @@ console.log("process.env.XBUILD_ENV: " + XBUILD_ENV);
 export default defineConfig({
   plugins: [],
   build: {
+    external: [/@msom/],
     plugins: [
       dts({
         tsconfig: "./tsconfig.json",
