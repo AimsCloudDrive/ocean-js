@@ -389,11 +389,6 @@ export class XBuilder {
                     function buildFileTree(rootPath: string): Tree {
                       if (!fs.existsSync(rootPath)) return [];
 
-                      /**
-                       * 递归构建文件树
-                       * @param currentDir 当前目录绝对路径
-                       * @param relativePath 当前目录相对根目录的路径
-                       */
                       function buildTree(
                         currentDir: string,
                         relativePath: string
@@ -401,7 +396,8 @@ export class XBuilder {
                         const items = fs.readdirSync(currentDir, {
                           withFileTypes: true,
                         });
-                        const tree: Tree = [];
+                        const dirs: Tree = [];
+                        const files: Tree = [];
 
                         for (const item of items) {
                           const itemPath = path.join(currentDir, item.name);
@@ -410,13 +406,12 @@ export class XBuilder {
                             : item.name;
 
                           if (item.isDirectory()) {
-                            // 处理目录
                             const children = buildTree(
                               itemPath,
                               itemRelativePath
                             );
                             if (children.length > 0) {
-                              tree.push({
+                              dirs.push({
                                 name: item.name,
                                 path: itemRelativePath,
                                 type: FileLikeType.Directory,
@@ -427,8 +422,7 @@ export class XBuilder {
                             item.isFile() &&
                             /.*\.(demo|dev)\.tsx?$/.test(item.name)
                           ) {
-                            // 处理匹配的文件 (保留扩展名)
-                            tree.push({
+                            files.push({
                               name: item.name,
                               path: itemRelativePath,
                               type: FileLikeType.File,
@@ -436,7 +430,12 @@ export class XBuilder {
                           }
                         }
 
-                        return tree;
+                        // 对目录和文件分别按名称排序
+                        dirs.sort((a, b) => a.name.localeCompare(b.name));
+                        files.sort((a, b) => a.name.localeCompare(b.name));
+
+                        // 目录在前，文件在后
+                        return [...dirs, ...files];
                       }
 
                       return buildTree(rootPath, "");

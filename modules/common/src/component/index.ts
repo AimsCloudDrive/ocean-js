@@ -121,3 +121,4 @@ export function isComponent(
     Object.setPrototypeOf(target, prototype);
   }
 }
+export * from "./addStyle";

@@ -110,9 +110,12 @@ function createDom<
         key.slice(2).toLowerCase(),
         function (this: typeof dom, e) {
           const _e = new Proxy(e, {
-            get: (taget, prop, receiver) => {
-              const value = Reflect.get(taget, prop, receiver);
-              return typeof value === "function" ? value.bind(taget) : value;
+            get: (target, prop, receiver) => {
+              if (prop === "nativeEvent") {
+                return receiver;
+              }
+              const value = Reflect.get(target, prop, target);
+              return typeof value === "function" ? value.bind(target) : value;
             },
             set: Reflect.set,
           });
