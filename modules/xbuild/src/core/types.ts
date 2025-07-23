@@ -4,6 +4,7 @@ import {
   RolldownOptions,
 } from "rolldown";
 import { PluginManager, XBuildPlugin } from "./plugin";
+import { ProxyRules } from "@msom/http";
 
 export type XBuildMode = "development" | "production";
 
@@ -19,6 +20,7 @@ export type XBuildOutputOptions = Omit<OutputOptions, "chunkFileNames"> & {
 export interface XbuildDevOptions {
   port?: number;
   public?: string;
+  proxy?: ProxyRules;
 }
 
 interface BaseXbuildConfig {

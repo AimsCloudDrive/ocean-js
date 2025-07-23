@@ -33,4 +33,10 @@ export default defineConfig({
       },
     ],
   },
+  dev: {
+    proxy: {
+      "/api": { target: "http://localhost", changeOrigin: true },
+      "/dasfabjdsads": { target: "http://localhost" },
+    },
+  },
 });

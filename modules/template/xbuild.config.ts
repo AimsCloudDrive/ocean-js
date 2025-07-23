@@ -5,15 +5,7 @@ import { JsxEmit } from "typescript";
 export default defineConfig({
   plugins: [],
   build: {
-    external: [
-      "jsdom",
-      "mongodb",
-      "cors",
-      "express",
-      "commander",
-      "chalk",
-      "typescript",
-    ],
+    external: [],
     plugins: [
       dts({
         tsconfig: "./tsconfig.json",

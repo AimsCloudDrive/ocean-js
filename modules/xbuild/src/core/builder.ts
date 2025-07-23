@@ -1,17 +1,19 @@
 import { assert, nil } from "@msom/common";
-import { createServer, staticMiddle } from "@msom/http";
-import { RollupTypescriptOptions } from "@rollup/plugin-typescript";
+import { ProxyRules, createServer, staticMiddle } from "@msom/http";
 import * as fs from "fs";
 import { JSDOM } from "jsdom";
 import path from "path";
 import {
-  ChunkFileNamesFunction,
   ExternalOption,
+  OutputAsset,
+  OutputChunk,
   OutputOptions,
   RolldownBuild,
   RolldownOptions,
+  RolldownPluginOption,
   rolldown,
 } from "rolldown";
+import postcss from "rollup-plugin-postcss";
 import { Only, StringOrRegExp, getModuleName } from "../utils/common";
 import { Logger } from "../utils/logger";
 import { PluginManager } from "./plugin";
@@ -21,6 +23,39 @@ import {
   XBuildOutputOptions,
   XbuildDevOptions,
 } from "./types";
+import { htmlEntryPlugin } from "./htmlEntryPlugin";
+
+const defaultRolldownPlugins: RolldownPluginOption<unknown>[] = [
+  postcss({
+    extract: true,
+    sourceMap: true,
+  }),
+  htmlEntryPlugin(),
+];
+/**
+ * 打包工具相关依赖
+ */
+const defaultRolldownExternal = [
+  /^@rolldown\//,
+  /^rolldown/,
+  /^@babel\//,
+  /^@rollup\//,
+  /rollup/,
+  /^http/,
+  "net",
+  "autoprefixer",
+  "chalk",
+  "commander",
+  "less",
+  "postcss",
+  "rolldown",
+  "typescript",
+  "jsdom",
+  "fs",
+  "path",
+  "url",
+  "rollup-plugin-postcss",
+];
 
 enum FileLikeType {
   File = "file",
@@ -50,17 +85,6 @@ export class XBuilder {
 
   get pluginManager() {
     return new PluginManager(this.config?.pluginManager || []);
-  }
-
-  get typeOption(): RollupTypescriptOptions {
-    return {
-      tsconfig: "./tsconfig.json",
-      sourceMap: true,
-      paths: {},
-      noCheck: true,
-      jsxFactory: "Msom.createElement",
-      jsxImportSource: "@msom/dom",
-    };
   }
 
   private buildHtml(filePath: string) {
@@ -115,7 +139,7 @@ export class XBuilder {
     if (!config.build) {
       return {
         input: "./index.html",
-        plugins: [],
+        plugins: [...defaultRolldownPlugins],
         output: [
           {
             dir: "./dist",
@@ -148,14 +172,11 @@ export class XBuilder {
               }),
           };
         });
-      options.plugins = [config.build.plugins || []];
+      options.plugins = [...defaultRolldownPlugins].concat(
+        [config.build?.plugins].flat().filter(Boolean)
+      );
       options.external = [
-        /rolldown/,
-        /@babel/,
-        "fs",
-        "path",
-        "url",
-        "typescript",
+        ...defaultRolldownExternal,
         ...([config.build.external].flat() as (
           | StringOrRegExp
           | Only<ExternalOption, Function>
@@ -227,78 +248,9 @@ export class XBuilder {
           return true;
         }
       }
-      const input = options.input as string[];
-      for (let i = 0; i < input.length; i++) {
-        options.input = input[i];
-        const bundle = await rolldown(options);
-        const promiseResults = [output]
-          .flat()
-          .map((output: OutputOptions) => this.generate(bundle, output));
-        const result = await Promise.all(promiseResults);
-        const writes: Promise<unknown>[] = [];
-        const abortController = new AbortController();
-        for (let i = 0; i < result.length; i++) {
-          const bundle = result[i];
-          const _output = [output].flat()[i];
-          if (!_output) continue;
-          const { dir = "./", chunkFileNames } = _output;
-          const _chunkFileNames = chunkFileNames as ChunkFileNamesFunction;
-          abortController.signal.addEventListener("abort", () => {
-            if (dir === "./") return;
-            const dirPath = path.resolve(dir);
-            if (fs.existsSync(dirPath)) {
-              fs.rmSync(dirPath, { recursive: true });
-            }
-          });
-          const write = (_path: string, content: string) => {
-            writes.push(
-              this.write(_path, content, {
-                encoding: "utf-8",
-                signal: abortController.signal,
-              })
-            );
-          };
-          for (const chunk of bundle) {
-            if (chunk.type === "chunk") {
-              const fileName = nil(
-                _chunkFileNames &&
-                  _chunkFileNames({
-                    ...chunk,
-                    facadeModuleId: chunk.facadeModuleId || "",
-                    name: chunk.fileName,
-                  }),
-                chunk.fileName
-              );
-              write(path.resolve(dir, fileName), chunk.code);
-              if (chunk.map && chunk.sourcemapFileName) {
-                const sourcemapFileName = path.resolve(
-                  path.dirname(path.resolve(dir, chunk.sourcemapFileName)),
-                  fileName + ".map"
-                );
-                write(sourcemapFileName, chunk.map.toString());
-              }
-            } else {
-              chunk.source &&
-                chunk.fileName &&
-                write(
-                  path.resolve(dir, chunk.fileName),
-                  chunk.source.toString()
-                );
-            }
-          }
-        }
-        let error: any;
-        await Promise.all(writes)
-          .catch((e) => {
-            error = e;
-            abortController.abort();
-          })
-          .finally(() => {
-            return bundle.close();
-          });
-        if (error) {
-          throw error;
-        }
+      const inputs = options.input as string[];
+      for (const input of inputs) {
+        await this.buildOne(input);
       }
 
       this.logger.success("Build completed successfully");
@@ -308,13 +260,113 @@ export class XBuilder {
       return false;
     }
   }
+  private async buildOne(input: string) {
+    const { input: _, output, ...options } = this.rolldownOptions;
+    const bundle = await rolldown({ ...options, input });
+    // 每个output都打包一次
+    const promiseResults = [output]
+      .flat()
+      .filter(Boolean)
+      .map(async (output: OutputOptions) => {
+        const bundled = await this.generate(bundle, output);
+        return {
+          output,
+          chunks: bundled.filter((v) => v.type === "chunk") as OutputChunk[],
+          assets: bundled.filter((v) => v.type === "asset") as OutputAsset[],
+        };
+      });
+    // 开始写入文件
+    // 等待打包完成
+    const result = await Promise.all(promiseResults);
+    const writes: Promise<unknown>[] = [];
+    const abortController = new AbortController();
 
-  private getDevOptions(option: XbuildDevOptions): Required<XbuildDevOptions> {
+    const write = (writePath: string, content: string) => {
+      writes.push(
+        this.write(writePath, content, {
+          encoding: "utf-8",
+          signal: abortController.signal,
+        })
+      );
+    };
+    for (const { output, chunks, assets } of result) {
+      const { dir = "./", chunkFileNames } = output;
+      // 当有文件写入失败后停止写入其他文件
+      abortController.signal.addEventListener("abort", () => {
+        if (dir === "./") return;
+        const dirPath = path.resolve(dir);
+        if (fs.existsSync(dirPath)) {
+          fs.rmSync(dirPath, { recursive: true });
+        }
+      });
+      // 写chunk
+      chunks.forEach(
+        ({
+          fileName,
+          facadeModuleId,
+          code,
+          sourcemapFileName,
+          map,
+          ...option
+        }) => {
+          fileName = nil(
+            typeof chunkFileNames === "function"
+              ? chunkFileNames({
+                  ...option,
+                  facadeModuleId: facadeModuleId || "",
+                  name: fileName,
+                })
+              : chunkFileNames,
+            fileName
+          );
+          write(path.resolve(dir, fileName), code);
+          if (map && sourcemapFileName) {
+            sourcemapFileName = path.resolve(
+              path.dirname(path.resolve(dir, sourcemapFileName)),
+              fileName + ".map"
+            );
+            write(sourcemapFileName, map.toString());
+          }
+        }
+      );
+      // 写静态资源
+      assets.forEach(({ source, fileName }) => {
+        source &&
+          fileName &&
+          write(path.resolve(dir, fileName), source.toString());
+      });
+    }
+    let error: any;
+    await Promise.all(writes)
+      .catch((e) => {
+        error = e;
+        abortController.abort();
+      })
+      .finally(() => {
+        return bundle.close();
+      });
+    if (error) {
+      throw error;
+    }
+  }
+
+  get defaultDevOption() {
+    return { port: 9999, public: "public" } as const;
+  }
+
+  private getDevOptions(
+    option: XbuildDevOptions
+  ): Required<Omit<XbuildDevOptions, "proxy">> &
+    Pick<XbuildDevOptions, "proxy"> {
     const dev = this.config.dev || {};
     const options = {
-      port: nil(dev.port, nil(option.port, 9999)),
-      public: nil(dev.public, nil(option.public, "public")),
+      ...this.defaultDevOption,
+      ...dev,
+      ...option,
     };
+    Object.keys(this.defaultDevOption).forEach((key) => {
+      options[key] = nil(options[key], this.defaultDevOption[key]);
+    });
     return options;
   }
 
@@ -322,6 +374,7 @@ export class XBuilder {
     // 启动服务器
     let promiseHandle: ((data: any) => void)[] = [];
     const option = this.getDevOptions(options);
+
     try {
       createServer(option.port, {
         middles: [
@@ -448,14 +501,20 @@ export class XBuilder {
             ],
           },
         ],
+        proxy: option.proxy,
+        printProxy: false,
         createHandle: ({ port }) => {
-          promiseHandle[0]({ port });
+          promiseHandle[0]({ port, proxy: option.proxy });
         },
       });
-    } catch (e) {}
+    } catch (e) {
+      console.log(e);
+    }
 
-    return new Promise<{ port: number }>((...args) => {
-      promiseHandle = args;
-    });
+    return new Promise<{ port: number; proxy: ProxyRules | undefined | null }>(
+      (...args) => {
+        promiseHandle = args;
+      }
+    );
   }
 }

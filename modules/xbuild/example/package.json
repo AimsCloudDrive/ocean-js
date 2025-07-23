@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "clean": "rimraf dist",
-    "dev": "xbuild dev -c ../../../xbuild.config.ts"
+    "dev": "xbuild dev -c ../xbuild.config.ts"
   },
   "keywords": [],
   "author": "",

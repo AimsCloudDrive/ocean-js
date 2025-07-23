@@ -18,6 +18,7 @@ export default defineConfig({
       plugins: [
         dts({
           tsconfig: "./tsconfig.json",
+          sourceMap: true,
           paths: {},
           noCheck: true,
           jsxFactory: "Msom.createElement",
@@ -43,6 +44,8 @@ export default defineConfig({
         "cors",
         "express",
         "url",
+        /^http/,
+        "net",
         "rolldown",
         "commander",
         "chalk",
@@ -51,6 +54,7 @@ export default defineConfig({
         "body-parser",
         /^@rollup\//,
         /^@babel\//,
+        /^rollup/,
       ],
     },
     target: ["esnext"],
@@ -66,5 +70,9 @@ export default defineConfig({
         return "index.js";
       },
     },
+  },
+  dev: {},
+  server: {
+    proxy: {},
   },
 });

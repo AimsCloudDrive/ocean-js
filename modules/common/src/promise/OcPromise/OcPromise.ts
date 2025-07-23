@@ -239,7 +239,7 @@ export class OcPromise<
    * @param reason - 取消原因
    */
   cancel(reason: C) {
-    if (this.parrent) {
+    if (this.parrent && this.parrent.status === PENDDING) {
       this.parrent.cancel(reason);
     } else {
       this.changeStatus(CANCELED, reason);

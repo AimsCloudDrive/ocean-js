@@ -19,7 +19,7 @@ program
   .option("-c, --config <path>", "Path to config file")
   .option("-p, --port <number>", "Path to Port number, default 9999")
   .action(async (options) => {
-    await devCommand(options);
+    await devCommand({ ...options, public: options.static });
   });
 
 program

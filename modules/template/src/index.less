@@ -1,16 +1,19 @@
 :root {
   --primary: #1976d2;
+  --primary: #1976d2;
+  --primary: #1976d2;
+  --flex-dispay: flex;
 }
 body {
   margin: 0;
   font-family: system-ui;
-  display: flex;
+  display: var(--flex-dispay);
   height: 100vh;
-}
-#sidebar {
-  width: 300px;
-  border-right: 1px solid #eee;
-  overflow: auto;
+  #sidebar {
+    width: 300px;
+    border-right: 1px solid #eee;
+    overflow: auto;
+  }
 }
 #content {
   flex: 1;
