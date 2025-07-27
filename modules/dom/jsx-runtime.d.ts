@@ -29,6 +29,22 @@ export = Msom;
 export as namespace Msom;
 
 declare namespace Msom {
+  export function jsx<T extends JSX.ElementType>(
+    type: T,
+    config: H<T>,
+    maybeKey?: string | number | bigint | null | undefined,
+    isStaticChildren?: boolean,
+    source?: object,
+    self?: object
+  ): MsomElement;
+  export function jsxs<T extends JSX.ElementType>(
+    type: T,
+    config: H<T>,
+    maybeKey?: string | number | bigint | null | undefined,
+    isStaticChildren?: boolean,
+    source?: object,
+    self?: object
+  ): MsomElement;
   // 转换内置元素属性：驼峰事件 -> 小写事件
   type WithLowercaseEvents<
     T extends PropAttributesSystem.DOMEventAttibuties<unknown>
@@ -46,19 +62,9 @@ declare namespace Msom {
       : T[K];
   };
   interface DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES {}
-  type MsomNode =
-    | Function
-    | MsomElement
-    | string
-    | number
-    | bigint
-    | Iterable<MsomNode>
-    | Booleanish
-    | null
-    | undefined
-    | DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES[keyof DO_NOT_USE_OR_YOU_WILL_BE_FIRED_EXPERIMENTAL_MSOM_NODES];
-
+  type MsomNode = AwaitedMsomNode | PromiseLike<AwaitedMsomNode>;
   type AwaitedMsomNode =
+    | Function
     | MsomElement
     | string
     | number
@@ -2982,8 +2988,7 @@ declare namespace Msom {
     }
   }
 
-  export type VNodeArray = Iterable<VNode>;
-  export type VNode = VNodeArray | MsomNode;
+  export type VNode = MsomNode;
 
   type H<T extends JSX.ElementType> = Omit<
     PropAttributesSystem.AllHTMLAttributes<T>,
@@ -2996,7 +3001,7 @@ declare namespace Msom {
       children: MsomElement<any> | MsomElement<any>[];
     };
 
-  export type MsomElement<
+  type MsomElement<
     T extends JSX.ElementType = JSX.ElementType,
     P extends H<T> = H<T>
   > = {

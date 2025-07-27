@@ -6,6 +6,7 @@ import {
   getGlobalData,
   isComponent,
   isObject,
+  isPromiseLike,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
   parseStyle,
@@ -269,6 +270,10 @@ function renderer(
     element = createTextElement(
       typeof element === "function" ? element : String(element)
     );
+  }
+  if (isPromiseLike(element)) {
+    element.then((e) => renderer(e, container));
+    return;
   }
   if (isIterator(element)) {
     for (const e of element) {

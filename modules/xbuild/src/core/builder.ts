@@ -1,5 +1,6 @@
 import { assert, nil } from "@msom/common";
 import { ProxyRules, createServer, staticMiddle } from "@msom/http";
+import { rollupPluginHTML as html } from "@web/rollup-plugin-html";
 import * as fs from "fs";
 import { JSDOM } from "jsdom";
 import path from "path";
@@ -42,6 +43,7 @@ const defaultRolldownExternal = [
   /^@rollup\//,
   /rollup/,
   /^http/,
+  /^@web\//,
   "net",
   "autoprefixer",
   "chalk",
@@ -376,11 +378,14 @@ export class XBuilder {
     const option = this.getDevOptions(options);
 
     try {
+      console.log(path.resolve("./"));
+      console.log(
+        path.relative(path.resolve("./"), path.resolve("../../dist"))
+      );
       createServer(option.port, {
         middles: [
           staticMiddle(path.resolve(process.cwd(), option.public)),
-          staticMiddle(path.resolve("../../template/dist")),
-          staticMiddle(path.resolve("../../template")),
+          staticMiddle(path.resolve("../dist")),
         ],
         routes: [
           {

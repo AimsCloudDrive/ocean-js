@@ -37,6 +37,8 @@ export default defineConfig({
       ] as any[],
       external: [
         /^@msom\//,
+        /^@web\//,
+
         "jsdom",
         "fs",
         "path",

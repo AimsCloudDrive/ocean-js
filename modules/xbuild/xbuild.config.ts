@@ -1,5 +1,6 @@
 import { defineConfig } from "@msom/xbuild";
 import dts from "@rollup/plugin-typescript";
+import { JsxEmit } from "typescript";
 
 export default defineConfig({
   build: {
@@ -20,16 +21,23 @@ export default defineConfig({
       dts({
         tsconfig: "./tsconfig.json",
         paths: {},
+        jsx: JsxEmit.ReactNative,
         noCheck: true,
-        sourceMap: true,
       }),
     ],
+    jsx: {
+      mode: "automatic",
+      jsxImportSource: "@msom/dom",
+    },
     input: "./src/index.ts",
     output: [
       {
         sourcemap: true,
         dir: "./dist",
         format: "esm",
+        chunkFileNames: (a) => {
+          console.log(a.name);
+        },
       },
     ],
   },

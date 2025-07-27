@@ -3,8 +3,8 @@ import { OcPromiseRejectError } from "./OcPromiseError";
 
 export interface PromiseLike<R, E extends Error | unknown = Error> {
   then<TR, TE = never>(
-    onfulfilled?: createFunction<[R, TR | OcPromiseLike<TR>]>,
-    onrejected?: createFunction<[E, TE | OcPromiseLike<TE>]>
+    onfulfilled?: createFunction<[R, TR | PromiseLike<TR>]>,
+    onrejected?: createFunction<[E, TE | PromiseLike<TE>]>
   ): OcPromiseLike<TR | TE, Error | unknown, unknown>;
 }
 
@@ -14,11 +14,11 @@ export interface OcPromiseLike<
   C extends unknown = unknown
 > extends PromiseLike<R, E> {
   then<TR, TE = never, TC = never>(
-    onfulfilled?: createFunction<[R, TR | OcPromiseLike<TR>]>,
-    onrejected?: createFunction<[E, TE | OcPromiseLike<TE>]>,
+    onfulfilled?: createFunction<[R, TR | PromiseLike<TR>]>,
+    onrejected?: createFunction<[E, TE | PromiseLike<TE>]>,
     oncanceled?: createFunction<[C, TC | OcPromiseLike<TC>]>
   ): OcPromiseLike<TR | TE | TC, Error | unknown, unknown>;
-  cancel?(reason?: C): void;
+  cancel(reason?: C): void;
 }
 
 export type ReturnTypeNotUndeF<T> = T extends (...args: unknown[]) => infer R
