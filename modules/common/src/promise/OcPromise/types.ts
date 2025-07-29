@@ -1,28 +1,34 @@
-import { createFunction } from "../../global";
+import { Nullable, createFunction } from "../../global";
 import { OcPromiseRejectError } from "./OcPromiseError";
 
-export interface PromiseLike<R, E extends Error | unknown = Error> {
-  then<TR, TE = never>(
-    onfulfilled?: createFunction<[R, TR | PromiseLike<TR>]>,
-    onrejected?: createFunction<[E, TE | PromiseLike<TE>]>
-  ): OcPromiseLike<TR | TE, Error | unknown, unknown>;
+export interface PromiseLike<R> {
+  then<TR = R, TE = never>(
+    onfulfilled?: Nullable | createFunction<[R, TR | PromiseLike<TR>]>,
+    onrejected?: Nullable | createFunction<[any, TE | PromiseLike<TE>]>
+  ): PromiseLike<TR | TE>;
 }
 
-export interface OcPromiseLike<
-  R,
-  E extends Error | unknown = Error,
-  C extends unknown = unknown
-> extends PromiseLike<R, E> {
-  then<TR, TE = never, TC = never>(
-    onfulfilled?: createFunction<[R, TR | PromiseLike<TR>]>,
-    onrejected?: createFunction<[E, TE | PromiseLike<TE>]>,
-    oncanceled?: createFunction<[C, TC | OcPromiseLike<TC>]>
-  ): OcPromiseLike<TR | TE | TC, Error | unknown, unknown>;
-  cancel(reason?: C): void;
+export interface OcPromiseLike<R> extends PromiseLike<R> {
+  then<TR = R, TE = never, TC = never>(
+    onfulfilled?:
+      | Nullable
+      | createFunction<[R, OcPromiseLike<TR> | PromiseLike<TR> | TR]>,
+    onrejected?:
+      | Nullable
+      | createFunction<[any, OcPromiseLike<TE> | PromiseLike<TE> | TE]>,
+    oncanceled?:
+      | Nullable
+      | createFunction<[any, OcPromiseLike<TC> | PromiseLike<TC> | TC]>
+  ): OcPromiseLike<TR | TE | TC>;
+  cancel(reason?: any): void;
 }
 
-export type ReturnTypeNotUndeF<T> = T extends (...args: unknown[]) => infer R
-  ? R
+export type H<T> = T extends Nullable ? never : ThenableReturnType<T>;
+
+export type ThenableReturnType<T> = T extends (...args: unknown[]) => infer R
+  ? R extends PromiseLike<infer PR>
+    ? PR
+    : R
   : never;
 
 export const PENDDING = "pendding";

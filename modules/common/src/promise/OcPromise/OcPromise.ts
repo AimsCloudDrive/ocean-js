@@ -1,23 +1,23 @@
-import { OcPromiseRejectError } from "./OcPromiseError";
 import { Nullable, createFunction, tryCall } from "../../global";
+import { nextTick } from "../nextTick";
+import { OcPromiseRejectError } from "./OcPromiseError";
 import {
-  OcPromiseExecutor,
-  Resolve,
-  FULFILLED,
-  Reject,
-  REJECTED,
-  Cancel,
   CANCELED,
-  Fulfilled,
-  Rejected,
+  Cancel,
   Canceled,
-  PENDDING,
+  FULFILLED,
+  Fulfilled,
+  OcPromiseExecutor,
   OcPromiseLike,
-  ReturnTypeNotUndeF,
   OcPromiseStatus,
+  PENDDING,
+  PromiseLike,
+  REJECTED,
+  Reject,
+  Rejected,
+  Resolve,
 } from "./types";
 import { isOcPromiseLike, isPromiseLike } from "./utils";
-import { nextTick } from "../nextTick";
 
 /**
  * OcPromise 类 - 扩展的 Promise 实现，支持取消操作
@@ -29,7 +29,7 @@ export class OcPromise<
   R,
   E extends Error | unknown = OcPromiseRejectError,
   C = unknown
-> implements OcPromiseLike<R, E, C>
+> implements OcPromiseLike<R>
 {
   /** 当前 Promise 的状态 */
   declare status: OcPromiseStatus;
@@ -93,6 +93,39 @@ export class OcPromise<
       // 如果执行器抛出错误，将 Promise 状态改为已拒绝
       reject(e);
     }
+  }
+  /**
+   * 添加完成、错误和取消的处理函数
+   */
+  then<TR = R, TE = never, TC = never>(
+    onfulfilled?:
+      | Nullable
+      | createFunction<[R, OcPromiseLike<TR> | PromiseLike<TR> | TR]>,
+    onrejected?:
+      | Nullable
+      | createFunction<[E, OcPromiseLike<TE> | PromiseLike<TE> | TE]>,
+    oncanceled?:
+      | Nullable
+      | createFunction<[C, OcPromiseLike<TC> | PromiseLike<TC> | TC]>
+  ): OcPromise<TR | TE | TC> {
+    // 创建新的 OcPromise 实例
+    const res = new OcPromise<TR | TE | TC>((resolve, reject, cancel) => {
+      // 将处理函数添加到队列
+      this.handlers.push({
+        resolve,
+        reject,
+        cancel,
+        onfulfilled,
+        onrejected,
+        oncanceled,
+      });
+      // 尝试执行处理函数队列
+      this._runThens();
+    });
+    // 设置父 Promise，用于取消操作的传播
+    res.parrent = this;
+
+    return res;
   }
 
   /**
@@ -198,43 +231,6 @@ export class OcPromise<
   }
 
   /**
-   * 添加完成、错误和取消的处理函数
-   * @template TR - 完成处理函数的返回类型
-   * @template TE - 错误处理函数的返回类型
-   * @template TC - 取消处理函数的返回类型
-   * @template FR - 最终返回值类型
-   */
-  then<
-    TR extends Nullable | createFunction<[R, unknown]>,
-    TE extends Nullable | createFunction<[E, unknown]>,
-    TC extends Nullable | createFunction<[C, unknown]>,
-    FR = ReturnTypeNotUndeF<TR | TE | TC>
-  >(
-    onfulfilled?: TR,
-    onrejected?: TE,
-    oncanceled?: TC
-  ): OcPromise<FR, Error, unknown> {
-    // 创建新的 Promise 实例
-    const res = new OcPromise<FR, Error, unknown>((resolve, reject, cancel) => {
-      // 将处理函数添加到队列
-      this.handlers.push({
-        resolve,
-        reject,
-        cancel,
-        onfulfilled,
-        onrejected,
-        oncanceled,
-      });
-      // 尝试执行处理函数队列
-      this._runThens();
-    });
-    // 设置父 Promise，用于取消操作的传播
-    res.parrent = this;
-
-    return res;
-  }
-
-  /**
    * 取消 Promise
    * @param reason - 取消原因
    */
@@ -254,7 +250,7 @@ export class OcPromise<
    * @returns 包含所有结果的 Promise
    */
   static all<T>(
-    proms: Iterable<T | OcPromiseLike<Awaited<T>, Error>>
+    proms: Iterable<T | OcPromiseLike<Awaited<T>>>
   ): OcPromise<Awaited<T>[]> {
     // 存储所有 Promise 的结果
     const result: Awaited<T>[] = [];
@@ -284,7 +280,7 @@ export class OcPromise<
         if (isOcPromise<Awaited<T>, Error, Error>(value)) {
           // 处理 OcPromise
           value.then((data) => _resolve(data, j), reject, cancel);
-        } else if (isPromiseLike<Awaited<T>, unknown>(value)) {
+        } else if (isPromiseLike<Awaited<T>>(value)) {
           // 处理普通 Promise
           value.then((data) => _resolve(data, j), reject);
         } else {
@@ -308,22 +304,24 @@ export class OcPromise<
    * @template T - 值的类型
    * @param value - 要解析的值
    */
-  static resolve<T = void>(value: T): OcPromise<T> {
-    if (isOcPromise<T>(value)) {
+  static resolve<T extends void | unknown = void>(
+    value: T
+  ): OcPromise<Awaited<T>> {
+    if (isOcPromise<Awaited<T>>(value)) {
       return value;
     }
-    if (isOcPromiseLike<T>(value)) {
-      return new OcPromise<T>((resolve, reject, cancel) => {
+    if (isOcPromiseLike<Awaited<T>>(value)) {
+      return new OcPromise<Awaited<T>>((resolve, reject, cancel) => {
         value.then(resolve, reject, cancel);
       });
     }
-    if (isPromiseLike<T>(value)) {
-      return new OcPromise<T>((resolve, reject) => {
+    if (isPromiseLike<Awaited<T>>(value)) {
+      return new OcPromise<Awaited<T>>((resolve, reject) => {
         value.then(resolve, reject);
       });
     }
-    return new OcPromise((resolve) => {
-      resolve(value);
+    return new OcPromise<Awaited<T>>((resolve) => {
+      resolve(value as Awaited<T>);
     });
   }
 
@@ -382,3 +380,17 @@ export function isOcPromise<
 >(data: unknown): data is OcPromise<PR, PE, PC> {
   return data instanceof OcPromise;
 }
+
+OcPromise.resolve("A")
+  .then((data) => {
+    return OcPromise.resolve<"C">("C");
+  })
+  .then((data) => {
+    data;
+  });
+
+Promise.resolve()
+  .then(null, () => {
+    return new Promise<"B">(() => {});
+  })
+  .then((data) => {});
