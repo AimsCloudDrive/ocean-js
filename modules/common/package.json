@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@msom/common",
-  "version": "0.0.12",
+  "version": "0.0.15",
   "description": "@msom/common",
   "main": "dist/index.cjs.js",
   "module": "dist/index.js",
