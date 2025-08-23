@@ -101,3 +101,6 @@ function isNumericCSSProperty(camelCaseProp: string) {
   // 检查属性是否在纯数字集合中
   return numericProperties.has(cssProperty);
 }
+
+// 导出VNode管理工具
+export * from "./vnode";

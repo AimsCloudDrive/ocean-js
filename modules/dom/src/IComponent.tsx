@@ -18,9 +18,14 @@ export interface IComponent<
 > extends IEvent<Events> {
   props: Msom.JSX.ComponentPropsConverter<Props, Events>;
   $owner?: IComponent;
-  el: HTMLElement | Text;
+  get el(): HTMLElement | Text;
+
+  // 状态管理方法 - 只保留这两个
   isMounted(): boolean;
-  set(props: Partial<Props>): void;
+  isDestroyed(): boolean;
+
+  // 基础方法
+  set(props: Partial<Props>, force?: boolean): void;
   setJSX(jsx: Props["children"]): void;
   render(): Msom.MsomNode | undefined | null | void;
   rendered(): void;

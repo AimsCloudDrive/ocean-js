@@ -11,10 +11,35 @@ import {
   isArray,
   ownKeysAndPrototypeOwnKeys,
   parseClass,
+  defineProperty,
 } from "@msom/common";
 import { getObserver } from "@msom/reaction";
 import { component, option } from "../decorators";
 import { IRef, IComponent, IComponentProps, IComponentEvents } from "@msom/dom";
+import {
+  ComponentStateManager,
+  STATE_MANAGER_SYMBOL,
+  SnapshotManager,
+  SNAPSHOT_MANAGER_SYMBOL,
+  ComponentSnapshot,
+} from "./ComponentStateManager";
+import {
+  getComponentVNode,
+  setComponentVNode,
+  VNodeWithDOM,
+} from "@msom/common";
+
+/**
+ * 组件状态枚举
+ */
+export enum ComponentState {
+  CREATED = "created",
+  RENDERING = "rendering",
+  RENDERED = "rendered",
+  MOUNTED = "mounted",
+  UNMOUNTED = "unmounted",
+  DESTROYED = "destroyed",
+}
 
 export type ComponentProps<C = never> = IComponentProps<C> & {
   $context?: Partial<Component.Context>;
@@ -50,12 +75,28 @@ class ClassComponent<
   @option()
   private $context?: Partial<Component.Context>;
   declare props: Msom.JSX.ComponentPropsConverter<P, E>;
-  declare el: HTMLElement | Text;
+  get el(): HTMLElement | Text {
+    return getComponentVNode(this)?._dom as HTMLElement | Text;
+  }
+
+  // 状态管理器
+  private [STATE_MANAGER_SYMBOL] = new ComponentStateManager();
+
+  // 快照管理器
+  private [SNAPSHOT_MANAGER_SYMBOL] = new SnapshotManager();
+
+  /**
+   * 构造函数，用于初始化组件实例
+   * @param props 组件属性，通过 Msom.JSX.ComponentPropsConverter<P> 进行类型转换
+   */
   constructor(props: Msom.JSX.ComponentPropsConverter<P>) {
-    super();
-    this.init();
-    this.props = props;
-    this.set(props);
+    super(); // 调用父类构造函数进行初始化
+    this.init(); // 调用初始化方法
+
+    // 创建初始快照
+    this.createSnapshot("Initial component state");
+
+    this.set(props); // 应用传入的属性
   }
 
   declare $owner?: ClassComponent<ComponentProps, ComponentEvents>;
@@ -69,6 +110,120 @@ class ClassComponent<
   }
   getStyle(): string {
     return "";
+  }
+
+  /**
+   * 检查组件是否已挂载
+   */
+  isMounted(): boolean {
+    return this[STATE_MANAGER_SYMBOL].isState(ComponentState.MOUNTED);
+  }
+
+  /**
+   * 检查组件是否已销毁
+   */
+  isDestroyed(): boolean {
+    return this[STATE_MANAGER_SYMBOL].isState(ComponentState.DESTROYED);
+  }
+
+  /**
+   * 快照管理方法
+   */
+
+  /**
+   * 创建快照
+   * @param description 快照描述
+   * @returns 快照ID
+   */
+  private createSnapshot(description?: string): number {
+    const snapshotData: Record<string, any> = {};
+
+    // 保存当前类的所有可枚举属性
+    for (const key in this) {
+      if (this.hasOwnProperty(key)) {
+        try {
+          // 过滤掉符号属性和函数
+          const value = this[key];
+          if (typeof value !== "function" && typeof key === "string") {
+            snapshotData[key] = JSON.parse(JSON.stringify(value)); // 深拷贝
+          }
+        } catch (error) {
+          // 如果无法序列化，跳过该属性
+          console.warn(`[Component] Cannot serialize property ${key}:`, error);
+        }
+      }
+    }
+
+    // 额外保存一些重要的状态信息
+    snapshotData._componentState = this[STATE_MANAGER_SYMBOL].getState();
+    snapshotData._vnode = getComponentVNode(this);
+    snapshotData._timestamp = Date.now();
+
+    return this[SNAPSHOT_MANAGER_SYMBOL].createSnapshot(
+      snapshotData,
+      description
+    );
+  }
+
+  /**
+   * 恢复到快照
+   * @param snapshotId 快照ID（可选，默认使用最新快照）
+   * @returns 是否恢复成功
+   */
+  private restoreSnapshot(snapshotId?: number): boolean {
+    let snapshot: ComponentSnapshot | null;
+
+    if (snapshotId !== undefined) {
+      snapshot = this[SNAPSHOT_MANAGER_SYMBOL].getSnapshot(snapshotId);
+    } else {
+      snapshot = this[SNAPSHOT_MANAGER_SYMBOL].getLatestSnapshot();
+    }
+
+    if (!snapshot) {
+      console.warn("[Component] No snapshot found to restore");
+      return false;
+    }
+
+    try {
+      const data = snapshot.data;
+
+      // 恢复所有可枚举属性
+      for (const key in data) {
+        if (
+          data.hasOwnProperty(key) &&
+          key !== "_componentState" &&
+          key !== "_vnode" &&
+          key !== "_timestamp"
+        ) {
+          try {
+            // 恢复属性值
+            (this as any)[key] = data[key];
+          } catch (error) {
+            console.warn(`[Component] Cannot restore property ${key}:`, error);
+          }
+        }
+      }
+
+      // 恢复组件状态
+      if (data._componentState) {
+        this[STATE_MANAGER_SYMBOL].setState(data._componentState);
+      }
+
+      // 恢复VNode
+      if (data._vnode) {
+        setComponentVNode(this, data._vnode);
+      }
+
+      console.log(
+        `[Component] Successfully restored to snapshot ${snapshot.id} (${
+          snapshot.description || "no description"
+        })`
+      );
+      return true;
+    } catch (error) {
+      console.error("[Component] Failed to restore snapshot:", error);
+      return false;
+    }
   }
 
   getContext<T extends keyof Partial<Component.Context>>(
@@ -86,7 +241,11 @@ class ClassComponent<
     return this.$owner;
   }
 
-  set(props: Partial<P>) {
+  set(props: Partial<P>, force?: boolean) {
+    if (force) {
+      // 恢复到初始快照
+      this.restoreSnapshot(1); // 第一个快照通常是初始状态
+    }
     this.setProps(props);
   }
 
@@ -98,6 +257,8 @@ class ClassComponent<
 
   setProps(props: Partial<P>) {
     const definition = this.getDefinition();
+    const _props = this.props || {};
+    this.props = _props;
     if (!definition) return;
     const options = definition.$options;
     Object.entries(props).forEach(([propName, value]) => {
@@ -107,6 +268,7 @@ class ClassComponent<
       const valueType = isArray(value) ? "array" : typeof value;
       if (type == "unknown" || valueType === type) {
         this[propName] = value;
+        Object.assign(_props, { [propName]: value });
       } else {
         console.warn(`[Component] ${propName} is not a ${type}`);
       }
@@ -130,7 +292,9 @@ class ClassComponent<
     }
   }
   render(): Msom.MsomNode | Nullable | void {}
-  rendered(): void {}
+  rendered(): void {
+    this[STATE_MANAGER_SYMBOL].setState(ComponentState.RENDERED);
+  }
   init() {
     this.clean = [];
   }
@@ -140,32 +304,48 @@ class ClassComponent<
     this.clean.push(cb);
   }
 
-  isMounted() {
-    return !!this.el && this.el.parentElement != null;
-  }
   // lifeCircle
   created() {
+    this[STATE_MANAGER_SYMBOL].setState(ComponentState.CREATED);
     this.emit("created", null);
   }
+
   mount() {
+    // 如果组件已销毁，不允许挂载
+    if (this.isDestroyed()) {
+      console.warn("Cannot mount destroyed component");
+      return null;
+    }
+
     const DomData = getGlobalData("@msom/dom") as {
       rendering: ClassComponent | undefined;
     };
     const { rendering } = DomData;
+    DomData.rendering = this;
     try {
+      this[STATE_MANAGER_SYMBOL].setState(ComponentState.RENDERING);
       const vDOM = this.render();
       return vDOM;
     } finally {
       DomData.rendering = rendering;
     }
   }
+
   mounted() {
+    this[STATE_MANAGER_SYMBOL].setState(ComponentState.MOUNTED);
     this.emit("mounted", null);
   }
+
   onmounted(cb: () => void) {
+    this[STATE_MANAGER_SYMBOL].onStateChange(ComponentState.MOUNTED, cb);
     this.on("mounted", cb);
   }
+
   unmount() {
+    if (this.isDestroyed()) {
+      return;
+    }
+
     if (this.el) {
       const p = this.el.parentElement;
       if (p) {
@@ -175,15 +355,24 @@ class ClassComponent<
       this.el.remove();
       Object.assign(this, { el: null });
     }
-    this;
   }
+
   unmounted() {
+    this[STATE_MANAGER_SYMBOL].setState(ComponentState.UNMOUNTED);
     this.emit("unmounted", null);
   }
+
   onunmounted(cb: () => void) {
     this.on("unmounted", cb);
   }
+
   destroy() {
+    if (this.isDestroyed()) {
+      return;
+    }
+
+    this[STATE_MANAGER_SYMBOL].setState(ComponentState.DESTROYED);
+
     while (this.clean.length) {
       this.clean.shift()?.();
     }
