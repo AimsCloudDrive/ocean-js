@@ -40,19 +40,13 @@ const parseRange = (
   assert(min && max, () => new TypeError("Invalid Range"));
   return [min, max];
 };
-export const regressRange = (
-  data: number,
-  range: [(number | RangeOption)?, (number | RangeOption)?]
-) => {
-  const [min, max] = parseRange(range);
-  {
-    const { include = true, value } = min;
-    data = (include ? data >= value : data > value) ? data : value;
-  }
-  {
-    const { include = false, value } = max;
-    data = (include ? data <= value : data < value) ? data : value;
-  }
+export const regressRange = (data: number, range: [number?, number?]) => {
+  const [min, max] = range;
+
+  data = typeof min !== "number" || data >= min ? data : min;
+
+  data = typeof max !== "number" || data <= max ? data : max;
+
   return data;
 };
 

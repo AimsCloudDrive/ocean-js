@@ -1,5 +1,38 @@
-import { Nullable, createFunction } from "..";
+import { Nullable, createFunction } from "../global";
+import { isObject } from "../object";
 import { assert } from "../assert";
+import { regressRange } from "../number";
+
+type NotOriginType = object | Array<any> | (() => void);
+
+export class AnyMap<V = any> {
+  private originMap: Map<any, V>;
+  private objectMap: WeakMap<any, V>;
+  constructor() {
+    this.originMap = new Map<any, V>();
+    this.objectMap = new WeakMap<any, V>();
+  }
+  private getMap(key: unknown) {
+    return isObject(key) ? this.objectMap : this.originMap;
+  }
+  get(key: unknown) {
+    return this.getMap(key).get(key);
+  }
+  set(key: unknown, value: V) {
+    this.getMap(key).set(key, value);
+    return this;
+  }
+  has(key: unknown) {
+    return this.getMap(key).has(key);
+  }
+  delete(key: unknown) {
+    return this.getMap(key).has(key);
+  }
+  clear() {
+    this.originMap.clear();
+    this.objectMap = new WeakMap();
+  }
+}
 
 /** 集合事件类型定义 */
 export type CollectionEvent = Record<never, never>;
@@ -49,10 +82,8 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
   private declare getKey: CollectionGetKey<T>;
   /** 存储所有元素的数组 */
   private declare elements: Array<T>;
-  /** 键值到元素的映射 */
-  private declare elMap: Map<CollectionKey, T>;
   /** 键值到数组索引的映射 */
-  private declare indexMap: Map<CollectionKey, number>;
+  private declare indexMap: AnyMap<number>;
 
   /**
    * 创建集合实例
@@ -64,14 +95,22 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
     this.getKey = getKey;
     // 初始化存储结构
     this.elements = new Array<T>();
-    this.elMap = new Map<CollectionKey, T>();
-    this.indexMap = new Map<CollectionKey, number>();
+    this.indexMap = new AnyMap<number>();
   }
   /**
    * 获得集合的实际元素数量
    */
   size(): number {
     return Reflect.ownKeys(this.elements).length;
+  }
+  /**
+   *
+   * @param key
+   * @returns 存在返回下标，不存在返回-1
+   */
+  private getIndex(key: CollectionKey): number {
+    const index = this.indexMap.get(key);
+    return index === undefined ? -1 : index;
   }
 
   /**
@@ -80,7 +119,7 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    * @returns 对应的元素或undefined
    */
   get(key: CollectionKey) {
-    return this.elMap.get(key);
+    return this.elements[this.getIndex(key)];
   }
 
   /**
@@ -89,7 +128,7 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    * @returns 是否存在
    */
   hasKey(key: CollectionKey) {
-    return this.elMap.has(key);
+    return this.indexMap.has(key);
   }
 
   /**
@@ -108,17 +147,15 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    */
   add(element: T, force?: boolean) {
     const key = this.getKey(element);
-    const has = this.elMap.has(key);
-    if (!has) {
+    let index = this.getIndex(key);
+    if (index === -1) {
       // 元素不存在时，添加到数组末尾
-      const index = this.elements.push(element) - 1;
+      index = this.elements.push(element) - 1;
       this.indexMap.set(key, index);
-      this.elMap.set(key, element);
     } else if (force) {
-      // 元素存在且force为true时，替换原有元素
+      // 元素存在且force为true时，替换原有元素，不更新index
       const index = this.indexMap.get(key);
-      assert(index);
-      this.elMap.set(key, element);
+      assert(index !== undefined);
       this.elements.splice(index, 1, element);
     }
   }
@@ -130,17 +167,13 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    * @param force 当键值已存在时是否强制替换，默认为false
    */
   addKey(key: CollectionKey, element: T, force?: boolean) {
-    const has = this.elMap.has(key);
-    if (!has) {
+    let index = this.getIndex(key);
+    if (index === -1) {
       // 键值不存在时，添加到数组末尾
-      const index = this.elements.push(element) - 1;
+      index = this.elements.push(element) - 1;
       this.indexMap.set(key, index);
-      this.elMap.set(key, element);
     } else if (force) {
-      // 键值存在且force为true时，替换原有元素
-      const index = this.indexMap.get(key);
-      assert(index != undefined);
-      this.elMap.set(key, element);
+      // 键值存在且force为true时，替换原有元素，不更新index
       this.elements.splice(index, 1, element);
     }
   }
@@ -163,47 +196,71 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    * 在指定位置插入元素
    * @param element 待插入的元素
    * @param index 插入位置，范围[0, length]。如果超出范围会被自动调整到有效范围内
-   * @param exist 当元素已存在时的处理选项
+   * @param force 当元素已存在时的处理选项
    * @param exist.index 是否保持原有元素的位置。true: 保持原位置，false: 使用新位置
    * @param exist.element 是否使用新元素替换原有元素。true: 使用新元素，false: 保持原有元素
    */
   insert(
     element: T,
     index: number,
-    exist?: { index?: boolean; element?: boolean }
+    force?: { newIndex?: boolean; newElement?: boolean } | boolean
   ) {
+    index = regressRange(index, [0, this.elements.length]);
     const key = this.getKey(element);
-    const has = this.elMap.has(key);
-    const { index: cIndex, element: cElement } = exist || {};
-    if (!has) {
+    const oIndex = this.getIndex(key);
+    force = isObject(force)
+      ? force
+      : { newIndex: !!force, newElement: !!force };
+    const { newIndex, newElement } = force;
+    if (oIndex === -1) {
       // 元素不存在时，直接插入到指定位置
-      this.elMap.set(key, element);
-      index = Math.min(this.elements.length, Math.max(0, index));
       this.elements.splice(index, 0, element);
+      // 更新后续下标
+      for (let i = index + 1; index < this.elements.length; i++) {
+        const key = this.getKey(this.elements[i]);
+        this.indexMap.set(key, i);
+      }
     } else {
       // 元素已存在时的处理
-      const oIndex = this.indexMap.get(key);
-      assert(oIndex);
+      if (!newIndex && !newElement) {
+        // 同时采用旧位置旧元素 等价于无变化
+        return;
+      }
       const oElement = this.elements[oIndex];
       const placeholder = Symbol("placegholder");
       // 使用占位符标记原位置
       this.elements[oIndex] = placeholder as unknown as T;
-
-      if (!cIndex) {
+      if (!newIndex) {
         // 如果不采用新位置，则使用原位置
         index = oIndex;
       }
-      if (!cElement) {
-        // 如果不使用新元素，则使用原元素
-        element = oElement;
-      }
 
-      // 在目标位置插入元素
-      this.elements.splice(index, 0, element);
-      // 移除占位符
-      this.elements = this.elements.filter((v) => v !== placeholder);
-      // 更新索引映射
-      this.updateIndexMap();
+      if (index === oIndex) {
+        this.elements.splice(index, 1, newElement ? element : oElement);
+        if (newElement) {
+          const oKey = this.getKey(oElement);
+          // 删除旧元素的信息
+          this.indexMap.delete(oKey);
+          // 存储新元素
+          const _key = this.getKey(element);
+          this.indexMap.set(_key, index);
+        }
+      } else {
+        // 插入新元素
+        this.elements.splice(index, 0, newElement ? element : oElement);
+        // 删除占位符
+        this.elements.splice(index > oIndex ? oIndex : oIndex + 1, 1);
+        if (newElement) {
+          this.indexMap.delete(this.getKey(oElement));
+          this.indexMap.set(this.getKey(element), index);
+        }
+        // 更新新旧下标之间的元素下标记录
+        const [min, max] = [index, oIndex].sort((a, b) => a - b);
+        for (let i = min; i < max; i++) {
+          const _key = this.getKey(this.elements[i]);
+          this.indexMap.set(_key, i);
+        }
+      }
     }
   }
 
@@ -223,26 +280,25 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    * @returns 被移除的元素，如果元素不存在则返回undefined
    */
   remove(key: CollectionKey): T | undefined {
-    const has = this.elMap.has(key);
+    const has = this.indexMap.has(key);
     if (has) {
       // 获取元素在数组中的索引
       const index = this.indexMap.get(key);
-      assert(index);
+      assert(index !== undefined);
       // 从数组中移除元素
-      this.elements.splice(index, 1);
+      const removed = this.elements.splice(index, 1)[0];
       // 更新索引映射
-      this.updateIndexMap();
-      // 从映射中移除元素
-      this.elMap.delete(key);
+      for (let i = index; i < this.elements.length; i++) {
+        this.indexMap.set(this.getKey(this.elements[i]), i);
+      }
+      return removed;
     }
-    return undefined;
   }
 
   /**
    * 清空集合中的所有元素
    */
   clear() {
-    this.elMap.clear();
     this.elements.length = 0;
     this.indexMap.clear();
   }
@@ -285,10 +341,12 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
 
   /**
    * 遍历集合中的所有元素
-   * @param handler 处理每个元素的回调函数
+   * @param handler 处理每个元素的回调函数，(element, key, index, this): void
    */
-  each(handler: createFunction<[T, CollectionKey, this, void]>) {
-    this.elMap.forEach((el, k) => handler(el, k, this));
+  each(handler: createFunction<[T, CollectionKey, number, this, void]>) {
+    this.elements.forEach((element, index) =>
+      handler(element, this.getKey(element), index, this)
+    );
   }
 
   toArray<RT = T>(
