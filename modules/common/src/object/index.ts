@@ -17,9 +17,12 @@ import { isArray } from "../array";
  * // 数组比较
  * compareObjects([1], {'0': 1}); // 返回 false
  */
-export function compareObjects<T extends object>(obj1: T, obj2: T): boolean {
+export function compareObjects<T extends object, T2 extends object>(
+  obj1: T,
+  obj2: T2
+): boolean {
   // 如果两个对象引用相同，直接返回true
-  if (obj1 === obj2) {
+  if ((obj1 as object) === (obj2 as object)) {
     return true;
   }
 
@@ -45,7 +48,7 @@ export function compareObjects<T extends object>(obj1: T, obj2: T): boolean {
   // 遍历所有属性进行比较
   for (const key of keys1) {
     const val1 = obj1[key as keyof T];
-    const val2 = obj2[key as keyof T];
+    const val2 = obj2[key as keyof T2];
 
     // 如果属性值是对象且不是函数，递归比较
     if (
@@ -59,7 +62,7 @@ export function compareObjects<T extends object>(obj1: T, obj2: T): boolean {
       }
     }
     // 否则直接比较值（包括函数）
-    else if (val1 !== val2) {
+    else if ((val1 as unknown) !== (val2 as unknown)) {
       return false;
     }
   }
@@ -67,7 +70,7 @@ export function compareObjects<T extends object>(obj1: T, obj2: T): boolean {
   return true;
 }
 
-export function isObject(value: unknown): value is object {
+export function isObject<T extends object>(value: unknown): value is T {
   return typeof value === "object" && value !== null;
 }
 
@@ -85,16 +88,17 @@ export function cloneObject<T extends object>(data: T, deep?: boolean): T {
       if (!desc) {
         continue;
       }
+      const clonedDesc = { ...desc };
       if (Reflect.has(desc, "value")) {
-        const value = Reflect.get(desc, "value", desc);
+        const value = Reflect.get(clonedDesc, "value", clonedDesc);
         Reflect.set(
-          desc,
+          clonedDesc,
           "value",
           deep && isObject(value) ? _clone<object>(value, cache) : value,
-          desc
+          clonedDesc
         );
       }
-      Reflect.defineProperty(cloned, keys[i], desc);
+      Reflect.defineProperty(cloned, keys[i], clonedDesc);
     }
     return cloned;
   }

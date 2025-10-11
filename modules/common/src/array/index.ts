@@ -1,6 +1,8 @@
 import { tryCall } from "../global";
 
-export function isArray<T>(o: unknown): o is Array<T> {
+export function isArray<T extends unknown, R extends Extract<T, any[]>>(
+  o: T
+): o is R {
   return Array.isArray(o);
 }
 
@@ -143,13 +145,7 @@ export function compareArray<T>(
   compareMapEntries(oldMaps.primitiveMap, newMaps.primitiveMap, inserts, dels);
 
   // 比较对象类型元素
-  compareObjectMapEntries(
-    oldMaps.objectMap,
-    newMaps.objectMap,
-    objectKey,
-    inserts,
-    dels
-  );
+  compareObjectMapEntries(oldMaps.objectMap, newMaps.objectMap, inserts, dels);
 
   // 调用回调函数处理变更
   if (inserts.length > 0 && insert) {
@@ -173,7 +169,7 @@ export function compareMapEntries<T>(
   inserts: T[],
   dels: T[]
 ) {
-  // 遍历旧映射，比较元素数量变化
+  // 遍历旧映射，比较基本元素数量变化
   oldMap.forEach((value, key) => {
     const newValue = newMap.get(key);
     updateArrays(key as T, value.count, newValue?.count || 0, inserts, dels);
@@ -198,15 +194,13 @@ export function compareMapEntries<T>(
 export function compareObjectMapEntries<T>(
   oldMap: Map<symbol, ObjectCountMap>,
   newMap: Map<symbol, ObjectCountMap>,
-  objectKey: WeakMap<object, symbol>,
   inserts: T[],
   dels: T[]
 ) {
   // 遍历旧映射，比较元素数量变化
-  oldMap.forEach((value) => {
-    const keySymbol = objectKey.get(value.obj);
-    if (keySymbol) {
-      const newValue = newMap.get(keySymbol);
+  oldMap.forEach((value, oKey) => {
+    if (oKey) {
+      const newValue = newMap.get(oKey);
       updateArrays(
         value.obj as T,
         value.count,
@@ -215,7 +209,7 @@ export function compareObjectMapEntries<T>(
         dels
       );
       // 处理完后从新映射中删除，剩余的就是新增的
-      newMap.delete(keySymbol);
+      newMap.delete(oKey);
     }
   });
 
@@ -228,8 +222,8 @@ export function compareObjectMapEntries<T>(
 /**
  * 根据元素数量变化更新新增和删除数组
  * @param item 要处理的元素
- * @param oldCount 旧数量
- * @param newCount 新数量
+ * @param oldCount 旧数组元素数量
+ * @param newCount 新数组元素数量
  * @param inserts 存储新增元素的数组
  * @param dels 存储删除元素的数组
  */

@@ -1,4 +1,5 @@
 import { Collection } from "../collection";
+import { IPermission, createPermission } from "../permission";
 
 const symbolKeys = new Collection<{ key: string; symbolKey: symbol }>(
   (keys) => keys.key
@@ -40,40 +41,42 @@ export type createFunction<T extends unknown[]> = T extends [
   ? (...args: P) => R
   : never;
 
-export const ENUMERABLE = 0x04;
-export const WRITABLE = 0x02;
-export const CONFIGURABLE = 0x01;
+const propertyPermission = {
+  enumerable: 0b100,
+  writable: 0b010,
+  configurable: 0b001,
+};
+
+export const PropertyPermission = createPermission(propertyPermission);
 
 /**
  * @param target
  * @param propKey
- * @param flag 7
- * * const enumerable = 0x04;
- * * const writable = 0x02;
- * * const configurable = 0x01;
+ * @param permission 7
+ * * const enumerable = 0b100;
+ * * const writable = 0b010;
+ * * const configurable = 0b001;
  * @param value
  */
 export function defineProperty<T>(
   target: T,
   propKey: string | symbol,
-  flag: number = 7,
+  permission: IPermission<typeof propertyPermission> | number = 7,
   value?: unknown
 ) {
+  permission = PropertyPermission.from(permission);
   Object.defineProperty(target, propKey, {
+    ...permission.get(),
     value,
-    writable: !!(WRITABLE & flag),
-    enumerable: !!(ENUMERABLE & flag),
-    configurable: !!(CONFIGURABLE & flag),
   });
 }
 
 /**
  * @param target
  * @param propKey
- * @param flag 5
- * * const enumerable = 0x04;
- * * const writable = 0x02;
- * * const configurable = 0x01;
+ * @param permission [0-5]
+ * * const configurable = 0b001;
+ * * const enumerable = 0b100;
  * * 访问器属性修饰符无法设置writable
  * @param getter
  * @param setter
@@ -81,34 +84,50 @@ export function defineProperty<T>(
 export function defineAccesser<T, R>(
   target: T,
   propKey: symbol | string,
-  flag: number = 5,
+  permission: IPermission<typeof propertyPermission> | number = 5,
   getter?: () => R,
   setter?: (value: R) => void
 ) {
-  Object.defineProperty<T>(target, propKey, {
-    enumerable: !!(ENUMERABLE & flag),
-    configurable: !!(CONFIGURABLE & flag),
-    get: getter,
-    set: setter,
-  });
+  permission = PropertyPermission.from(permission);
+  Object.defineProperty<T>(
+    target,
+    propKey,
+    Object.assign(
+      {
+        ...permission.get("configurable", "enumerable"),
+      },
+      getter && {
+        get: function (this: T) {
+          return getter.call(this);
+        },
+      },
+      setter && {
+        set: function (this: T, value: R) {
+          return setter.call(this, value);
+        },
+      }
+    )
+  );
 }
 
 export function tryCall<F extends createFunction<[...unknown[], unknown]>>(
   call: F,
   data?: Parameters<F>,
-  receiver?: unknown,
-  error?: (error: Error | unknown) => Error | unknown
+  receiver?: unknown
 ): ReturnType<F> {
   if (typeof call === "function") {
     try {
       return Reflect.apply(call, receiver, data || []) as ReturnType<F>;
-    } catch (e: Error | unknown) {
-      throw error ? error(e) : e;
+    } catch (e: any) {
+      throw e instanceof Error ? e : new Error(e);
     }
+  } else {
+    throw `${
+      typeof call === "object"
+        ? Reflect.get(call, "name", call)
+        : Object(call).toString()
+    } is not a function.`;
   }
-  throw `${
-    typeof call === "object" ? Reflect.get(call, "name", call) : call
-  } is not a function.`;
 }
 
 export function equal(value: unknown, otherValue: unknown): boolean {
