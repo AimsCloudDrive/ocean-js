@@ -51,12 +51,7 @@ export function compareObjects<T extends object, T2 extends object>(
     const val2 = obj2[key as keyof T2];
 
     // 如果属性值是对象且不是函数，递归比较
-    if (
-      typeof val1 === "object" &&
-      typeof val2 === "object" &&
-      val1 !== null &&
-      val2 !== null
-    ) {
+    if (isObject(val1) && isObject(val2)) {
       if (!compareObjects(val1, val2)) {
         return false;
       }
