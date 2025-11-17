@@ -1,4 +1,4 @@
-import { assert, nil } from "../assert";
+import { assert } from "../assert";
 import { isObject } from "../object";
 
 /**

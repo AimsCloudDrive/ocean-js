@@ -1,4 +1,4 @@
-import { nil } from "../assert";
+import { nil } from "../nil";
 import { Nullable } from "../global";
 
 export function toUpper(text: string) {

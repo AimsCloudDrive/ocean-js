@@ -11,6 +11,14 @@ import {
 } from "./interfaces";
 import { assert } from "@msom/common";
 
+/*
+TODO class QueryExecutor => class QueryEngine
+更新FilterTypeMap，将之替换成枚举类型，枚举键是MongoDB所有的filter键与之对应的符号，不适合使用符号表示的则使用英文，枚举值则为相应的原始filter属性名
+
+解析传入的Query查询对象，首先查询meta集合，遍历查询对象，是否所有的查询模型和关系是否存在，如果meta中不存在就抛出不存在错误
+meta中都检查通过之后，将Query查询对象构建成MongoDB的查询语句，执行查询，然后将查询结构构建成Query查询条件中模型的层级结构，通过关系查询的就是下一层
+
+*/
 const FilterTypeMap: Record<CompConditionType, keyof FilterOperators<unknown>> =
   {
     "!=": "$ne",
@@ -67,7 +75,6 @@ export class QueryExecutor {
   private async processProtocol(
     protocol: QueryProtocol
   ): Promise<QueryResultItem[]> {
-    // TODO:
     const process = async (option: QueryModel) => {
       const { modelName, conditions: condition } = option;
       const collection = this.dbContext.getCollection(modelName);
