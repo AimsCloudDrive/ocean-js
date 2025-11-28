@@ -5,8 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "xbuild dev -c ../xbuild.config.ts"
+    "test": "pnpm run build && node ./dist/index.js",
+    "dev": "xbuild dev -c ../xbuild.config.ts",
+    "build": "xbuild build -c ../xbuild.config.ts"
   },
   "keywords": [],
   "author": "",
