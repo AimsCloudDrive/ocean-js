@@ -24,6 +24,11 @@ export interface ProxyOptions {
   ws?: boolean;
   bypass?: (req: Request) => boolean | string | void;
   onError?: (err: Error, req: Request, res: Response) => void;
+  onProxyReq?: (
+    proxy: ProxyOptions & { path: string },
+    req: Request,
+    res: Response
+  ) => void;
 }
 
 /**
@@ -90,6 +95,11 @@ export function createProxyMiddleware(
     const proxyReq = requestModule.request(
       requestOptions,
       (proxyRes: IncomingMessage) => {
+        options.onProxyReq?.(
+          Object.assign({}, options, { path: requestOptions.path ?? "" }),
+          req,
+          res
+        );
         // 设置响应头
         res.status(proxyRes.statusCode || 500);
         Object.entries(proxyRes.headers).forEach(([key, value]) => {
