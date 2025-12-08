@@ -34,6 +34,7 @@ import {
  */
 export enum ComponentState {
   CREATED = "created",
+  SETUP = "setup",
   RENDERING = "rendering",
   RENDERED = "rendered",
   MOUNTED = "mounted",
@@ -52,6 +53,7 @@ export type ComponentProps<C = never> = IComponentProps<C> & {
 
 export type ComponentEvents = IComponentEvents & {
   created: null;
+  setup: null;
   mounted: null;
   unmounted: null;
 };
@@ -59,6 +61,7 @@ export type ComponentEvents = IComponentEvents & {
 @component("component", {
   events: {
     created: "null",
+    setup: "null",
     mounted: "null",
     unmounted: "null",
   },
@@ -84,6 +87,11 @@ class ClassComponent<
 
   // 快照管理器
   private [SNAPSHOT_MANAGER_SYMBOL] = new SnapshotManager();
+
+  setup() {
+    this[STATE_MANAGER_SYMBOL].setState(ComponentState.SETUP);
+    this.emit("setup", null);
+  }
 
   /**
    * 构造函数，用于初始化组件实例
@@ -125,10 +133,6 @@ class ClassComponent<
   isDestroyed(): boolean {
     return this[STATE_MANAGER_SYMBOL].isState(ComponentState.DESTROYED);
   }
-
-  /**
-   * 快照管理方法
-   */
 
   /**
    * 创建快照

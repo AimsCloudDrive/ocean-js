@@ -9,9 +9,17 @@ import {
   getComponentVNode,
   setComponentVNode,
   Event,
+  isArray,
+  isPromiseLike,
 } from "@msom/common";
 import { createReaction, Observer, withoutTrack } from "@msom/reaction";
-import { TEXT_NODE } from "./element";
+import {
+  createElement,
+  createTextElement,
+  isIterator,
+  isTextElement,
+  TEXT_NODE,
+} from "./element";
 import { IComponent, IComponentProps } from "./IComponent";
 import { IRef } from "./Ref";
 
@@ -19,13 +27,9 @@ type $DOM = {
   rendering?: IComponent;
 };
 
-getGlobalData("@msom/dom") || (getGlobalData("@msom/dom") as any) || {};
+const renderingKey = Symbol("rendering");
 
-const componentCache = new Map<any, IComponent>();
-const eventBindingMap = new WeakMap<
-  WeakKey,
-  { [K in PropertyKey]: Parameters<Event["on"]>[1] }
->();
+getGlobalData("@msom/dom") || (getGlobalData("@msom/dom") as any) || {};
 
 interface Fiber {
   type?: keyof Msom.JSX.ElementTypeMap | null;
@@ -37,6 +41,8 @@ interface Fiber {
   parent: Fiber | null;
   effectTag: "UPDATE" | "PLACEMENT" | "DELETION" | null;
   component: IComponent | null; // 类组件实例
+  // vNode: Msom.MsomNode | null; // 关联的VNode
+  rootFiber: Fiber | null; // 根Fiber
 }
 
 /**
@@ -110,7 +116,8 @@ function updateDom<
   }
   // 处理class
   if (_class && dom instanceof HTMLElement) {
-    props.className = `${parseClass(_class)} ${props.className || ""}`.trim();
+    // 静态在前
+    props.className = `${props.className || ""} ${parseClass(_class)}`.trim();
   } else {
     Reflect.deleteProperty(props, "class");
     Reflect.deleteProperty(props, "className");
@@ -130,22 +137,8 @@ function updateDom<
       const event = Reflect.get(props, key, props);
       Reflect.deleteProperty(props, key);
       const eventName = key.slice(2).toLowerCase();
-      const wrappedHandler = function (this: typeof dom, e: globalThis.Event) {
-        const _e = new Proxy(e as any, {
-          get: (target, prop, receiver) => {
-            if (prop === "nativeEvent") {
-              return receiver;
-            }
-            const value = Reflect.get(target, prop, target);
-            return typeof value === "function" ? value.bind(target) : value;
-          },
-          set: Reflect.set,
-        });
-        event.bind(this)(_e);
-      };
-
-      dom.addEventListener(eventName, wrappedHandler);
-      eventMap.set(eventName, wrappedHandler);
+      dom.addEventListener(eventName, event);
+      eventMap.set(eventName, event);
     });
   // 应用其他属性
   Object.assign(dom, props);
@@ -157,20 +150,26 @@ const currentRoot = new Observer<Fiber>();
 const deletions = new Observer<Fiber[]>();
 const nextUnitOfWork = new Observer<Fiber | null>();
 
-export function render(element: Msom.MsomElement, container: HTMLElement) {
-  deletions.set([]);
-  wipRoot.set({
+export function render(
+  element: Msom.MsomElement,
+  container: HTMLElement,
+  _wipRoot: Observer<Fiber | null> = wipRoot,
+  _currentRoot: Observer<Fiber> = currentRoot
+) {
+  deletions.set(deletions.get() || []);
+  _wipRoot.set({
     parent: null,
     dom: container,
     props: { children: [element] },
-    alternate: currentRoot.get(),
+    alternate: _currentRoot.get(),
     type: null,
     effectTag: null,
     child: null,
     sibling: null,
     component: null,
+    rootFiber: null,
   });
-  nextUnitOfWork.set(wipRoot.get());
+  nextUnitOfWork.set(_wipRoot.get());
   requestIdleCallback(workLoop);
 }
 
@@ -185,6 +184,7 @@ function createFiber(element: Msom.MsomElement, fiber: Fiber): Fiber {
     effectTag: "PLACEMENT",
     alternate: null,
     component: null,
+    rootFiber: null,
   };
 }
 
@@ -211,6 +211,7 @@ function reconcileChildren(fiber: Fiber, elements?: Msom.MsomElement<any>[]) {
         alternate: oldFiber,
         effectTag: "UPDATE",
         component: oldFiber.component, // 保留组件实例
+        rootFiber: null,
       };
     }
     if (element && !sameType) {
@@ -244,6 +245,10 @@ function workLoop(deadline: IdleDeadline) {
   requestIdleCallback(workLoop);
 }
 
+const eventBindingKey = Symbol("eventBinding");
+type EventStop = () => void;
+type EventBinding = Record<string, EventStop>;
+
 function performUnitOfWork(fiber: Fiber): Fiber | null {
   if (
     typeof fiber.type === "function" &&
@@ -251,129 +256,192 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
     isComponent(fiber.type)
   ) {
     // 自定义类组件
-    withoutTrack(() => {
-      let { children, $ref, ...props } = fiber.props;
-      const componentDefinition = getComponentDefinition(fiber.type as any);
-      if (!componentDefinition) {
+    let { children, $ref, ...props } = fiber.props;
+    const componentDefinition = getComponentDefinition(fiber.type as any);
+    if (!componentDefinition) {
+      return null;
+    }
+
+    // 处理自定义事件
+    const { $events } = componentDefinition;
+    const $eventKeys = ownKeysAndPrototypeOwnKeys($events);
+    const newProps = {} as typeof props;
+    // 获取自定义属性
+    const $props = componentDefinition.$options;
+    const $propKeys = ownKeysAndPrototypeOwnKeys($props);
+    if ($propKeys.size()) {
+      for (const propKey of $propKeys) {
+        if (Reflect.has(props, propKey)) {
+          newProps[propKey] = props[propKey];
+        }
+      }
+    }
+
+    // 获取或创建组件实例
+    const component = (() => {
+      // 如果是更新，尝试从旧的fiber中获取组件实例
+      if (
+        fiber.alternate?.component &&
+        (Object.is(fiber.alternate.type, fiber.type) ||
+          Object.is(
+            fiber.alternate.props.$key ?? Symbol(),
+            props.$key ?? Symbol()
+          ))
+      ) {
+        const oldComponent = fiber.alternate.component;
+        oldComponent.set(newProps as IComponentProps, true);
+        return oldComponent;
+      }
+      // 创建新实例
+      const ComponentType = fiber.type as unknown as new (
+        ...args: unknown[]
+      ) => IComponent;
+      const component = new ComponentType(newProps);
+      // 生命周期: created
+      component.created();
+      return component;
+    })();
+
+    // 存储组件实例到fiber
+    fiber.component = component;
+
+    // 处理传递的子元素
+    children = [children].flat();
+    const processC = <T>(cs: T[]): T[] => {
+      return children.map((c) => {
+        if (
+          typeof c === "object" &&
+          c !== null &&
+          "type" in c &&
+          c.type === TEXT_NODE &&
+          typeof (c as any).props?.nodeValue === "function"
+        ) {
+          return (c as any).props.nodeValue;
+        } else {
+          return c;
+        }
+      });
+    };
+    if (children) {
+      if (isArray(children)) {
+        const c = processC(children);
+        component.setJSX(c);
+      } else {
+        component.setJSX(processC([children])[0]);
+      }
+    }
+    // 处理ref
+    if ($ref) {
+      const _$ref = [$ref].flat();
+      for (const ref of _$ref) {
+        (ref as IRef<any>).set(component);
+      }
+    }
+    // 事件绑定
+    // 删除旧事件
+    const oldEvents = Reflect.get(component, eventBindingKey) as EventBinding;
+    if (oldEvents) {
+      Object.values(oldEvents).forEach((stop) => stop());
+      Reflect.deleteProperty(component, eventBindingKey);
+    }
+    // 绑定新事件
+    if ($eventKeys.size()) {
+      const binding = {} as EventBinding;
+      $eventKeys.each((newEK: string) => {
+        const on = props[newEK];
+        if (on && typeof on === "function") {
+          const c = component as Event<any>;
+          (c as Event<any>).on(newEK, on);
+          binding[newEK] = () => c.un(newEK, on);
+        }
+      });
+      Reflect.set(component, eventBindingKey, binding);
+    }
+    // 设置组件树
+    let p = fiber.parent;
+    while (p) {
+      if (p.component) {
+        component.$owner = p.component;
+        break;
+      }
+      p = p.parent;
+    }
+    // 生命周期: setup
+    component.setup();
+    //
+    fiber.dom = fiber.parent?.dom || null;
+    const processRender = (
+      v: Msom.MsomNode,
+      wipRoot: Observer<Fiber>,
+      currentRoot: Observer<Fiber>
+    ) => {
+      assert(fiber.dom);
+      if (v === undefined || v === null || v === false) {
         return;
       }
-
-      // 处理自定义事件
-      const { $events } = componentDefinition;
-      const $eventKeys = ownKeysAndPrototypeOwnKeys($events);
-      const { ..._props } = props;
-      // 去除props中的事件
-      if ($eventKeys.size()) {
-        for (const eventKey of $eventKeys) {
-          if (Reflect.has(_props, eventKey)) {
-            delete _props[eventKey];
-          }
+      if (isPromiseLike(v)) {
+        v.then((res) => processRender(res, wipRoot, currentRoot));
+      } else if (isArray(v) || isIterator(v)) {
+        for (v of v) {
+          processRender(v, wipRoot, currentRoot);
         }
+      } else if (isTextElement(v)) {
+        render(
+          createTextElement(v.toString()),
+          fiber.dom as HTMLElement,
+          wipRoot,
+          currentRoot
+        );
+      } else {
+        render(v, fiber.dom as HTMLElement, wipRoot, currentRoot);
       }
-
-      // 获取或创建组件实例
-      const component = (() => {
-        // 如果是更新，尝试从旧的fiber中获取组件实例
-        if (fiber.alternate?.component) {
-          const oldComponent = fiber.alternate.component;
-          oldComponent.set(_props as IComponentProps, true);
-          return oldComponent;
-        }
-        // 否则创建新实例或从缓存获取
-        let component = componentCache.get(_props.$key);
-        if (!component) {
-          const ComponentType = fiber.type as unknown as new (
-            ...args: unknown[]
-          ) => IComponent;
-          component = new ComponentType(_props) as IComponent;
-          _props.$key != undefined &&
-            componentCache.set(_props.$key, component);
-        } else {
-          component.set(_props as IComponentProps, true);
-        }
-        return component;
-      })();
-
-      // 存储组件实例到fiber
-      fiber.component = component;
-
-      // 处理传递的子元素
-      children = [children].flat();
-      if (children && children.length > 0) {
-        const c = children.map((c) => {
-          if (
-            typeof c === "object" &&
-            c !== null &&
-            "type" in c &&
-            c.type === TEXT_NODE &&
-            typeof (c as any).props?.nodeValue === "function"
-          ) {
-            return (c as any).props.nodeValue;
-          } else {
-            return c;
-          }
-        });
-        component.setJSX(c.length > 1 ? c : c[0]);
-      }
-
-      // 处理ref
-      if ($ref) {
-        const _$ref = [$ref].flat();
-        for (const ref of _$ref) {
-          (ref as IRef<any>).set(component);
-        }
-      }
-
-      // 事件绑定
-      if ($eventKeys.size()) {
-        const binding = eventBindingMap.get(component) || {};
-        eventBindingMap.set(component, binding);
-        for (const _key of $eventKeys) {
-          const key = _key as keyof (typeof component extends IComponent<
-            any,
-            infer Es
-          >
-            ? Es
-            : never);
-          // 清除上次注册的事件
-          component.un(key, binding[key]);
-          Reflect.deleteProperty(binding, key);
-          // 绑定新事件
-          const on = props[key];
-          if (on && typeof on === "function") {
-            component.on(key, on);
-            Object.assign(binding, { [key]: { on } });
-          }
-        }
-      }
-
-      // 生命周期: created
-      if (!fiber.alternate?.component) {
-        component.created();
-      }
-
-      // 设置组件所有者
-      const domGlobalData = getGlobalData("@msom/dom") as $DOM;
-      const { rendering } = domGlobalData;
-      component.$owner = rendering;
-
-      // 渲染组件内容
-      const wasMounted = component.isMounted();
-      const newVNode = component.mount();
-
+    };
+    // 渲染组件内容
+    // 生成更新时的工作根
+    const root = component[renderingKey] || {
+      wipRoot: new Observer(),
+      currentRoot: new Observer({ initValue: fiber }), // 当前fiber即为当前根
+    };
+    component[renderingKey] = root;
+    const updateHandle = () => {
+      let newVNode = component.render();
       if (newVNode) {
-        // 将组件渲染的内容作为children
-        // 确保children是数组格式
-        const childrenArray = Array.isArray(newVNode)
-          ? newVNode
-          : [newVNode].filter(Boolean);
-        fiber.props = {
-          ...fiber.props,
-          children:
-            childrenArray.length === 1 ? childrenArray[0] : childrenArray,
-        };
+        processRender(newVNode, root.wipRoot, root.currentRoot);
       }
-    });
+    };
+    // 首次渲染链接已经存在的工作根
+    let ne: any = null;
+    // 注册组件内部更新回调
+    component.onunmounted(
+      createReaction(
+        () => {
+          ne = component.render();
+        },
+        updateHandle, // 后续更新将从该组件开始更新
+        { scheduler: "nextTick" }
+      ).disposer()
+    );
+    // 处理不同类型的子元素
+    const processRender2 = (v: Msom.MsomNode) => {
+      assert(fiber.dom);
+      if (v === undefined || v === null || v === false) {
+        return;
+      }
+      if (isPromiseLike(v)) {
+        // 处理Promise-like对象,新开工作根
+        processRender(v, root.wipRoot, root.currentRoot);
+      } else if (isArray(v) || isIterator(v)) {
+        for (v of v) {
+          processRender2(v);
+        }
+      } else if (isTextElement(v)) {
+        fiber.props.children = createTextElement(v.toString());
+      } else {
+        fiber.props.children = v;
+      }
+    };
+    // 首次渲染链接到当前工作根
+    processRender2(ne);
   } else if (!fiber.dom) {
     fiber.dom = createDom(fiber);
   }
@@ -412,7 +480,7 @@ function commitWork(fiber?: Fiber | null) {
     const component = fiber.component;
     const wasMounted = component.isMounted();
     const oldVNode = getComponentVNode(component);
-    const newVNode = component.mount() || undefined;
+    const newVNode = component.render() || undefined;
 
     if (fiber.effectTag === "UPDATE" && oldVNode && newVNode) {
       // 更新组件

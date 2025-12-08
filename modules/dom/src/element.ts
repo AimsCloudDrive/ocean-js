@@ -4,6 +4,7 @@ import {
   compareObjects,
   getComponentDefinition,
   getGlobalData,
+  isArray,
   isComponent,
   isObject,
   isPromiseLike,
@@ -285,7 +286,9 @@ export function applyEventChanges(
   }
 }
 
-function isIterator<T extends unknown = unknown>(v: unknown): v is Iterable<T> {
+export function isIterator<T extends unknown = unknown>(
+  v: unknown
+): v is Iterable<T> {
   if ((typeof v === "object" && v !== null) || typeof v === "function") {
     return Reflect.has(v, Symbol.iterator);
   } else {
@@ -325,7 +328,7 @@ export function createElement<T extends Msom.JSX.ElementType>(
   };
 }
 
-function createTextElement(text: string | Function): Msom.MsomElement {
+export function createTextElement(text: string | Function): Msom.MsomElement {
   return {
     type: TEXT_NODE,
     props: {
@@ -334,6 +337,19 @@ function createTextElement(text: string | Function): Msom.MsomElement {
     },
   };
 }
+
+export function isTextElement(
+  v: Msom.MsomNode
+): v is Function | string | number | bigint | true {
+  return (
+    typeof v === "string" ||
+    typeof v === "number" ||
+    typeof v === "bigint" ||
+    (typeof v === "boolean" && v === true) ||
+    typeof v === "function"
+  );
+}
+
 /**
  * 创建DOM元素并与VNode关联
  * @param element VNode元素

@@ -29,6 +29,7 @@ export interface IComponent<
   setJSX(jsx: Props["children"]): void;
   render(): Msom.MsomNode | undefined | null | void;
   rendered(): void;
+  setup(): void;
   created(): void;
   mount(): Msom.MsomNode | undefined | null | void;
   mounted(): void;
