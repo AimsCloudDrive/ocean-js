@@ -4,10 +4,6 @@ import { createReaction, Observer } from "@msom/reaction";
 const ref1 = createMapRef();
 
 const oba = new Observer({ initValue: { cccc: 123 }, deep: true });
-oba.set = function (value: any) {
-  console.log("set", value);
-  Observer.prototype.set.call(this, value);
-};
 
 const a = () => (
   <div>
@@ -18,7 +14,7 @@ const a = () => (
       222
     </div>
     <div $key={3} $ref={ref1}>
-      {oba.get()}
+      {oba.get().cccc}
     </div>
     <div>444</div>
   </div>
@@ -26,8 +22,10 @@ const a = () => (
 
 Object.assign(window, { ref1 });
 
+let aa: any = null;
 const ccc = createReaction(() => {
-  const aa = a();
+  console.log("reaction", oba.get().cccc);
+  aa = a();
   render(aa, document.querySelector("#root")!);
 });
 

@@ -118,7 +118,6 @@ function updateDom<
       eventMap.set(eventName, event);
     });
   // 应用其他属性
-  console.log("props", props);
   Object.assign(dom, props);
   // 处理ref
   const refs = [$ref].flat().filter((ref) => ref !== undefined);
@@ -131,9 +130,13 @@ function updateDom<
 }
 
 const wipRoot = new Observer<Fiber | null>();
+wipRoot.destroy();
 const currentRoot = new Observer<Fiber>();
+currentRoot.destroy();
 const deletions = new Observer<Fiber[]>();
+deletions.destroy();
 const nextUnitOfWork = new Observer<Fiber | null>();
+nextUnitOfWork.destroy();
 
 export function render(
   element: Msom.MsomElement,

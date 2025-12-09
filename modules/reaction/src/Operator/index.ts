@@ -1,4 +1,4 @@
-const iterator: typeof Symbol.iterator = Symbol.iterator;
+export const iterator: typeof Symbol.iterator = Symbol.iterator;
 
 export type TRACKERTYPES = "GET" | "HAS" | typeof iterator;
 export type TRRIGERTYPES = "SET" | "ADD" | "DELETE";

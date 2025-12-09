@@ -4,6 +4,7 @@ import {
   OPERATORTYPES,
   TRACKERTYPES,
   TRRIGERTYPES,
+  iterator,
 } from "../Operator";
 import { $REACTION, IObserver, Reaction } from "../Reaction";
 
@@ -95,7 +96,10 @@ function getObserverForce(
   }
   let observer = typesMap.get(trackType);
   if (!observer) {
-    typesMap.set(trackType, (observer = new Observer()));
+    typesMap.set(
+      trackType,
+      (observer = new Observer({ initValue: target[propKey] }))
+    );
   }
 
   return observer;
@@ -141,7 +145,14 @@ const reactiveOptions: ProxyHandler<object> = {
   get(target, propKey, receiver) {
     const value = Reflect.get(target, propKey, receiver);
     track(target, propKey, OPERATORTYPES.TRACKER.GET);
-    return isObject(value) ? reactive(value) : value;
+
+    if (isObject(value)) {
+      return reactive(value);
+    }
+    if (typeof value === "function") {
+      return value.bind(receiver);
+    }
+    return value;
   },
   has(target, propKey) {
     const result = Reflect.has(target, propKey);
@@ -150,7 +161,10 @@ const reactiveOptions: ProxyHandler<object> = {
   },
   ownKeys(target) {
     const result = Reflect.ownKeys(target);
+
+    // Track iteration for all collection types
     track(target, Symbol.iterator, OPERATORTYPES.TRACKER[Symbol.iterator]);
+
     return result;
   },
   set(target, propKey, value, receiver) {
@@ -175,17 +189,122 @@ const reactiveOptions: ProxyHandler<object> = {
     return result;
   },
 };
+
+function createProxy(target: object) {
+  if (target instanceof Proxy) {
+    return target;
+  }
+  if (target instanceof Array) {
+    return new Proxy(target, {
+      ...reactiveOptions,
+      get(target, propKey, receiver) {
+        // 收集当前属性的依赖
+        track(target, propKey, OPERATORTYPES.TRACKER.GET);
+        const value = Reflect.get(target, propKey, receiver);
+        if (isObject(value)) {
+          return reactive(value);
+        }
+        if (typeof value === "function") {
+          const rerwites = [
+            "push",
+            "pop",
+            "shift",
+            "unshift",
+            "splice",
+            "sort",
+            "reverse",
+          ] as const;
+          if (rerwites.includes(propKey as (typeof rerwites)[number])) {
+            return function <K extends (typeof rerwites)[number]>(
+              this: typeof target,
+              ...args: Parameters<(typeof Array.prototype)[K]>
+            ): ReturnType<(typeof Array.prototype)[K]> {
+              const result = value.apply(this ?? receiver, args);
+              trriger(target, Symbol.iterator, OPERATORTYPES.TRRIGER.SET);
+              return result;
+            };
+          }
+          return value.bind(receiver);
+        }
+        return value;
+      },
+    });
+  }
+  if (target instanceof Set) {
+    return new Proxy(target, {
+      ...reactiveOptions,
+      get(target, propKey, receiver) {
+        // 收集当前属性的依赖
+        track(target, propKey, OPERATORTYPES.TRACKER.GET);
+        const value = Reflect.get(target, propKey, receiver);
+        if (isObject(value)) {
+          return reactive(value);
+        }
+        if (typeof value === "function") {
+          return value.bind(receiver);
+        }
+        return value;
+      },
+    });
+  }
+  if (target instanceof WeakSet) {
+    return new Proxy(target, reactiveOptions);
+  }
+  if (target instanceof Map) {
+    return new Proxy(target, {
+      ...reactiveOptions,
+      get(target, propKey, receiver) {
+        // 收集当前属性的依赖
+        track(target, propKey, OPERATORTYPES.TRACKER.GET);
+        const value = Reflect.get(target, propKey, receiver);
+        if (isObject(value)) {
+          return reactive(value);
+        }
+        if (typeof value === "function") {
+          if (propKey === "get") {
+            return function (this: typeof target, key: PropertyKey) {
+              const result = value.apply(this ?? receiver, [key]);
+              track(target, key, OPERATORTYPES.TRACKER.GET);
+              return result;
+            };
+          }
+          if (propKey === "set") {
+            return function (
+              this: typeof target,
+              key: PropertyKey,
+              newValue: unknown
+            ) {
+              const result = value.call(this ?? receiver, key, newValue);
+              trriger(target, key, OPERATORTYPES.TRRIGER.SET);
+              return result;
+            };
+          }
+          return function (this: typeof target, ...args: unknown[]) {
+            const result = value.apply(this ?? receiver, args);
+            return result;
+          };
+        }
+        return value;
+      },
+    });
+  }
+  if (target instanceof WeakMap) {
+    return new Proxy(target, reactiveOptions);
+  }
+  return new Proxy(target, reactiveOptions);
+}
+
 export function reactive<T extends object>(target: T): T {
   let _target = targetMap.get(target) as Required<_Target>;
   if (!_target) {
     _target = {
       propMap: new Map(),
-      proxy: new Proxy(target, reactiveOptions),
+      proxy: createProxy(target),
     };
     targetMap.set(target, _target);
   }
   if (!_target.proxy) {
-    _target.proxy = new Proxy(target, reactiveOptions);
+    _target.proxy = createProxy(target);
   }
 
   return _target.proxy as T;
