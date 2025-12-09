@@ -51,22 +51,12 @@ interface Fiber {
  * @returns 带有真实DOM的VNode
  */
 function createDom(fiber: Fiber): Text | HTMLElement {
-  const {
-    children,
-    class: _class,
-    style,
-    $key,
-    $ref,
-    $context,
-    ...props
-  } = fiber.props;
-
   // 创建元素
   const dom =
     fiber.type === TEXT_NODE
       ? document.createTextNode("")
       : document.createElement(fiber.type as string);
-  updateDom(dom as any, {} as any, props as any);
+  updateDom(dom as any, {} as any, fiber.props as any);
   return dom;
 }
 
@@ -76,12 +66,12 @@ function updateDom<
   T extends Msom.JSX.ElementType | keyof Msom.JSX.IntrinsicElements
 >(dom: HTMLElement | Text, prevProps: Msom.H<T>, nextProps: Msom.H<T>) {
   const {
-    children,
-    class: _class,
-    style,
-    $key,
     $ref,
     $context,
+    children,
+    class: _class,
+    className,
+    style,
     ...props
   } = nextProps;
   if (dom instanceof HTMLElement) {
@@ -93,15 +83,7 @@ function updateDom<
   const eventMap = dom[DOMEVENTBINDSYMBOL] || new Map<string, EventListener>();
   dom[DOMEVENTBINDSYMBOL] = eventMap;
   {
-    const {
-      children,
-      class: _class,
-      style,
-      $key,
-      $ref,
-      $context,
-      ...props
-    } = prevProps;
+    const { children, $key, $ref, $context, ...props } = prevProps;
     Reflect.ownKeys(props).forEach((key) => {
       if (typeof key === "string" && key.startsWith("on")) {
         const ek = key.slice(2).toLocaleLowerCase();
@@ -117,17 +99,12 @@ function updateDom<
   // 处理class
   if (_class && dom instanceof HTMLElement) {
     // 静态在前
-    props.className = `${props.className || ""} ${parseClass(_class)}`.trim();
-  } else {
-    Reflect.deleteProperty(props, "class");
-    Reflect.deleteProperty(props, "className");
+    dom.className = `${className || ""} ${parseClass(_class)}`.trim();
   }
 
   // 处理style
   if (style && dom instanceof HTMLElement) {
-    Object.assign(props, { style: parseStyle(style) });
-  } else {
-    Reflect.deleteProperty(props, "style");
+    dom.style = parseStyle(style);
   }
 
   // 处理事件
@@ -141,7 +118,15 @@ function updateDom<
       eventMap.set(eventName, event);
     });
   // 应用其他属性
+  console.log("props", props);
   Object.assign(dom, props);
+  // 处理ref
+  const refs = [$ref].flat().filter((ref) => ref !== undefined);
+  if (refs.length) {
+    refs.forEach((ref) => {
+      ref.set(dom as any);
+    });
+  }
   return dom;
 }
 

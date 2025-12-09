@@ -10,21 +10,26 @@ import { $REACTION, IObserver, Reaction } from "../Reaction";
 export type ObserverOption<T> = {
   initValue?: T;
   equal?: (oldValue: T, newValue: T) => boolean;
+  deep?: boolean;
   // TODO: add more options
 };
 
 export class Observer<T = unknown> implements IObserver {
+  private declare destroyed: boolean;
   private declare handlers: Set<Reaction>;
   private declare value: T;
   private declare equal: (oldValue: T, newValue: T) => boolean;
+  private declare $option: ObserverOption<T>;
   constructor(option: ObserverOption<T> = {}) {
+    this.destroyed = false;
     this.equal = option.equal || equal;
     this.handlers = new Set();
-    if (Object.prototype.hasOwnProperty.call(option, "initValue")) {
+    if (Reflect.has(option, "initValue")) {
       const value = option.initValue;
       assert(value);
       this.value = value;
     }
+    this.$option = option;
   }
   track() {
     const running = getGlobalData("@msom/reaction") as $REACTION;
@@ -32,7 +37,13 @@ export class Observer<T = unknown> implements IObserver {
       running.tracking(this);
     }
   }
+  private reactiveValue(value: T): T {
+    return this.$option.deep && isObject(value) ? reactive(value) : value;
+  }
   get(): T {
+    if (this.destroyed) {
+      return this.value;
+    }
     this.track();
     return this.value;
   }
@@ -40,9 +51,9 @@ export class Observer<T = unknown> implements IObserver {
   set(newValue: T): void {
     const { value: oldValue } = this;
     // 更新值
-    this.value = newValue;
+    this.value = this.reactiveValue(newValue);
     // 比较新值
-    if (!this.equal(oldValue, newValue)) {
+    if (!this.destroyed && !this.equal(oldValue, newValue)) {
       this.notify();
     }
   }
@@ -62,6 +73,7 @@ export class Observer<T = unknown> implements IObserver {
     this.handlers.forEach((reaction) => {
       reaction.removeObserver(this);
     });
+    this.destroyed = true;
   }
 }
 function getObserverForce(

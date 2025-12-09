@@ -302,6 +302,8 @@ export function createElement<T extends Msom.JSX.ElementType>(
   ...children: Msom.MsomNode[]
 ): Msom.MsomElement {
   config = config || {};
+  Reflect.deleteProperty(config, "__self");
+  Reflect.deleteProperty(config, "__source");
   const _config = {
     ...config,
     children: children.map<Msom.MsomElement<any>>((v) => {
