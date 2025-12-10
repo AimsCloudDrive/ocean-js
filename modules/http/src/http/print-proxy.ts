@@ -38,8 +38,13 @@ export function generateAlignedProxyReport(proxyRules: ProxyRules): string[] {
         options.push(`changeOrigin: ${rule.changeOrigin}`);
       if (rule.secure !== undefined) options.push(`secure: ${rule.secure}`);
       if (rule.ws) options.push(`ws: true`);
-      if (rule.pathRewrite)
-        options.push(`pathRewrite: ${typeof rule.pathRewrite}`);
+      if (rule.pathRewrite) {
+        if (typeof rule.pathRewrite === "function") {
+          options.push(`pathRewrite: ${rule.pathRewrite.toString()}`);
+        } else {
+          options.push(`pathRewrite: ${JSON.stringify(rule.pathRewrite)}`);
+        }
+      }
       if (rule.bypass) options.push(`bypass: function`);
 
       if (options.length > 0) {

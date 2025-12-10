@@ -31,4 +31,25 @@ export default defineConfig({
       },
     ],
   },
+  dev: {
+    port: 9208,
+    proxy: {
+      "/": {
+        target: "https://ybzg.cqxdsk.com:18002",
+        changeOrigin: true,
+        pathRewrite: {
+          "^/": "/prod-api/", // 重写路径，将所有请求转发到 /prod-api
+        },
+        onProxyReq: (proxyReq, req, res) => {
+          console.log(
+            `[PROXY] ${req.method} ${req.protocol}://${req.host}${req.url} -> ${proxyReq.target}${proxyReq.path}`
+          );
+        },
+        onError: (err, req, res) => {
+          console.error("[PROXY ERROR]", err);
+          res.status(500).send("Proxy Error");
+        },
+      },
+    },
+  },
 });
