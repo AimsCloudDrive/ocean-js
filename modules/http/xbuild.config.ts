@@ -34,6 +34,22 @@ export default defineConfig({
   dev: {
     port: 9208,
     proxy: {
+      "/ttt": {
+        target: "http://localhost:9999/aaac?a=1",
+        pathRewrite: (p) => {
+          return p;
+        },
+        changeOrigin: true,
+        onProxyReq: (proxyReq, req, res) => {
+          console.log(
+            `[PROXY] ${req.method} ${req.protocol}://${req.host}${req.originalUrl} -> ${proxyReq.url}`
+          );
+        },
+        onError: (err, req, res) => {
+          console.error("[PROXY ERROR]", err);
+          res.status(500).send("Proxy Error");
+        },
+      },
       "/": {
         target: "https://ybzg.cqxdsk.com:18002",
         changeOrigin: true,

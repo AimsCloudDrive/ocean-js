@@ -1,9 +1,58 @@
-import express, { Request, Response, NextFunction } from "express";
-import http, { IncomingMessage, ServerResponse } from "http";
+import express, { NextFunction, Request, Response } from "express";
+import http, { IncomingMessage } from "http";
 import https from "https";
-import { parse } from "url";
 import net, { Socket } from "net";
-import fs from "fs";
+
+const parseParamsHash = (
+  u: string
+): {
+  origin: string;
+  params: URLSearchParams;
+  hash: string;
+} => {
+  const matchs = [...u.matchAll(/\?|#/g)];
+  if (matchs.length === 0) {
+    return {
+      origin: "",
+      params: new URLSearchParams(),
+      hash: "",
+    };
+  }
+  let i = 0;
+  const splited: string[] = [];
+  for (; i < matchs.length; i++) {
+    splited.push(u.slice(matchs[i - 1]?.index ?? 0, matchs[i].index));
+  }
+  splited.push(u.slice(matchs[i - 1].index ?? 0));
+
+  const p = splited.find((v) => v.startsWith("?"));
+  const h = splited.find((v) => v.startsWith("#"));
+
+  return {
+    origin: splited[0],
+    params: new URLSearchParams(p),
+    hash: h?.slice(1) ?? "",
+  };
+};
+
+const mergeParams = (...ps: (URLSearchParams | string)[]) => {
+  const res = new URLSearchParams();
+  if (ps.length === 0) {
+    return res;
+  }
+  for (let p of ps) {
+    p = new URLSearchParams(p);
+    for (const [k, v] of p) {
+      const has = res.get(k);
+      if (has != null) {
+        res.set(k, has.concat(",", v));
+      } else {
+        res.set(k, v);
+      }
+    }
+  }
+  return res;
+};
 
 /**
  * 代理配置选项接口
@@ -25,7 +74,7 @@ export interface ProxyOptions {
   bypass?: (req: Request) => boolean | string | void;
   onError?: (err: Error, req: Request, res: Response) => void;
   onProxyReq?: (
-    proxy: ProxyOptions & { path: string },
+    proxy: ProxyOptions & { path: string; url: string },
     req: Request,
     res: Response
   ) => void;
@@ -58,10 +107,10 @@ export function createProxyMiddleware(
     const targetUrl = new URL(options.target);
 
     // 应用路径重写
-    let rewrittenPath = req.path;
+    let rewrittenPath = parseParamsHash(req.originalUrl).origin;
     if (options.pathRewrite) {
       if (typeof options.pathRewrite === "function") {
-        rewrittenPath = options.pathRewrite(req.path);
+        rewrittenPath = options.pathRewrite(rewrittenPath);
       } else {
         for (const [pattern, replacement] of Object.entries(
           options.pathRewrite
@@ -72,13 +121,24 @@ export function createProxyMiddleware(
       }
     }
 
+    // 如果target以 / 结尾 则将除代理前缀以外的path拼接在后面
+    const parseTarget = parseParamsHash(options.target);
+    if (parseTarget[0]?.endsWith("/")) {
+      rewrittenPath = req.url;
+    }
+
+    const parsePath = parseParamsHash(req.url);
+
+    const mergedParams = mergeParams(parseTarget.params, parsePath.params);
+
     // 准备请求选项
     const requestOptions: http.RequestOptions = {
       hostname: targetUrl.hostname,
       port: targetUrl.port || (targetUrl.protocol === "https:" ? 443 : 80),
+      // TODO: Hash 合并
       path:
         rewrittenPath +
-        (req.url.includes("?") ? `?${req.url.split("?")[1]}` : ""),
+        (mergedParams.size ? `?${mergedParams.toString()}` : ""),
       method: req.method,
       headers: { ...req.headers },
     };
@@ -96,7 +156,12 @@ export function createProxyMiddleware(
       requestOptions,
       (proxyRes: IncomingMessage) => {
         options.onProxyReq?.(
-          Object.assign({}, options, { path: requestOptions.path ?? "" }),
+          Object.assign({}, options, {
+            path: requestOptions.path ?? "/",
+            url: `${targetUrl.href.replace(/\/$/, "")}/${(
+              requestOptions.path ?? "/"
+            ).replace(/^\//, "")}`.replace(/\/$/, ""),
+          }),
           req,
           res
         );
