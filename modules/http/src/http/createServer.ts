@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import { ProxyRules, setupProxy } from "./http-proxy";
 import { printAlignedProxyServerInfo } from "./print-proxy";
+import { isArray, isObject } from "@msom/common";
 
 type RequestMethod =
   | "all"
@@ -60,22 +61,36 @@ export function createServer(
   option: {
     routes?: ServerRoute[];
     createHandle?: (option: { port: number }) => void;
-    middles?: express.RequestHandler[] | express.RequestHandler;
+    middles?:
+      | express.RequestHandler[]
+      | express.RequestHandler
+      | {
+          define: (
+            defaults: express.RequestHandler[]
+          ) => express.RequestHandler[] | express.RequestHandler;
+        };
     proxy?: ProxyRules;
-    printProxy?: boolean;
+    printProxy?: boolean | { print?: boolean; detail?: boolean };
   } = {}
 ): express.Application {
   const server = express();
   const { createHandle, routes, middles, proxy } = option;
-  [
+  const defaultMiddles = [
     cors({
       origin: "*",
     }),
     express.json(),
-    middles || [],
-  ]
-    .flat()
-    .reduce<typeof server>((a, b) => a.use(b), server);
+  ];
+  if (middles && !isArray(middles) && typeof middles !== "function") {
+    const m = middles.define;
+    [m(defaultMiddles)]
+      .flat()
+      .reduce<typeof server>((a, b) => a.use(b), server);
+  } else {
+    [...defaultMiddles, middles || []]
+      .flat()
+      .reduce<typeof server>((a, b) => a.use(b), server);
+  }
   if (routes) {
     const parseRoute = (routes: ServerRoute[], parentPath: string) => {
       for (const route of routes) {
@@ -97,7 +112,11 @@ export function createServer(
   }
   server.listen(port, () => {
     typeof createHandle === "function" && createHandle({ port });
-    option.printProxy !== false && printAlignedProxyServerInfo(port, proxy);
+    const printProxy = isObject(option.printProxy)
+      ? option.printProxy
+      : { print: option.printProxy, detail: false };
+    printProxy.print !== false &&
+      printAlignedProxyServerInfo(port, proxy, undefined, printProxy.detail);
   });
   return server;
 }

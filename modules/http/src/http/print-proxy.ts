@@ -8,7 +8,10 @@ const Available_Proxies = "Available Proxies:";
  * @param proxyRules 代理规则配置
  * @returns 格式化的代理规则描述数组
  */
-export function generateAlignedProxyReport(proxyRules: ProxyRules): string[] {
+export function generateAlignedProxyReport(
+  proxyRules: ProxyRules,
+  detail = false
+): string[] {
   if (!proxyRules || Object.keys(proxyRules).length === 0) {
     return [NO_PROXY];
   }
@@ -32,7 +35,7 @@ export function generateAlignedProxyReport(proxyRules: ProxyRules): string[] {
     const baseLine = `  ${formattedPath.padEnd(maxPathLength)} -> ${target}`;
 
     // 添加选项信息（如果有）
-    if (typeof rule !== "string") {
+    if (detail && typeof rule !== "string") {
       const options: string[] = [];
       if (rule.changeOrigin !== undefined)
         options.push(`changeOrigin: ${rule.changeOrigin}`);
@@ -73,13 +76,14 @@ export function generateAlignedProxyReport(proxyRules: ProxyRules): string[] {
 export function printAlignedProxyServerInfo(
   port: number,
   proxyRules?: ProxyRules | null,
-  printer: (message: string) => void = console.log.bind(console)
+  printer: (message: string) => void = console.log.bind(console),
+  detail = false
 ): void {
   if (proxyRules == undefined) {
     return;
   }
   printer(`Proxy server running at http://localhost:${port}`);
-  const rules = generateAlignedProxyReport(proxyRules);
+  const rules = generateAlignedProxyReport(proxyRules, detail);
   if (rules[0] !== NO_PROXY) {
     printer(Available_Proxies);
   }

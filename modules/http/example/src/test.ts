@@ -1,8 +1,8 @@
-import { createServer, createProxyMiddleware } from "@msom/http";
+import { createServer } from "@msom/http";
 
-const server = createServer(9999, {
-  createHandle: () => {
-    console.log("服务器已启动9999");
+createServer(9999, {
+  createHandle: ({ port }) => {
+    console.log("服务器已启动", port);
   },
   printProxy: true,
   routes: [
@@ -20,14 +20,26 @@ const server = createServer(9999, {
                 (req, res) => {
                   console.log("post qqq ......");
                   const { params, query, body } = req;
-                  res.status(200).send({
-                    aaa: 1,
-                    type: "post",
-                    params,
-                    query,
-                    body,
-                    url: req.url,
-                  });
+                  try {
+                    res.status(200).send({
+                      aaa: 1,
+                      type: "post",
+                      params,
+                      query,
+                      body,
+                      url: req.url,
+                    });
+                  } catch (e) {
+                    res.status(200).send({
+                      aaa: 1,
+                      type: "post",
+                      params,
+                      query,
+                      body: e,
+                      error: true,
+                      url: req.url,
+                    });
+                  }
                 },
               ],
             },
@@ -51,3 +63,58 @@ const server = createServer(9999, {
     },
   ],
 });
+// createServer(9208, {
+//   middles: {
+//     define: (ds) => {
+//       return ds[0];
+//     },
+//   },
+//   createHandle: ({ port }) => {
+//     console.log("服务器已启动", port);
+//   },
+//   printProxy: true,
+//   proxy: {
+//     "/ttt": {
+//       target: "http://localhost:9999",
+//       changeOrigin: true,
+//       onProxyReq: (proxyReq, req, res) => {
+//         console.log(
+//           `[PROXY:9208] ${req.method} ${req.protocol}://${req.host}${req.originalUrl} -> ${proxyReq.url}`
+//         );
+//       },
+//       onError: (err, req, res) => {
+//         console.error("[PROXY ERROR]", err);
+//         res.status(500).send("Proxy Error");
+//       },
+//     },
+//   },
+// });
+// createServer(9201, {
+//   middles: {
+//     define: (ds) => {
+//       return ds[0];
+//     },
+//   },
+//   createHandle: ({ port }) => {
+//     console.log("服务器已启动", port);
+//   },
+//   printProxy: true,
+//   proxy: {
+//     "/": {
+//       target: "https://ybzg.cqxdsk.com:18002",
+//       changeOrigin: true,
+//       pathRewrite: {
+//         "^/": "/prod-api/", // 重写路径，将所有请求转发到 /prod-api
+//       },
+//       onProxyReq: (proxyReq, req, res) => {
+//         console.log(
+//           `[PROXY:9201] ${req.method} ${req.protocol}://${req.host}${req.url} -> ${proxyReq.target}${proxyReq.path}`
+//         );
+//       },
+//       onError: (err, req, res) => {
+//         console.error("[PROXY ERROR]", err);
+//         res.status(500).send("Proxy Error");
+//       },
+//     },
+//   },
+// });
