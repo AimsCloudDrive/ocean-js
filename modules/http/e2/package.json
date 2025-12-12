@@ -1,0 +1,20 @@
+{
+  "name": "example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "pnpm run build && node ./dist/index.js",
+    "dev": "xbuild dev -c ../xbuild.config.ts",
+    "build": "xbuild build -c ../xbuild.config.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.4",
+  "dependencies": {
+    "@msom/common": "workspace:^",
+    "@msom/http": "workspace:^"
+  }
+}
