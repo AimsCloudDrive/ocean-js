@@ -29,8 +29,8 @@
     "build": "rimraf dist/types && pnpm run check && xbuild build",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "dev": "pnpm run --filter=./example dev",
-    "server": "pnpm run --filter=./{example,e2,e3} test",
-    "server2": "pnpm run build && pnpm run --filter=./{example,e2,e3} test"
+    "server": "pnpm run --filter=./{example,e2,e3} server",
+    "server2": "pnpm run build && pnpm run --filter=./{example,e2,e3} server"
   },
   "dependencies": {
     "@msom/common": "workspace:^",
