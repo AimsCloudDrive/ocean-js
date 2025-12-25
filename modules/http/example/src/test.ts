@@ -1,5 +1,8 @@
-import { createServer } from "@msom/http";
+import { CodeResult, createServer } from "@msom/http";
+import path from "path";
+import fs from "fs";
 
+// #region 测试代理下载文件
 createServer(9999, {
   createHandle: ({ port }) => {
     console.log("服务器已启动", port);
@@ -7,55 +10,130 @@ createServer(9999, {
   printProxy: true,
   routes: [
     {
-      path: "/ttt",
+      path: "/file",
       children: [
         {
-          path: "/aaa",
-          method: "post",
-          children: [
-            {
-              path: "/:qqq",
-              method: "post",
-              handlers: [
-                (req, res) => {
-                  console.log("post qqq ......");
-                  const { params, query, body } = req;
-                  try {
-                    res.status(200).send({
-                      aaa: 1,
-                      type: "post",
-                      params,
-                      query,
-                      body,
-                      url: req.url,
-                    });
-                  } catch (e) {
-                    res.status(200).send({
-                      aaa: 1,
-                      type: "post",
-                      params,
-                      query,
-                      body: e,
-                      error: true,
-                      url: req.url,
-                    });
+          path: "/download",
+          method: "get",
+          handlers: [
+            async (request, response) => {
+              console.log("download");
+              try {
+                const { isChunk: isChunkStr } = request.query as any;
+                const isChunk = isChunkStr === "true";
+
+                // 构建文件路径
+                const fileName = "aaaa.jpg";
+                const filePath = path.resolve(".", fileName);
+                console.log("filePath", filePath);
+
+                // 检查文件是否存在
+                if (!fs.existsSync(filePath)) {
+                  response.status(404).json(new CodeResult(1, "文件不存在"));
+                  return;
+                }
+
+                // 获取文件状态
+                const stats = fs.statSync(filePath);
+                const fileSize = stats.size;
+
+                // 处理分片下载
+                if (isChunk) {
+                  const range = request.headers.range;
+                  if (!range) {
+                    response
+                      .status(400)
+                      .json(new CodeResult(1, "需要Range请求头"));
+                    return;
                   }
-                },
-              ],
+
+                  // 解析范围参数
+                  const parts = range.replace(/bytes=/, "").split("-");
+                  const start = parseInt(parts[0], 10);
+                  const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+                  // 验证范围有效性
+                  if (start >= fileSize || end >= fileSize || start > end) {
+                    response
+                      .status(416)
+                      .json(new CodeResult(1, "请求范围不符合要求"));
+                    return;
+                  }
+
+                  // 设置分片下载头
+                  response.writeHead(206, {
+                    "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": end - start + 1,
+                    "Content-Type": "application/octet-stream",
+                  });
+
+                  // 创建文件流
+                  const fileStream = fs.createReadStream(filePath, {
+                    start,
+                    end,
+                  });
+                  fileStream.pipe(response);
+                } else {
+                  // 普通文件下载
+                  // 设置下载头 文件名支持中文
+                  response.writeHead(200, {
+                    "Content-Length": fileSize,
+                    "Content-Type": "application/octet-stream",
+                    "Content-Disposition": `attachment; filename="${encodeURIComponent(
+                      fileName
+                    )}"`,
+                  });
+
+                  fs.createReadStream(filePath).pipe(response);
+                }
+              } catch (error) {
+                console.log(error);
+                response
+                  .status(500)
+                  .json(
+                    new CodeResult(1, "文件下载失败", { e: error.message })
+                  );
+              }
             },
           ],
+        },
+        {
+          path: "/preview",
+          method: "get",
           handlers: [
-            (req, res) => {
-              console.log("post aaa ......");
-              const { params, query, body } = req;
-              res.status(200).send({
-                aaa: 1,
-                type: "post",
-                params,
-                query,
-                body,
-                url: req.url,
-              });
+            async (request, response) => {
+              try {
+                const { fileName } = request.query as any;
+
+                // 构建文件路径
+                const filePath = path.resolve("./aaaa.jpg");
+
+                // 检查文件是否存在
+                if (!fs.existsSync(filePath)) {
+                  response.status(404).json(new CodeResult(1, "文件不存在"));
+                  return;
+                }
+
+                // 获取文件状态
+                const stats = fs.statSync(filePath);
+                const fileSize = stats.size;
+
+                // 设置预览头
+                response.writeHead(200, {
+                  "Content-Length": fileSize,
+                  "Content-Type": "image/jpeg",
+                });
+
+                fs.createReadStream(filePath).pipe(response);
+              } catch (error) {
+                console.log(error);
+                response
+                  .status(500)
+                  .json(
+                    new CodeResult(1, "文件预览失败", { e: error.message })
+                  );
+              }
             },
           ],
         },
@@ -63,58 +141,5 @@ createServer(9999, {
     },
   ],
 });
-// createServer(9208, {
-//   middles: {
-//     define: (ds) => {
-//       return ds[0];
-//     },
-//   },
-//   createHandle: ({ port }) => {
-//     console.log("服务器已启动", port);
-//   },
-//   printProxy: true,
-//   proxy: {
-//     "/ttt": {
-//       target: "http://localhost:9999",
-//       changeOrigin: true,
-//       onProxyReq: (proxyReq, req, res) => {
-//         console.log(
-//           `[PROXY:9208] ${req.method} ${req.protocol}://${req.host}${req.originalUrl} -> ${proxyReq.url}`
-//         );
-//       },
-//       onError: (err, req, res) => {
-//         console.error("[PROXY ERROR]", err);
-//         res.status(500).send("Proxy Error");
-//       },
-//     },
-//   },
-// });
-// createServer(9201, {
-//   middles: {
-//     define: (ds) => {
-//       return ds[0];
-//     },
-//   },
-//   createHandle: ({ port }) => {
-//     console.log("服务器已启动", port);
-//   },
-//   printProxy: true,
-//   proxy: {
-//     "/": {
-//       target: "https://ybzg.cqxdsk.com:18002",
-//       changeOrigin: true,
-//       pathRewrite: {
-//         "^/": "/prod-api/", // 重写路径，将所有请求转发到 /prod-api
-//       },
-//       onProxyReq: (proxyReq, req, res) => {
-//         console.log(
-//           `[PROXY:9201] ${req.method} ${req.protocol}://${req.host}${req.url} -> ${proxyReq.target}${proxyReq.path}`
-//         );
-//       },
-//       onError: (err, req, res) => {
-//         console.error("[PROXY ERROR]", err);
-//         res.status(500).send("Proxy Error");
-//       },
-//     },
-//   },
-// });
+
+// #endregion 测试代理下载文件
