@@ -10,15 +10,21 @@ createServer(9999, {
   printProxy: true,
   routes: [
     {
-      path: "/file",
+      path: "/app",
       children: [
         {
-          path: "/download",
-          method: "get",
+          path: "/downloadFile",
+          method: "post",
           handlers: [
             async (request, response) => {
               try {
                 const { isChunk: isChunkStr } = request.query as any;
+                console.log(
+                  "request.body",
+                  request.body,
+                  request.params,
+                  request.query
+                );
                 const isChunk = isChunkStr === "true";
 
                 // 构建文件路径
