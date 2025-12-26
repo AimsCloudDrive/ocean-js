@@ -17,7 +17,6 @@ createServer(9999, {
           method: "get",
           handlers: [
             async (request, response) => {
-              console.log("download");
               try {
                 const { isChunk: isChunkStr } = request.query as any;
                 const isChunk = isChunkStr === "true";
@@ -25,11 +24,10 @@ createServer(9999, {
                 // 构建文件路径
                 const fileName = "aaaa.jpg";
                 const filePath = path.resolve(".", fileName);
-                console.log("filePath", filePath);
 
                 // 检查文件是否存在
                 if (!fs.existsSync(filePath)) {
-                  response.status(404).json(new CodeResult(1, "文件不存在"));
+                  response.status(404).json(new CodeResult(1));
                   return;
                 }
 
