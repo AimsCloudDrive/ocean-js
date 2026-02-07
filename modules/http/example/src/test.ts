@@ -14,7 +14,7 @@ createServer(9999, {
       children: [
         {
           path: "/downloadFile",
-          method: "post",
+          method: "get",
           handlers: [
             async (request, response) => {
               try {

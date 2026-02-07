@@ -1,0 +1,594 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "事件管理系统 API",
+    "description": "事件管理系统的RESTful API，用于对事件数据进行增删改查操作",
+    "version": "1.0.0",
+    "contact": {
+      "name": "开发团队",
+      "email": "developer@example.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:9208",
+      "description": "开发环境服务器"
+    }
+  ],
+  "paths": {
+    "/api/events/query": {
+      "post": {
+        "tags": ["事件管理"],
+        "summary": "查询事件列表",
+        "description": "查询事件列表，支持分页和条件筛选",
+        "operationId": "queryEvents",
+        "requestBody": {
+          "description": "查询条件",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{eventId}": {
+      "get": {
+        "tags": ["事件管理"],
+        "summary": "获取事件详情",
+        "description": "根据ID获取事件详情",
+        "operationId": "getEvent",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "description": "事件ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "事件不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["事件管理"],
+        "summary": "更新事件",
+        "description": "根据ID更新事件",
+        "operationId": "updateEvent",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "description": "事件ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "更新数据",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "事件不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["事件管理"],
+        "summary": "删除事件",
+        "description": "根据ID删除事件",
+        "operationId": "deleteEvent",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "description": "事件ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "事件不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "post": {
+        "tags": ["事件管理"],
+        "summary": "创建事件",
+        "description": "创建新事件",
+        "operationId": "createEvent",
+        "requestBody": {
+          "description": "事件数据",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EventQuery": {
+        "type": "object",
+        "properties": {
+          "pageNo": {
+            "type": "integer",
+            "description": "页码",
+            "default": 1,
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "每页条数",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "urgencyDegree": {
+            "type": "string",
+            "description": "紧急程度",
+            "enum": ["0", "1", "2", "3"],
+            "example": "0"
+          },
+          "eventCategory": {
+            "type": "string",
+            "description": "事件大类",
+            "example": "1"
+          },
+          "eventSubCategory": {
+            "type": "string",
+            "description": "事件二级分类",
+            "example": "2"
+          },
+          "eventSource": {
+            "type": "string",
+            "description": "事件来源",
+            "example": "0"
+          },
+          "state": {
+            "type": "string",
+            "description": "状态",
+            "enum": ["0", "1", "2", "3", "4", "5"],
+            "example": "1"
+          }
+        },
+        "description": "事件查询条件"
+      },
+      "EventCreate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "事件标题",
+            "example": "新事件标题"
+          },
+          "urgencyDegree": {
+            "type": "string",
+            "description": "紧急程度",
+            "enum": ["0", "1", "2", "3"],
+            "default": "0",
+            "example": "1"
+          },
+          "eventCategory": {
+            "type": "string",
+            "description": "事件大类",
+            "default": "0",
+            "example": "2"
+          },
+          "eventSubCategory": {
+            "type": "string",
+            "description": "事件二级分类",
+            "default": "0",
+            "example": "3"
+          },
+          "occurrenceTime": {
+            "type": "string",
+            "description": "发生时间",
+            "format": "date-time",
+            "example": "2023-05-10 14:30:00"
+          },
+          "eventSource": {
+            "type": "string",
+            "description": "事件来源",
+            "default": "0",
+            "example": "1"
+          },
+          "state": {
+            "type": "string",
+            "description": "状态",
+            "enum": ["0", "1", "2", "3", "4", "5"],
+            "default": "0",
+            "example": "0"
+          }
+        },
+        "description": "创建事件请求"
+      },
+      "EventUpdate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "事件标题",
+            "example": "更新后的事件标题"
+          },
+          "urgencyDegree": {
+            "type": "string",
+            "description": "紧急程度",
+            "enum": ["0", "1", "2", "3"],
+            "example": "1"
+          },
+          "eventCategory": {
+            "type": "string",
+            "description": "事件大类",
+            "example": "2"
+          },
+          "eventSubCategory": {
+            "type": "string",
+            "description": "事件二级分类",
+            "example": "3"
+          },
+          "occurrenceTime": {
+            "type": "string",
+            "description": "发生时间",
+            "format": "date-time",
+            "example": "2023-05-10 14:30:00"
+          },
+          "eventSource": {
+            "type": "string",
+            "description": "事件来源",
+            "example": "1"
+          },
+          "state": {
+            "type": "string",
+            "description": "状态",
+            "enum": ["0", "1", "2", "3", "4", "5"],
+            "example": "2"
+          }
+        },
+        "description": "更新事件请求"
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "description": "序号",
+            "example": 1
+          },
+          "eventId": {
+            "type": "string",
+            "description": "事件ID",
+            "example": "EVENT-ABC123XYZ"
+          },
+          "title": {
+            "type": "string",
+            "description": "事件标题",
+            "example": "事件标题"
+          },
+          "urgencyDegree": {
+            "type": "string",
+            "description": "紧急程度",
+            "enum": ["0", "1", "2", "3"],
+            "example": "0"
+          },
+          "eventCategory": {
+            "type": "string",
+            "description": "事件大类",
+            "example": "1"
+          },
+          "eventSubCategory": {
+            "type": "string",
+            "description": "事件二级分类",
+            "example": "2"
+          },
+          "occurrenceTime": {
+            "type": "string",
+            "description": "发生时间",
+            "format": "date-time",
+            "example": "2023-05-10 14:30:00"
+          },
+          "eventSource": {
+            "type": "string",
+            "description": "事件来源",
+            "example": "0"
+          },
+          "state": {
+            "type": "string",
+            "description": "状态",
+            "enum": ["0", "1", "2", "3", "4", "5"],
+            "example": "1"
+          }
+        },
+        "description": "事件数据模型"
+      },
+      "QueryResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "响应码",
+            "default": "00000",
+            "example": "00000"
+          },
+          "message": {
+            "type": "string",
+            "description": "响应消息",
+            "default": "查询成功",
+            "example": "查询成功"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "description": "总条数",
+                "example": 1000
+              },
+              "dataType": {
+                "type": "string",
+                "description": "数据类型",
+                "default": "list",
+                "example": "list"
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Event"
+                },
+                "description": "数据列表"
+              }
+            }
+          }
+        },
+        "description": "查询响应"
+      },
+      "EventResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "响应码",
+            "default": "00000",
+            "example": "00000"
+          },
+          "message": {
+            "type": "string",
+            "description": "响应消息",
+            "example": "操作成功"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "dataType": {
+                "type": "string",
+                "description": "数据类型",
+                "default": "single",
+                "example": "single"
+              },
+              "data": {
+                "$ref": "#/components/schemas/Event"
+              }
+            }
+          }
+        },
+        "description": "事件响应"
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "响应码",
+            "default": "00000",
+            "example": "00000"
+          },
+          "message": {
+            "type": "string",
+            "description": "响应消息",
+            "example": "操作成功"
+          }
+        },
+        "description": "成功响应"
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "响应码",
+            "default": "50000",
+            "example": "50000"
+          },
+          "message": {
+            "type": "string",
+            "description": "响应消息",
+            "example": "操作失败"
+          },
+          "error": {
+            "type": "string",
+            "description": "错误信息",
+            "example": "服务器内部错误"
+          }
+        },
+        "description": "错误响应"
+      },
+      "NotFoundResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "响应码",
+            "default": "40400",
+            "example": "40400"
+          },
+          "message": {
+            "type": "string",
+            "description": "响应消息",
+            "example": "资源不存在"
+          }
+        },
+        "description": "未找到响应"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "事件管理",
+      "description": "事件相关的API接口"
+    }
+  ],
+  "security": []
+}
