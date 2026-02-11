@@ -9,10 +9,10 @@ interface ClientOption {
 }
 
 export class Client {
-  private declare host: string;
-  private declare port: number;
-  private declare protocol: string;
-  private declare api: string;
+  declare private host: string;
+  declare private port: number;
+  declare private protocol: string;
+  declare private api: string;
   constructor(option: ClientOption = {}) {
     const { host = "localhost", protocol = "http", api = "" } = option;
     let port = option.port;
