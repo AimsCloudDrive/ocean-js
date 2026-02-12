@@ -5,9 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "server": "pnpm run build && node ./dist/index.js",
-    "dev": "xbuild dev -c ../xbuild.config.ts",
-    "build": "xbuild build -c ../xbuild.config.ts"
+    "server": "pnpm run build && node ./main.js",
+    "dev": "xbuild dev -c ./xbuild.config.ts",
+    "build": "xbuild build -c ./xbuild.config.ts"
   },
   "keywords": [],
   "author": "",
