@@ -1,10 +1,13 @@
 import { ServerRoute } from "@msom/http";
 import { businessModules } from "./business_module";
+import { uuidv7 } from "uuidv7";
+import { createQueryOne } from "./common";
 
 // 模拟 bbx_analysis_items 表的数据
 const bbxAnalysisItems: any[] = [
   {
     id: "1",
+    uuid: uuidv7(),
     moduleUuid: "1234567890abcdef1234567890abcdef",
     itemCode: "001",
     itemName: "现金核查",
@@ -17,6 +20,7 @@ const bbxAnalysisItems: any[] = [
   },
   {
     id: "2",
+    uuid: uuidv7(),
     moduleUuid: "234567890abcdef1234567890abcdef1",
     itemCode: "002",
     itemName: "交易复核",
@@ -29,6 +33,7 @@ const bbxAnalysisItems: any[] = [
   },
   {
     id: "3",
+    uuid: uuidv7(),
     moduleUuid: "34567890abcdef1234567890abcdef12",
     itemCode: "003",
     itemName: "服务检查",
@@ -41,6 +46,7 @@ const bbxAnalysisItems: any[] = [
   },
   {
     id: "4",
+    uuid: uuidv7(),
     moduleUuid: "4567890abcdef1234567890abcdef123",
     itemCode: "004",
     itemName: "厅堂管理",
@@ -113,6 +119,13 @@ const routes: ServerRoute[] = [
           data: paginatedData,
           total: filteredData.length,
         });
+      },
+    ],
+    children: [
+      {
+        path: "/:uuid",
+        method: "get",
+        handlers: [createQueryOne(() => bbxAnalysisItems, "uuid", "uuid")],
       },
     ],
   },
@@ -221,6 +234,33 @@ const routes: ServerRoute[] = [
           message: "success",
           data: deletedItem,
           total: 1,
+        });
+      },
+    ],
+  },
+  {
+    path: "/business/analysis/items/loadTree",
+    method: "get",
+    handlers: [
+      (req, res) => {
+        const tree = businessModules.map((module) => {
+          return {
+            ...module,
+            __node_type: "businessModule",
+            children: bbxAnalysisItems
+              .filter((item) => item.moduleUuid === module.uuid)
+              .map((item) => {
+                return {
+                  __node_type: "analysisItem",
+                  ...item,
+                };
+              }),
+          };
+        });
+        res.json({
+          code: 200,
+          message: "success",
+          data: tree,
         });
       },
     ],

@@ -1,5 +1,5 @@
-// const target = "http://demo.dx.it-fly.cn:9095";
-const target = "http://116.63.132.84:9095";
+const target = "http://demo.dx.it-fly.cn:9095";
+// const target = "http://116.63.132.84:9095";
 export const proxyConfig = {
   "/upms/": {
     target,

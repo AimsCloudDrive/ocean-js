@@ -1,4 +1,5 @@
 import { ServerRoute } from "@msom/http";
+import { createQueryOne } from "./common";
 
 // 模拟 business_modules 表的数据
 const businessModules: any[] = [
@@ -93,15 +94,22 @@ const routes: ServerRoute[] = [
         });
       },
     ],
+    children: [
+      {
+        path: "/:uuid",
+        method: "get",
+        handlers: [createQueryOne(() => businessModules, "uuid", "uuid")],
+      },
+    ],
   },
   {
     path: "/business/module/update",
     method: "put",
     handlers: [
       (req, res) => {
-        const { id, timestamp, ...data } = req.body;
+        const { id, uuid, timestamp, ...data } = req.body;
 
-        if (!id) {
+        if (!uuid) {
           res.json({
             code: 400,
             message: "error",
@@ -111,9 +119,9 @@ const routes: ServerRoute[] = [
           return;
         }
 
-        // 确保 id 比较时类型一致
+        // 确保 uuid 比较时类型一致
         const index = businessModules.findIndex(
-          (item) => item.id === id.toString(),
+          (item) => item.uuid === uuid.toString(),
         );
 
         if (index === -1) {
@@ -129,13 +137,7 @@ const routes: ServerRoute[] = [
         // 更新模块信息
         const updatedModule = {
           ...businessModules[index],
-          ...data,
-          moduleCode: data.moduleCode || businessModules[index].moduleCode,
           moduleName: data.moduleName || businessModules[index].moduleName,
-          delFlag:
-            data.delFlag !== undefined
-              ? data.delFlag
-              : businessModules[index].delFlag,
           updatedBy: "admin",
           updatedTime: new Date().toLocaleString(),
         };
