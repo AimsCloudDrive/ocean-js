@@ -6,7 +6,7 @@ import { createQueryOne } from "./common";
 // 模拟 bbx_analysis_items 表的数据
 const bbxAnalysisItems: any[] = [
   {
-    id: "1",
+    id: "bbxAnalysisItem1",
     uuid: uuidv7(),
     moduleUuid: "1234567890abcdef1234567890abcdef",
     itemCode: "001",
@@ -19,7 +19,7 @@ const bbxAnalysisItems: any[] = [
     updatedTime: "2026-02-11 10:00:00",
   },
   {
-    id: "2",
+    id: "bbxAnalysisItem2",
     uuid: uuidv7(),
     moduleUuid: "234567890abcdef1234567890abcdef1",
     itemCode: "002",
@@ -32,7 +32,7 @@ const bbxAnalysisItems: any[] = [
     updatedTime: "2026-02-11 10:00:00",
   },
   {
-    id: "3",
+    id: "bbxAnalysisItem3",
     uuid: uuidv7(),
     moduleUuid: "34567890abcdef1234567890abcdef12",
     itemCode: "003",
@@ -45,7 +45,7 @@ const bbxAnalysisItems: any[] = [
     updatedTime: "2026-02-11 10:00:00",
   },
   {
-    id: "4",
+    id: "bbxAnalysisItem4",
     uuid: uuidv7(),
     moduleUuid: "4567890abcdef1234567890abcdef123",
     itemCode: "004",
@@ -123,18 +123,19 @@ const routes: ServerRoute[] = [
     ],
     children: [
       {
-        path: "/:uuid",
+        path: "/:id",
         method: "get",
-        handlers: [createQueryOne(() => bbxAnalysisItems, "uuid", "uuid")],
+        handlers: [createQueryOne(() => bbxAnalysisItems, "id", "id")],
       },
     ],
   },
   {
-    path: "/business/analysis/items/update",
+    path: "/business/analysis/items/update/:id",
     method: "put",
     handlers: [
       (req, res) => {
-        const { id, timestamp, ...data } = req.body;
+        const { id: bodyId, uuid, timestamp, ...data } = req.body;
+        const { id } = req.params;
 
         if (!id) {
           res.json({
@@ -165,13 +166,6 @@ const routes: ServerRoute[] = [
         const updatedItem = {
           ...bbxAnalysisItems[index],
           ...data,
-          itemCode: data.itemCode || bbxAnalysisItems[index].itemCode,
-          itemName: data.itemName || bbxAnalysisItems[index].itemName,
-          itemDesc: data.itemDesc || bbxAnalysisItems[index].itemDesc,
-          delFlag:
-            data.delFlag !== undefined
-              ? data.delFlag
-              : bbxAnalysisItems[index].delFlag,
           updatedBy: "admin",
           updatedTime: new Date().toLocaleString(),
         };
@@ -188,11 +182,11 @@ const routes: ServerRoute[] = [
     ],
   },
   {
-    path: "/business/analysis/items/delete",
+    path: "/business/analysis/items/delete/:id",
     method: "delete",
     handlers: [
       (req, res) => {
-        const { id } = req.query;
+        const { id } = req.params;
 
         if (id == undefined) {
           res.json({
@@ -243,20 +237,25 @@ const routes: ServerRoute[] = [
     method: "get",
     handlers: [
       (req, res) => {
-        const tree = businessModules.map((module) => {
-          return {
-            ...module,
-            __node_type: "businessModule",
-            children: bbxAnalysisItems
-              .filter((item) => item.moduleUuid === module.uuid)
-              .map((item) => {
-                return {
-                  __node_type: "analysisItem",
-                  ...item,
-                };
-              }),
-          };
-        });
+        const tree = businessModules
+          .filter((module) => module.delFlag === "0")
+          .map((module) => {
+            return {
+              ...module,
+              __node_type: "businessModule",
+              children: bbxAnalysisItems
+                .filter(
+                  (item) =>
+                    item.moduleUuid === module.uuid && item.delFlag === "0",
+                )
+                .map((item) => {
+                  return {
+                    __node_type: "analysisItem",
+                    ...item,
+                  };
+                }),
+            };
+          });
         res.json({
           code: 200,
           message: "success",

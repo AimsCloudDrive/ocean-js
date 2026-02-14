@@ -4,9 +4,10 @@ import bodyParser from "body-parser";
 // 导入路由
 import businessModuleRoutes from "./business_module";
 import bbxAnalysisItemsRoutes from "./bbx_analysis_items";
+import bbxResultMappingRoutes from "./bbx_result_mapping";
 
 // 合并所有路由
-const allRoutes = [...businessModuleRoutes, ...bbxAnalysisItemsRoutes];
+const allRoutes = [...businessModuleRoutes, ...bbxAnalysisItemsRoutes, ...bbxResultMappingRoutes];
 
 createServer(65500, {
   middles: {

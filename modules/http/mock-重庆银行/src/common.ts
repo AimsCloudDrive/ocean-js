@@ -16,7 +16,7 @@ export const createQueryOne = (
     const value = req.params[param];
     const datas = getDatas();
     const index = datas.findIndex(
-      (item) => item[dataField] === value.toString(),
+      (item) => item[dataField].toString() === value.toString(),
     );
     if (index === -1) {
       res.json({

@@ -8,7 +8,7 @@ const proxyConfig = {
   // 其他代理配置
   ...defaultProxyConfig,
   // 默认转发到 mock-server
-  "/": {
+  "/mock-server/": {
     target: "http://localhost:65500",
     changeOrigin: true,
     pathRewrite: {

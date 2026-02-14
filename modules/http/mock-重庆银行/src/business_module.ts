@@ -4,7 +4,7 @@ import { createQueryOne } from "./common";
 // 模拟 business_modules 表的数据
 const businessModules: any[] = [
   {
-    id: "1",
+    id: "businessModule1",
     uuid: "1234567890abcdef1234567890abcdef",
     moduleCode: "01",
     moduleName: "现金督查",
@@ -15,7 +15,7 @@ const businessModules: any[] = [
     updatedTime: "2026-02-11 10:00:00",
   },
   {
-    id: "2",
+    id: "businessModule2",
     uuid: "234567890abcdef1234567890abcdef1",
     moduleCode: "02",
     moduleName: "交易复检",
@@ -26,7 +26,7 @@ const businessModules: any[] = [
     updatedTime: "2026-02-11 10:00:00",
   },
   {
-    id: "3",
+    id: "businessModule3",
     uuid: "34567890abcdef1234567890abcdef12",
     moduleCode: "03",
     moduleName: "服务监督",
@@ -37,7 +37,7 @@ const businessModules: any[] = [
     updatedTime: "2026-02-11 10:00:00",
   },
   {
-    id: "4",
+    id: "businessModule4",
     uuid: "4567890abcdef1234567890abcdef123",
     moduleCode: "04",
     moduleName: "厅堂助手",
@@ -96,20 +96,21 @@ const routes: ServerRoute[] = [
     ],
     children: [
       {
-        path: "/:uuid",
+        path: "/:id",
         method: "get",
-        handlers: [createQueryOne(() => businessModules, "uuid", "uuid")],
+        handlers: [createQueryOne(() => businessModules, "id", "id")],
       },
     ],
   },
   {
-    path: "/business/module/update",
+    path: "/business/module/update/:id",
     method: "put",
     handlers: [
       (req, res) => {
-        const { id, uuid, timestamp, ...data } = req.body;
+        const { id: _, uuid, timestamp, ...data } = req.body;
+        const { id } = req.params;
 
-        if (!uuid) {
+        if (!id) {
           res.json({
             code: 400,
             message: "error",
@@ -119,9 +120,9 @@ const routes: ServerRoute[] = [
           return;
         }
 
-        // 确保 uuid 比较时类型一致
+        // 确保 id 比较时类型一致
         const index = businessModules.findIndex(
-          (item) => item.uuid === uuid.toString(),
+          (item) => item.id === id.toString(),
         );
 
         if (index === -1) {
@@ -154,11 +155,11 @@ const routes: ServerRoute[] = [
     ],
   },
   {
-    path: "/business/module/delete",
+    path: "/business/module/delete/:id",
     method: "put",
     handlers: [
       (req, res) => {
-        const { id, timestamp } = req.body;
+        const { id } = req.params;
 
         if (!id) {
           res.json({
