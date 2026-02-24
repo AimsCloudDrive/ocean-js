@@ -189,14 +189,14 @@ const routes: ServerRoute[] = [
   },
   // 更新
   {
-    path: "/business/result/mapping/update/:uuid",
+    path: "/business/result/mapping/update/:id",
     method: "put",
     handlers: [
       (req, res) => {
-        const { id, uuid: _, timestamp, ...data } = req.body;
-        const { uuid } = req.params;
+        const { id: bodyId, uuid, timestamp, ...data } = req.body;
+        const { id } = req.params;
 
-        if (!uuid) {
+        if (!id) {
           res.json({
             code: 400,
             message: "error",
@@ -206,9 +206,9 @@ const routes: ServerRoute[] = [
           return;
         }
 
-        // 确保 uuid 比较时类型一致
+        // 确保 id 比较时类型一致
         const index = bbxResultMapping.findIndex(
-          (item) => item.uuid === uuid.toString(),
+          (item) => item.id === id.toString(),
         );
 
         if (index === -1) {
@@ -242,13 +242,13 @@ const routes: ServerRoute[] = [
   },
   // 启用
   {
-    path: "/business/result/mapping/enable/:uuid",
+    path: "/business/result/mapping/enable/:id",
     method: "put",
     handlers: [
       (req, res) => {
-        const { uuid } = req.params;
+        const { id } = req.params;
 
-        if (!uuid) {
+        if (!id) {
           res.json({
             code: 400,
             message: "error",
@@ -258,62 +258,9 @@ const routes: ServerRoute[] = [
           return;
         }
 
-        // 确保 uuid 比较时类型一致
+        // 确保 id 比较时类型一致
         const index = bbxResultMapping.findIndex(
-          (item) => item.uuid === uuid.toString(),
-        );
-
-        if (index === -1) {
-          res.json({
-            code: 404,
-            message: "error",
-            data: null,
-            total: 0,
-          });
-          return;
-        }
-
-        // 切换启用/禁用状态
-        const currentItem = bbxResultMapping[index];
-        const toggledItem = {
-          ...currentItem,
-          delFlag: 1,
-          updatedBy: "admin",
-          updatedTime: new Date().toLocaleString(),
-        };
-
-        bbxResultMapping[index] = toggledItem;
-
-        res.json({
-          code: 200,
-          message: "success",
-          data: toggledItem,
-          total: 1,
-        });
-      },
-    ],
-  },
-  // 禁用
-  {
-    path: "/business/result/mapping/disable/:uuid",
-    method: "put",
-    handlers: [
-      (req, res) => {
-        const { uuid } = req.params;
-
-        if (!uuid) {
-          res.json({
-            code: 400,
-            message: "error",
-            data: null,
-            total: 0,
-          });
-          return;
-        }
-
-        // 确保 uuid 比较时类型一致
-        const index = bbxResultMapping.findIndex(
-          (item) => item.uuid === uuid.toString(),
+          (item) => item.id === id.toString(),
         );
 
         if (index === -1) {
@@ -331,6 +278,59 @@ const routes: ServerRoute[] = [
         const toggledItem = {
           ...currentItem,
           delFlag: 0,
+          updatedBy: "admin",
+          updatedTime: new Date().toLocaleString(),
+        };
+
+        bbxResultMapping[index] = toggledItem;
+
+        res.json({
+          code: 200,
+          message: "success",
+          data: toggledItem,
+          total: 1,
+        });
+      },
+    ],
+  },
+  // 禁用
+  {
+    path: "/business/result/mapping/disable/:id",
+    method: "put",
+    handlers: [
+      (req, res) => {
+        const { id } = req.params;
+
+        if (!id) {
+          res.json({
+            code: 400,
+            message: "error",
+            data: null,
+            total: 0,
+          });
+          return;
+        }
+
+        // 确保 id 比较时类型一致
+        const index = bbxResultMapping.findIndex(
+          (item) => item.id === id.toString(),
+        );
+
+        if (index === -1) {
+          res.json({
+            code: 404,
+            message: "error",
+            data: null,
+            total: 0,
+          });
+          return;
+        }
+
+        // 切换启用/禁用状态
+        const currentItem = bbxResultMapping[index];
+        const toggledItem = {
+          ...currentItem,
+          delFlag: 1,
           updatedBy: "admin",
           updatedTime: new Date().toLocaleString(),
         };
