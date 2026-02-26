@@ -1,6 +1,6 @@
+import { assert } from "../../assert";
 import { Nullable, createFunction, tryCall } from "../../global";
 import { nextTick } from "../nextTick";
-import { OcPromiseRejectError } from "./OcPromiseError";
 import {
   CANCELED,
   Cancel,
@@ -22,33 +22,32 @@ import { isOcPromiseLike, isPromiseLike } from "./utils";
 /**
  * OcPromise 类 - 扩展的 Promise 实现，支持取消操作
  * @template R - 成功状态的返回值类型
- * @template E - 错误类型，默认为 OcPromiseRejectError
+ * @template E - 错误类型
  * @template C - 取消操作的原因类型
  */
 export class OcPromise<
   R,
-  E extends Error | unknown = OcPromiseRejectError,
-  C = unknown
-> implements OcPromiseLike<R>
-{
+  E = Error | unknown,
+  C = unknown,
+> implements OcPromiseLike<R> {
   /** 当前 Promise 的状态 */
   declare status: OcPromiseStatus;
 
   /** 处理函数队列 */
-  private declare handlers: {
+  declare private handlers: {
     resolve: Resolve<unknown>;
     reject: Reject<Error | unknown>;
     cancel: Cancel<unknown>;
-    onfulfilled: Nullable | createFunction<[R, unknown]>;
-    onrejected: Nullable | createFunction<[E | unknown, unknown]>;
-    oncanceled: Nullable | createFunction<[C, unknown]>;
+    onFulfilled: Nullable | createFunction<[R, unknown]>;
+    onRejected: Nullable | createFunction<[E | unknown, unknown]>;
+    onCanceled: Nullable | createFunction<[C, unknown]>;
   }[];
 
   /** 存储当前值（完成值/错误/取消原因） */
   declare data: R | E | C;
 
   /** 父 Promise，用于取消操作的传播 */
-  private declare parrent:
+  declare private parrent:
     | OcPromise<unknown, Error | unknown, unknown>
     | undefined;
 
@@ -98,15 +97,15 @@ export class OcPromise<
    * 添加完成、错误和取消的处理函数
    */
   then<TR = R, TE = never, TC = never>(
-    onfulfilled?:
+    onFulfilled?:
       | Nullable
       | createFunction<[R, OcPromiseLike<TR> | PromiseLike<TR> | TR]>,
-    onrejected?:
+    onRejected?:
       | Nullable
       | createFunction<[E, OcPromiseLike<TE> | PromiseLike<TE> | TE]>,
-    oncanceled?:
+    onCanceled?:
       | Nullable
-      | createFunction<[C, OcPromiseLike<TC> | PromiseLike<TC> | TC]>
+      | createFunction<[C, OcPromiseLike<TC> | PromiseLike<TC> | TC]>,
   ): OcPromise<TR | TE | TC> {
     // 创建新的 OcPromise 实例
     const res = new OcPromise<TR | TE | TC>((resolve, reject, cancel) => {
@@ -115,9 +114,9 @@ export class OcPromise<
         resolve,
         reject,
         cancel,
-        onfulfilled,
-        onrejected,
-        oncanceled,
+        onFulfilled,
+        onRejected,
+        onCanceled,
       });
       // 尝试执行处理函数队列
       this._runThens();
@@ -141,10 +140,10 @@ export class OcPromise<
     D extends R | E | C = T extends Fulfilled
       ? R
       : T extends Rejected
-      ? R
-      : T extends Canceled
-      ? C
-      : never
+        ? R
+        : T extends Canceled
+          ? C
+          : never,
   >(status: T, data: D) {
     // 只有在等待状态时才能改变状态
     if (this.status !== PENDDING) {
@@ -170,29 +169,30 @@ export class OcPromise<
     // 依次处理队列中的处理函数
     while (this.handlers.length) {
       // 取出队列中的第一个处理函数组
-      const handler = this.handlers.shift()!;
-      const { resolve, reject, cancel, onfulfilled, onrejected, oncanceled } =
+      const handler = this.handlers.shift();
+      assert(handler, "handler should be defined");
+      const { resolve, reject, cancel, onFulfilled, onRejected, onCanceled } =
         handler;
 
       // 根据当前状态选择要执行的处理函数，未传对应处理函数则状态穿透
       const exe =
         this.status === FULFILLED
-          ? onfulfilled
+          ? onFulfilled
             ? // 如果有完成处理函数，则调用它
-              () => tryCall(onfulfilled, [this.data as R])
+              () => tryCall(onFulfilled, [this.data as R])
             : // 否则直接调用 resolve
               (resolve(this.data), undefined)
           : this.status === REJECTED
-          ? onrejected
-            ? // 如果有拒绝处理函数，则调用它
-              () => tryCall(onrejected, [this.data as E])
-            : // 否则直接调用 reject
-              (reject(this.data), undefined)
-          : oncanceled
-          ? // 如果有取消处理函数，则调用它
-            () => tryCall(oncanceled, [this.data as C])
-          : // 否则直接调用 cancel
-            (cancel(this.data), undefined);
+            ? onRejected
+              ? // 如果有拒绝处理函数，则调用它
+                () => tryCall(onRejected, [this.data as E])
+              : // 否则直接调用 reject
+                (reject(this.data), undefined)
+            : onCanceled
+              ? // 如果有取消处理函数，则调用它
+                () => tryCall(onCanceled, [this.data as C])
+              : // 否则直接调用 cancel
+                (cancel(this.data), undefined);
 
       // 如果没有要执行的函数thenable回调，继续下一个
       if (!exe) continue;
@@ -208,7 +208,7 @@ export class OcPromise<
               data.then(
                 resolve,
                 reject,
-                (reason) => (this.cancel(reason as C), cancel(reason as C))
+                (reason) => (this.cancel(reason as C), cancel(reason as C)),
               );
             });
           } else if (isPromiseLike(data)) {
@@ -250,7 +250,7 @@ export class OcPromise<
    * @returns 包含所有结果的 Promise
    */
   static all<T>(
-    proms: Iterable<T | OcPromiseLike<Awaited<T>>>
+    proms: Iterable<T | OcPromiseLike<Awaited<T>>>,
   ): OcPromise<Awaited<T>[]> {
     // 存储所有 Promise 的结果
     const result: Awaited<T>[] = [];
@@ -305,7 +305,7 @@ export class OcPromise<
    * @param value - 要解析的值
    */
   static resolve<T extends void | unknown = void>(
-    value: T
+    value: T,
   ): OcPromise<Awaited<T>> {
     if (isOcPromise<Awaited<T>>(value)) {
       return value;
@@ -331,9 +331,7 @@ export class OcPromise<
    * @template E - 错误类型
    * @param reason - 拒绝原因
    */
-  static reject<E extends OcPromiseRejectError | unknown = unknown>(
-    reason: E
-  ): OcPromise<unknown, E> {
+  static reject<E = unknown>(reason: E): OcPromise<unknown, E> {
     return new OcPromise((_, reject) => {
       reject(reason);
     });
@@ -341,10 +339,10 @@ export class OcPromise<
 
   /**
    * 添加取消处理函数
-   * @param oncanceled - 取消处理函数
+   * @param onCanceled - 取消处理函数
    */
-  canceled(oncanceled: Cancel<C>) {
-    return this.then(null, null, oncanceled);
+  canceled(onCanceled: Cancel<C>) {
+    return this.then(null, null, onCanceled);
   }
 
   /**
@@ -376,7 +374,7 @@ export class OcPromise<
 export function isOcPromise<
   PR,
   PE extends Error | unknown = Error,
-  PC = unknown
+  PC = unknown,
 >(data: unknown): data is OcPromise<PR, PE, PC> {
   return data instanceof OcPromise;
 }
