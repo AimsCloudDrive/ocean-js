@@ -429,11 +429,9 @@ export interface PromiseResolvers<T = unknown, E = unknown, C = unknown> {
  * @template PC - Promise 取消类型
  * @param data - 要检查的值
  */
-export function isOcPromise<
-  PR,
-  PE extends Error | unknown = Error,
-  PC = unknown,
->(data: unknown): data is OcPromise<PR, PE, PC> {
+export function isOcPromise<PR = any, PE = any, PC = any>(
+  data: unknown,
+): data is OcPromise<PR, PE, PC> {
   return data instanceof OcPromise;
 }
 
