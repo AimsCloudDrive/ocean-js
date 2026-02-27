@@ -63,7 +63,7 @@ function createDom(fiber: Fiber): Text | HTMLElement {
 const DOMEVENTBINDSYMBOL = Symbol("eb");
 
 function updateDom<
-  T extends Msom.JSX.ElementType | keyof Msom.JSX.IntrinsicElements
+  T extends Msom.JSX.ElementType | keyof Msom.JSX.IntrinsicElements,
 >(dom: HTMLElement | Text, prevProps: Msom.H<T>, nextProps: Msom.H<T>) {
   const {
     $ref,
@@ -142,7 +142,7 @@ export function render(
   element: Msom.MsomElement,
   container: HTMLElement,
   _wipRoot: Observer<Fiber | null> = wipRoot,
-  _currentRoot: Observer<Fiber> = currentRoot
+  _currentRoot: Observer<Fiber> = currentRoot,
 ) {
   deletions.set(deletions.get() || []);
   _wipRoot.set({
@@ -273,7 +273,7 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
         (Object.is(fiber.alternate.type, fiber.type) ||
           Object.is(
             fiber.alternate.props.$key ?? Symbol(),
-            props.$key ?? Symbol()
+            props.$key ?? Symbol(),
           ))
       ) {
         const oldComponent = fiber.alternate.component;
@@ -361,13 +361,13 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
     const processRender = (
       v: Msom.MsomNode,
       wipRoot: Observer<Fiber>,
-      currentRoot: Observer<Fiber>
+      currentRoot: Observer<Fiber>,
     ) => {
       assert(fiber.dom);
       if (v === undefined || v === null || v === false) {
         return;
       }
-      if (isPromiseLike(v)) {
+      if (isPromiseLike<any, any>(v)) {
         v.then((res) => processRender(res, wipRoot, currentRoot));
       } else if (isArray(v) || isIterator(v)) {
         for (v of v) {
@@ -378,7 +378,7 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
           createTextElement(v.toString()),
           fiber.dom as HTMLElement,
           wipRoot,
-          currentRoot
+          currentRoot,
         );
       } else {
         render(v, fiber.dom as HTMLElement, wipRoot, currentRoot);
@@ -406,8 +406,8 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
           ne = component.render();
         },
         updateHandle, // 后续更新将从该组件开始更新
-        { scheduler: "nextTick" }
-      ).disposer()
+        { scheduler: "nextTick" },
+      ).disposer(),
     );
     // 处理不同类型的子元素
     const processRender2 = (v: Msom.MsomNode) => {
@@ -415,7 +415,7 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
       if (v === undefined || v === null || v === false) {
         return;
       }
-      if (isPromiseLike(v)) {
+      if (isPromiseLike<any, any>(v)) {
         // 处理Promise-like对象,新开工作根
         processRender(v, root.wipRoot, root.currentRoot);
       } else if (isArray(v) || isIterator(v)) {
@@ -491,7 +491,7 @@ function commitWork(fiber?: Fiber | null) {
       renderComponentVNode(
         newVNode as Msom.MsomElement,
         tempContainer,
-        component
+        component,
       );
 
       // 将新DOM添加到父容器
@@ -556,7 +556,7 @@ function commitWork(fiber?: Fiber | null) {
 function renderComponentVNode(
   vnode: Msom.MsomElement,
   container: HTMLElement | DocumentFragment,
-  component: IComponent
+  component: IComponent,
 ): void {
   if (!vnode) {
     return;
@@ -565,7 +565,7 @@ function renderComponentVNode(
   // 处理不同类型的VNode
   if (vnode.type === TEXT_NODE) {
     const textNode = document.createTextNode(
-      String(vnode.props.nodeValue || "")
+      String(vnode.props.nodeValue || ""),
     );
     container.appendChild(textNode);
     setComponentVNode(component, {
@@ -601,7 +601,7 @@ function renderComponentVNode(
         const eventName = key.slice(2).toLowerCase();
         const wrappedHandler = function (
           this: typeof dom,
-          e: globalThis.Event
+          e: globalThis.Event,
         ) {
           const _e = new Proxy(e as any, {
             get: (target, prop, receiver) => {
@@ -658,7 +658,7 @@ function renderComponentVNode(
         renderComponentVNode(
           nestedVNode as Msom.MsomElement,
           container,
-          nestedComponent
+          nestedComponent,
         );
       }
       nestedComponent.rendered();

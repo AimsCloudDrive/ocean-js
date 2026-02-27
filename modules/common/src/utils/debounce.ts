@@ -24,7 +24,7 @@ import { CANCELED, OcPromise, PENDDING } from "../promise/OcPromise";
 function debounce<
   T extends (...args: any[]) => any,
   Args extends Parameters<T> = Parameters<T>,
-  Returns extends ReturnType<T> = ReturnType<T>
+  Returns extends ReturnType<T> = ReturnType<T>,
 >(
   callable: T,
   wait: number = 100,
@@ -32,8 +32,8 @@ function debounce<
     leading?: boolean;
     trailing?: boolean;
     maxWait?: number;
-  } = {}
-): (...args: Args) => OcPromise<Returns> {
+  } = {},
+): (...args: Args) => OcPromise<Returns, any, any> {
   // 参数校验
   if (typeof callable !== "function") {
     throw new TypeError("Expected a function");
@@ -57,7 +57,7 @@ function debounce<
   let lastCallTime: number | null = null;
   let lastArgs: any[] | null = null;
   let lastThis: any;
-  let lastResult: OcPromise<Returns>;
+  let lastResult: OcPromise<Returns, any, any>;
   let pendingResolve: ((value: Returns) => void) | null = null;
 
   // 清除定时器

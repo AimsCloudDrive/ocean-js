@@ -73,18 +73,18 @@ export type InferResultR<TR = never, TE = never, TC = never> =
 export type InferResultE<TR = never, TE = never, TC = never> =
   | (TR extends PromiseLike<any, infer E>
       ? E
-      : TR extends Promise<infer E>
-        ? E
+      : TR extends Promise<any>
+        ? unknown
         : never)
   | (TE extends PromiseLike<any, infer E>
       ? E
-      : TE extends Promise<infer E>
-        ? E
+      : TE extends Promise<any>
+        ? unknown
         : never)
   | (TC extends PromiseLike<any, infer E>
       ? E
-      : TC extends Promise<infer E>
-        ? E
+      : TC extends Promise<any>
+        ? unknown
         : never);
 
 export type InferResultC<TR = never, TE = never, TC = never> =

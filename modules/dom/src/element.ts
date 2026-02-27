@@ -72,7 +72,7 @@ export function compareAttributes(
     "$context",
     "_dom",
     "_events",
-  ]
+  ],
 ): AttributeChange[] {
   const changes: AttributeChange[] = [];
   const allKeys = new Set([...Object.keys(oldProps), ...Object.keys(newProps)]);
@@ -122,14 +122,14 @@ export function compareAttributes(
  */
 export function compareEvents(
   oldProps: Record<string, any>,
-  newProps: Record<string, any>
+  newProps: Record<string, any>,
 ): EventChange[] {
   const changes: EventChange[] = [];
   const oldEventKeys = Object.keys(oldProps).filter((key) =>
-    key.startsWith("on")
+    key.startsWith("on"),
   );
   const newEventKeys = Object.keys(newProps).filter((key) =>
-    key.startsWith("on")
+    key.startsWith("on"),
   );
   const allEventKeys = new Set([...oldEventKeys, ...newEventKeys]);
 
@@ -175,7 +175,7 @@ export function compareEvents(
  */
 export function applyAttributeChanges(
   dom: HTMLElement | Text,
-  changes: AttributeChange[]
+  changes: AttributeChange[],
 ): void {
   for (const change of changes) {
     switch (change.type) {
@@ -220,7 +220,7 @@ export function applyAttributeChanges(
 export function applyEventChanges(
   dom: HTMLElement | Text,
   changes: EventChange[],
-  eventMap: Map<string, EventListener>
+  eventMap: Map<string, EventListener>,
 ): void {
   for (const change of changes) {
     switch (change.type) {
@@ -228,7 +228,7 @@ export function applyEventChanges(
         if (change.newHandler) {
           const wrappedHandler = function (
             this: typeof dom,
-            e: globalThis.Event
+            e: globalThis.Event,
           ) {
             const _e = new Proxy(e as any, {
               get: (target, prop, receiver) => {
@@ -257,7 +257,7 @@ export function applyEventChanges(
         if (change.newHandler) {
           const wrappedHandler = function (
             this: typeof dom,
-            e: globalThis.Event
+            e: globalThis.Event,
           ) {
             const _e = new Proxy(e as any, {
               get: (target, prop, receiver) => {
@@ -287,7 +287,7 @@ export function applyEventChanges(
 }
 
 export function isIterator<T extends unknown = unknown>(
-  v: unknown
+  v: unknown,
 ): v is Iterable<T> {
   if ((typeof v === "object" && v !== null) || typeof v === "function") {
     return Reflect.has(v, Symbol.iterator);
@@ -341,7 +341,7 @@ export function createTextElement(text: string | Function): Msom.MsomElement {
 }
 
 export function isTextElement(
-  v: Msom.MsomNode
+  v: Msom.MsomNode,
 ): v is Function | string | number | bigint | true {
   return (
     typeof v === "string" ||
@@ -358,7 +358,7 @@ export function isTextElement(
  * @returns 带有真实DOM的VNode
  */
 function createDom<
-  T extends Msom.JSX.ElementType | keyof Msom.JSX.IntrinsicElements
+  T extends Msom.JSX.ElementType | keyof Msom.JSX.IntrinsicElements,
 >(element: Msom.MsomElement<T>): VNodeWithDOM {
   const {
     children,
@@ -436,7 +436,7 @@ function createDom<
  */
 export function updateVNodeDOM(
   oldVNode: VNodeWithDOM,
-  newVNode: Msom.MsomElement
+  newVNode: Msom.MsomElement,
 ): VNodeWithDOM {
   const dom = oldVNode._dom;
   const eventMap = oldVNode._events || new Map();
@@ -579,7 +579,7 @@ function _mountComponent(element: Msom.MsomElement<any>, container: Element) {
             const updatedVNode = updateVNodeComplete(
               oldVNode,
               newVNode as Msom.MsomElement,
-              container as HTMLElement
+              container as HTMLElement,
             );
             setComponentVNode(component, updatedVNode);
             component.rendered();
@@ -602,15 +602,15 @@ function _mountComponent(element: Msom.MsomElement<any>, container: Element) {
         },
         {
           scheduler: "nextFrame",
-        }
-      ).disposer()
+        },
+      ).disposer(),
     );
   });
 }
 
 function renderer(
   element: Msom.MsomNode,
-  container: Element
+  container: Element,
 ): HTMLElement | Text | undefined {
   if (!element) {
     return;
@@ -618,7 +618,7 @@ function renderer(
 
   if (typeof element !== "object") {
     element = createTextElement(
-      typeof element === "function" ? element : String(element)
+      typeof element === "function" ? element : String(element),
     );
   }
   if (isPromiseLike(element)) {
@@ -631,7 +631,7 @@ function renderer(
     }
     return;
   }
-  const _element = element as Exclude<typeof element, Iterable<any>>;
+  const _element = element as Exclude<typeof element, Iterable<any>> as any;
   let { children, $ref } = _element.props;
   if (typeof _element.type === "function") {
     if (isComponent(_element.type)) {
@@ -672,7 +672,7 @@ function renderer(
 
 export function mountWith(
   mount: () => Msom.MsomElement | void,
-  container: Element
+  container: Element,
 ) {
   const element = mount();
   element && renderer(element, container);
@@ -696,7 +696,7 @@ export function mountComponent(component: IComponent, container: Element) {
 export function updateVNodeComplete(
   oldVNode: VNodeWithDOM,
   newVNode: Msom.MsomElement,
-  container: HTMLElement
+  container: HTMLElement,
 ): VNodeWithDOM {
   // 如果type不同，生成新的真实元素替换旧元素
   if (oldVNode.type !== newVNode.type) {
@@ -714,14 +714,14 @@ export function updateVNodeComplete(
     if (oldVNode._dom && newVNodeWithDOM._dom) {
       // 获取旧元素在父容器中的位置
       const oldIndex = Array.from(container.children).indexOf(
-        oldVNode._dom as HTMLElement
+        oldVNode._dom as HTMLElement,
       );
 
       if (oldIndex !== -1) {
         // 在原有位置插入新元素
         container.insertBefore(
           newVNodeWithDOM._dom,
-          container.children[oldIndex]
+          container.children[oldIndex],
         );
         // 移除旧元素
         container.removeChild(oldVNode._dom);
@@ -755,13 +755,13 @@ export function updateVNodeComplete(
   const oldChildren = Array.isArray(oldVNode.props.children)
     ? oldVNode.props.children
     : oldVNode.props.children
-    ? [oldVNode.props.children]
-    : [];
+      ? [oldVNode.props.children]
+      : [];
   const newChildren = Array.isArray(newVNode.props.children)
     ? newVNode.props.children
     : newVNode.props.children
-    ? [newVNode.props.children]
-    : [];
+      ? [newVNode.props.children]
+      : [];
 
   if (updatedVNode._dom instanceof HTMLElement) {
     updateChildren(updatedVNode._dom, oldChildren, newChildren);
@@ -779,7 +779,7 @@ export function updateVNodeComplete(
 function updateChildren(
   parentDom: HTMLElement,
   oldChildren: Msom.MsomNode[],
-  newChildren: Msom.MsomNode[]
+  newChildren: Msom.MsomNode[],
 ): void {
   const oldChildDoms: (HTMLElement | Text)[] = [];
   const newChildVNodes: Msom.MsomElement[] = [];
