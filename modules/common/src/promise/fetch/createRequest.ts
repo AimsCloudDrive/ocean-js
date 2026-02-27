@@ -17,7 +17,18 @@ export interface ClientConfig {
   tokenKey?: string;
   headers?: HeadersInit;
   timeout?: number;
+  requestInterceptors?: RequestInterceptor[];
+  responseInterceptors?: ResponseInterceptor[];
 }
+
+export type RequestInterceptor = (
+  url: FetchUrl,
+  init: FetchOption,
+) => Promise<[FetchUrl, FetchOption]> | [FetchUrl, FetchOption];
+
+export type ResponseInterceptor = (
+  response: Response | unknown,
+) => Promise<Response | unknown> | Response | unknown;
 
 export class Client implements Cloneable<Client> {
   private config: ClientConfig;
@@ -117,7 +128,7 @@ export class Client implements Cloneable<Client> {
       };
     }
     // 处理URL参数
-    const processedUrl = this.applyParams(url, init.params);
+    let processedUrl = this.applyParams(url, init.params);
     // 合并headers
     const mergedHeaders = new Headers(this.config.headers);
     if (init.headers) {
@@ -126,7 +137,7 @@ export class Client implements Cloneable<Client> {
       });
     }
     // 构建fetch请求参数
-    const fetchInit: FetchOption = {
+    let fetchInit: FetchOption = {
       ...init,
       signal: controller.signal,
       headers: mergedHeaders,
@@ -134,11 +145,60 @@ export class Client implements Cloneable<Client> {
     // 移除params和timeout参数，因为fetch不支持
     delete fetchInit.params;
     delete fetchInit.timeout;
+
+    // 执行请求拦截器
+    const executeRequestInterceptors = (
+      currentPromise: OcPromise<[FetchUrl, FetchOption], any, any>,
+    ) => {
+      if (this.config.requestInterceptors) {
+        for (const interceptor of this.config.requestInterceptors) {
+          currentPromise = currentPromise.then((res) => {
+            return OcPromise.resolve(interceptor(...res));
+          });
+        }
+      }
+
+      return currentPromise;
+    };
+
+    // 执行响应拦截器
+    const executeResponseInterceptors = (
+      promise: OcPromise<Response | unknown, any, any>,
+    ) => {
+      let currentPromise = promise;
+
+      if (this.config.responseInterceptors) {
+        for (const interceptor of this.config.responseInterceptors) {
+          currentPromise = currentPromise.then((res) => {
+            return OcPromise.resolve(interceptor(res));
+          });
+        }
+      }
+
+      return currentPromise;
+    };
+
     // 创建Promise实例
-    const { promise, resolve, reject } = OcPromise.withResolvers<Response>();
-    fetch(processedUrl, fetchInit).then(resolve, reject);
-    promise.canceled(() => controller.abort());
-    return promise;
+    const initPromise = OcPromise.resolve<[FetchUrl, FetchOption]>([
+      processedUrl,
+      fetchInit,
+    ]);
+    let fetchPromise: OcPromise<Response | unknown, any, any>;
+    const resPromise = executeRequestInterceptors(initPromise).then((res) => {
+      const { promise, resolve, reject } = OcPromise.withResolvers<
+        Response | unknown,
+        any,
+        any
+      >();
+      fetchPromise = promise;
+      fetchPromise.canceled(() => controller.abort());
+      // 执行请求
+      fetch(...res).then(resolve, reject);
+      return executeResponseInterceptors(promise);
+    });
+
+    resPromise.canceled(() => fetchPromise.cancel());
+    return resPromise;
   }
 
   get(url: FetchUrl, init?: FetchOption): OcPromise<Response, any, unknown> {
