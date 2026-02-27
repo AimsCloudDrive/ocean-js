@@ -9,6 +9,7 @@ type RequestMethod =
   | "get"
   | "post"
   | "put"
+  | "patch"
   | "delete"
   | "copy"
   | "head"
@@ -66,12 +67,12 @@ export function createServer(
       | express.RequestHandler
       | {
           define: (
-            defaults: express.RequestHandler[]
+            defaults: express.RequestHandler[],
           ) => express.RequestHandler[] | express.RequestHandler;
         };
     proxy?: ProxyRules;
     printProxy?: boolean | { print?: boolean; detail?: boolean };
-  } = {}
+  } = {},
 ): express.Application {
   const server = express();
   const { createHandle, routes, middles, proxy } = option;
