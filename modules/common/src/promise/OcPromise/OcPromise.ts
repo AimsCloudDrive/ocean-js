@@ -7,6 +7,9 @@ import {
   Canceled,
   FULFILLED,
   Fulfilled,
+  InferResultC,
+  InferResultE,
+  InferResultR,
   OcPromiseExecutor,
   OcPromiseLike,
   OcPromiseStatus,
@@ -26,10 +29,10 @@ import { isOcPromiseLike, isPromiseLike } from "./utils";
  * @template C - 取消操作的原因类型
  */
 export class OcPromise<
-  R,
-  E = Error | unknown,
-  C = unknown,
-> implements OcPromiseLike<R> {
+  R = never,
+  E = never,
+  C = never,
+> implements OcPromiseLike<R, E, C> {
   /** 当前 Promise 的状态 */
   declare status: OcPromiseStatus;
 
@@ -44,7 +47,7 @@ export class OcPromise<
   }[];
 
   /** 存储当前值（完成值/错误/取消原因） */
-  declare data: R | E | C;
+  declare data?: R | E | C;
 
   /** 父 Promise，用于取消操作的传播 */
   declare private parrent:
@@ -96,19 +99,21 @@ export class OcPromise<
   /**
    * 添加完成、错误和取消的处理函数
    */
-  then<TR = R, TE = never, TC = never>(
-    onFulfilled?:
-      | Nullable
-      | createFunction<[R, OcPromiseLike<TR> | PromiseLike<TR> | TR]>,
-    onRejected?:
-      | Nullable
-      | createFunction<[E, OcPromiseLike<TE> | PromiseLike<TE> | TE]>,
-    onCanceled?:
-      | Nullable
-      | createFunction<[C, OcPromiseLike<TC> | PromiseLike<TC> | TC]>,
-  ): OcPromise<TR | TE | TC> {
+  then<TR = R, TE = E, TC = C>(
+    onFulfilled?: Nullable | createFunction<[R, TR]>,
+    onRejected?: Nullable | createFunction<[E, TE]>,
+    onCanceled?: Nullable | createFunction<[C, TC]>,
+  ): OcPromise<
+    InferResultR<TR, TE, TC>,
+    InferResultE<TR, TE, TC>,
+    InferResultC<TR, TE, TC>
+  > {
     // 创建新的 OcPromise 实例
-    const res = new OcPromise<TR | TE | TC>((resolve, reject, cancel) => {
+    const res = new OcPromise<
+      InferResultR<TR, TE, TC>,
+      InferResultE<TR, TE, TC>,
+      InferResultC<TR, TE, TC>
+    >((resolve, reject, cancel) => {
       // 将处理函数添加到队列
       this.handlers.push({
         resolve,
@@ -144,7 +149,7 @@ export class OcPromise<
         : T extends Canceled
           ? C
           : never,
-  >(status: T, data: D) {
+  >(status: T, data?: D) {
     // 只有在等待状态时才能改变状态
     if (this.status !== PENDDING) {
       return;
@@ -202,13 +207,14 @@ export class OcPromise<
         try {
           // 执行处理函数
           const data = exe();
-          if (isOcPromise(data) || isOcPromiseLike(data)) {
+          if (isOcPromiseLike(data)) {
             // 如果返回值是 OcPromise，则链接它的处理函数
             nextTick(() => {
               data.then(
                 resolve,
                 reject,
-                (reason) => (this.cancel(reason as C), cancel(reason as C)),
+                // (reason) => (this.cancel(reason as C), cancel(reason as C)),
+                cancel,
               );
             });
           } else if (isPromiseLike(data)) {
@@ -233,10 +239,11 @@ export class OcPromise<
   /**
    * 取消 Promise
    * @param reason - 取消原因
+   * @param cascade - 是否向上层级寻找层叠，默认 true
    */
-  cancel(reason: C) {
-    if (this.parrent && this.parrent.status === PENDDING) {
-      this.parrent.cancel(reason);
+  cancel(reason?: C, cascade: boolean = true) {
+    if (this.parrent && this.parrent.status === PENDDING && cascade) {
+      this.parrent.cancel(reason, cascade);
     } else {
       this.changeStatus(CANCELED, reason);
     }
@@ -246,56 +253,83 @@ export class OcPromise<
    * 等待所有 Promise 完成
    * @static
    * @template T - 元素类型
-   * @param proms - Promise 或值的可迭代对象
+   * @param promiseables - Promise 或值的可迭代对象
    * @returns 包含所有结果的 Promise
    */
   static all<T>(
-    proms: Iterable<T | OcPromiseLike<Awaited<T>>>,
+    promiseables: Iterable<T | OcPromiseLike<Awaited<T>>>,
   ): OcPromise<Awaited<T>[]> {
     // 存储所有 Promise 的结果
     const result: Awaited<T>[] = [];
 
     return new OcPromise<Awaited<T>[]>((resolve, reject, cancel) => {
       // 处理单个 Promise 完成的情况
-      const _resolve = (data: Awaited<T>, index: number) => {
+      const singlePromiseResolver = (
+        promiseData: Awaited<T>,
+        PromiseIndex: number,
+      ) => {
         // 将结果存储到对应位置
-        result[index] = data;
-        finished++;
+        result[PromiseIndex] = promiseData;
+        finishedCount++;
         // 如果所有 Promise 都完成，则 resolve
-        if (finished === i) resolve(result);
+        if (finishedCount === promiseCount) resolve(result);
       };
 
-      let i: number = 0, // Promise 总数
-        finished: number = 0; // 已完成的 Promise 数量
+      let promiseCount: number = 0, // Promise 总数
+        finishedCount: number = 0; // 已完成的 Promise 数量
 
       // 遍历可迭代对象
-      const iterator = proms[Symbol.iterator]();
+      const iterator = promiseables[Symbol.iterator]();
       let next: ReturnType<typeof iterator.next> = iterator.next();
 
       while (!next.done) {
-        const j = i;
-        i++;
+        const promiseIndex = promiseCount;
+        promiseCount++;
         const { value } = next;
 
-        if (isOcPromise<Awaited<T>, Error, Error>(value)) {
+        if (isOcPromise<any, any, any>(value)) {
           // 处理 OcPromise
-          value.then((data) => _resolve(data, j), reject, cancel);
-        } else if (isPromiseLike<Awaited<T>>(value)) {
+          value.then(
+            (data) => singlePromiseResolver(data, promiseIndex),
+            reject,
+            cancel,
+          );
+        } else if (isPromiseLike<any, any>(value)) {
           // 处理普通 Promise
-          value.then((data) => _resolve(data, j), reject);
+          value.then(
+            (data) => singlePromiseResolver(data, promiseIndex),
+            reject,
+          );
         } else {
           // 处理非 Promise 值
-          result[j] = value as Awaited<T>;
-          finished++;
+          result[promiseIndex] = value as Awaited<T>;
+          finishedCount++;
         }
         next = iterator.next();
       }
 
-      // 如果所有值都已处理完成，直接 resolve
-      if (finished === i) {
+      // 如果所有值全都不是promiseLike，直接 resolve
+      if (finishedCount === promiseCount) {
         resolve(result);
       }
     });
+  }
+
+  /**
+   * withResolvers
+   */
+  static withResolvers<T = unknown, E = unknown, C = unknown>() {
+    const resolvers: PromiseResolvers<T, E, C> = {} as PromiseResolvers<
+      T,
+      E,
+      C
+    >;
+    const promise = new OcPromise<T, E, C>((resolve, reject, cancel) => {
+      resolvers.resolve = resolve;
+      resolvers.reject = reject;
+      resolvers.cancel = cancel;
+    });
+    return { promise, ...resolvers } as const;
   }
 
   /**
@@ -304,24 +338,30 @@ export class OcPromise<
    * @template T - 值的类型
    * @param value - 要解析的值
    */
-  static resolve<T extends void | unknown = void>(
+  static resolve<T>(
     value: T,
-  ): OcPromise<Awaited<T>> {
-    if (isOcPromise<Awaited<T>>(value)) {
+  ): OcPromise<InferResultR<T>, InferResultE<T>, InferResultC<T>> {
+    if (isOcPromise<InferResultR<T>, InferResultE<T>, InferResultC<T>>(value)) {
       return value;
     }
-    if (isOcPromiseLike<Awaited<T>>(value)) {
-      return new OcPromise<Awaited<T>>((resolve, reject, cancel) => {
-        value.then(resolve, reject, cancel);
-      });
+    if (
+      isOcPromiseLike<InferResultR<T>, InferResultE<T>, InferResultC<T>>(value)
+    ) {
+      return new OcPromise<InferResultR<T>, InferResultE<T>, InferResultC<T>>(
+        (resolve, reject, cancel) => {
+          value.then(resolve, reject, cancel);
+        },
+      );
     }
-    if (isPromiseLike<Awaited<T>>(value)) {
-      return new OcPromise<Awaited<T>>((resolve, reject) => {
-        value.then(resolve, reject);
-      });
+    if (isPromiseLike<InferResultR<T>, InferResultE<T>>(value)) {
+      return new OcPromise<InferResultR<T>, InferResultE<T>>(
+        (resolve, reject) => {
+          value.then(resolve, reject);
+        },
+      );
     }
-    return new OcPromise<Awaited<T>>((resolve) => {
-      resolve(value as Awaited<T>);
+    return new OcPromise<InferResultR<T>, InferResultE<T>>((resolve) => {
+      resolve(value as InferResultR<T>);
     });
   }
 
@@ -331,9 +371,21 @@ export class OcPromise<
    * @template E - 错误类型
    * @param reason - 拒绝原因
    */
-  static reject<E = unknown>(reason: E): OcPromise<unknown, E> {
+  static reject<E = unknown>(reason: E): OcPromise<never, E> {
     return new OcPromise((_, reject) => {
       reject(reason);
+    });
+  }
+  /**
+   * 创建一个已取消的 Promise
+   * @static
+   * @template C - 取消类型
+   * @param reason - 取消原因
+   * @returns
+   */
+  static cancel<C = unknown>(reason: C): OcPromise<never, never, C> {
+    return new OcPromise((_, __, cancel) => {
+      cancel(reason);
     });
   }
 
@@ -364,6 +416,12 @@ export class OcPromise<
   }
 }
 
+export interface PromiseResolvers<T = unknown, E = unknown, C = unknown> {
+  resolve: Resolve<T>;
+  reject: Reject<E>;
+  cancel: Cancel<C>;
+}
+
 /**
  * 检查值是否为 OcPromise 实例
  * @template PR - Promise 结果类型
@@ -379,15 +437,15 @@ export function isOcPromise<
   return data instanceof OcPromise;
 }
 
-OcPromise.resolve("A")
-  .then((data) => {
-    return OcPromise.resolve<"C">("C");
+OcPromise.resolve("S" as "S")
+  .then(null, (data) => {
+    return new Promise<"B">(() => {});
   })
   .then((data) => {
-    data;
+    const a: "S" | "B" = data;
   });
 
-Promise.resolve()
+Promise.resolve("S" as "S")
   .then(null, () => {
     return new Promise<"B">(() => {});
   })

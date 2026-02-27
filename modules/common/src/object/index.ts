@@ -19,7 +19,7 @@ import { isArray } from "../array";
  */
 export function compareObjects<T extends object, T2 extends object>(
   obj1: T,
-  obj2: T2
+  obj2: T2,
 ): boolean {
   // 如果两个对象引用相同，直接返回true
   if ((obj1 as object) === (obj2 as object)) {
@@ -90,7 +90,7 @@ export function cloneObject<T extends object>(data: T, deep?: boolean): T {
           clonedDesc,
           "value",
           deep && isObject(value) ? _clone<object>(value, cache) : value,
-          clonedDesc
+          clonedDesc,
         );
       }
       Reflect.defineProperty(cloned, keys[i], clonedDesc);
@@ -98,4 +98,7 @@ export function cloneObject<T extends object>(data: T, deep?: boolean): T {
     return cloned;
   }
   return _clone(data);
+}
+export interface Cloneable<T extends object> {
+  clone(): T;
 }

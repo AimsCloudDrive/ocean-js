@@ -1,97 +1,225 @@
+import { Cloneable } from "../../object";
 import { OcPromise } from "../OcPromise";
 
-type FetchUrl = Parameters<typeof fetch>[0];
-type FetchOption = Exclude<Parameters<typeof fetch>[1], undefined> & {
-  params?: Record<string, any>;
+type FetchParams =
+  | string
+  | Record<string, any>
+  | URLSearchParams
+  | Iterable<[string, any]>;
+type FetchUrl = string | URL | Request;
+type FetchOption = RequestInit & {
+  params?: FetchParams;
+  timeout?: number;
 };
 
-export function createCancelRequest(
-  url: FetchUrl,
-  fetchInit: FetchOption = {}
-) {
-  const controller = new AbortController();
+export interface ClientConfig {
+  baseURL?: string;
+  tokenKey?: string;
+  headers?: HeadersInit;
+  timeout?: number;
+}
 
-  // 信号处理（含内存泄漏防护）
-  const signalOption = fetchInit.signal;
-  if (signalOption) {
-    const handleAbort = () => {
-      controller.abort();
-      externalSignalCleanup();
-    };
-    signalOption.addEventListener("abort", handleAbort, { once: true });
-    const externalSignalCleanup = () => {
-      signalOption.removeEventListener("abort", handleAbort);
-    };
+export class Client implements Cloneable<Client> {
+  private config: ClientConfig;
+
+  constructor(config: ClientConfig = {}) {
+    this.config = config;
   }
 
-  // ========== 关键修复：参数处理 ========== //
-  const params = fetchInit.params;
-  if (params) {
-    const applyParams = (urlObj: URL) => {
-      Object.entries(params).forEach(([key, value]) => {
-        // 删除已有参数避免重复
-        urlObj.searchParams.delete(key);
+  clone(config?: ClientConfig): Client {
+    return new Client({ ...this.config, ...config });
+  }
 
-        // 处理数组参数
+  private applyParams(url: FetchUrl, params?: FetchParams): FetchUrl {
+    if (!params) return url;
+    let normalizedParams: URLSearchParams;
+    if (params instanceof URLSearchParams) {
+      // URLSearchParams参数直接使用
+      normalizedParams = params;
+    } else if (Array.isArray(params)) {
+      // 数组参数转换为URLSearchParams
+      normalizedParams = new URLSearchParams(params);
+    } else if (typeof params === "object" && params !== null) {
+      // 对象参数转换为URLSearchParams
+      normalizedParams = new URLSearchParams(Object.entries(params));
+    } else {
+      // 其他类型参数直接转换为空字符串
+      normalizedParams = new URLSearchParams();
+    }
+    // 应用参数到URL
+    const applyParams = (urlObj: URL) => {
+      normalizedParams.forEach((value, key) => {
+        // 删除已存在的参数值
+        urlObj.searchParams.delete(key);
+        // 如果值是数组，遍历每个元素添加到URLSearchParams中
         if (Array.isArray(value)) {
+          // 过滤掉null和undefined值
+          // 遍历每个元素添加到URLSearchParams中
           value.forEach(
-            (v) => v != null && urlObj.searchParams.append(key, String(v))
+            (v) => v != null && urlObj.searchParams.append(key, String(v)),
           );
-        }
-        // 处理非空值
-        else if (value != null) {
+        } else if (value != null) {
+          // 非数组值直接设置
           urlObj.searchParams.set(key, String(value));
         }
       });
     };
-
+    // 拼接完整URL
     try {
-      // 字符串URL处理
       if (typeof url === "string") {
         const baseURL = url.startsWith("/")
-          ? window.location.origin
+          ? this.config.baseURL || window.location.origin
           : undefined;
         const urlObj = new URL(url, baseURL);
         applyParams(urlObj);
-        url = urlObj.toString();
-      }
-      // URL对象处理
-      else if (url instanceof URL) {
-        applyParams(url); // 直接修改可用的searchParams
-      }
-      // Request对象处理
-      else if (url instanceof Request) {
+        return urlObj.toString();
+      } else if (url instanceof URL) {
+        applyParams(url);
+        return url;
+      } else if (url instanceof Request) {
         const urlObj = new URL(url.url);
         applyParams(urlObj);
-        // 创建新Request实例（保持不可变性）
-        url = new Request(urlObj.toString(), {
-          ...url,
-          signal: controller.signal, // 保持信号一致性
-        });
+        return new Request(urlObj.toString(), { ...url });
       }
     } catch (e) {
       console.error("URL处理错误:", e);
-      // 回退原始URL
     }
+
+    return url;
   }
 
-  // 更新请求配置
-  fetchInit.signal = controller.signal;
-  const promise = OcPromise.resolve(fetch(url, fetchInit));
-  promise.canceled(() => controller.abort());
-  return promise;
+  request(
+    url: FetchUrl,
+    init: FetchOption = {},
+  ): OcPromise<Response, any, unknown> {
+    const controller = new AbortController();
+    const timeout = init.timeout || this.config.timeout;
+
+    if (typeof timeout === "number" && timeout > 0) {
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      controller.signal.addEventListener("abort", () =>
+        clearTimeout(timeoutId),
+      );
+    }
+    // 合并信号量
+    // 调用者传入信号量时，合并到控制器信号量中
+    const signalOption = init.signal;
+    if (signalOption) {
+      const handleAbort = () => {
+        controller.abort();
+        // 调用者信号量也触发abort事件
+        externalSignalCleanup();
+      };
+      signalOption.addEventListener("abort", handleAbort, { once: true });
+      const externalSignalCleanup = () => {
+        // 调用者信号量也触发abort事件后，该请求已经取消，移除事件监听
+        signalOption.removeEventListener("abort", handleAbort);
+      };
+    }
+    // 处理URL参数
+    const processedUrl = this.applyParams(url, init.params);
+    // 合并headers
+    const mergedHeaders = new Headers(this.config.headers);
+    if (init.headers) {
+      Object.entries(init.headers).forEach(([key, value]) => {
+        mergedHeaders.set(key, value);
+      });
+    }
+    // 构建fetch请求参数
+    const fetchInit: FetchOption = {
+      ...init,
+      signal: controller.signal,
+      headers: mergedHeaders,
+    };
+    // 移除params和timeout参数，因为fetch不支持
+    delete fetchInit.params;
+    delete fetchInit.timeout;
+    // 创建Promise实例
+    const { promise, resolve, reject } = OcPromise.withResolvers<Response>();
+    fetch(processedUrl, fetchInit).then(resolve, reject);
+    promise.canceled(() => controller.abort());
+    return promise;
+  }
+
+  get(url: FetchUrl, init?: FetchOption): OcPromise<Response, any, unknown> {
+    return this.request(url, { ...init, method: "GET" });
+  }
+
+  post(url: FetchUrl, init?: FetchOption): OcPromise<Response, any, unknown> {
+    return this.request(url, { ...init, method: "POST" });
+  }
+
+  put(url: FetchUrl, init?: FetchOption): OcPromise<Response, any, unknown> {
+    return this.request(url, { ...init, method: "PUT" });
+  }
+
+  delete(url: FetchUrl, init?: FetchOption): OcPromise<Response, any, unknown> {
+    return this.request(url, { ...init, method: "DELETE" });
+  }
+
+  patch(url: FetchUrl, init?: FetchOption): OcPromise<Response, any, unknown> {
+    return this.request(url, { ...init, method: "PATCH" });
+  }
+
+  private json<T>(
+    response: OcPromise<Response, unknown, unknown>,
+  ): OcPromise<T, unknown, unknown> {
+    return response.then((res) => res.json());
+  }
+
+  /**
+   * 发送JSON格式的请求
+   * @param url 请求URL
+   * @param init 请求选项
+   * @returns 响应Promise
+   */
+  jsonRequest(
+    url: FetchUrl,
+    init?: FetchOption,
+  ): OcPromise<Response, unknown, unknown> {
+    const headers = new Headers(init?.headers || this.config.headers);
+    headers.delete("content-type");
+    headers.append("content-type", "application/json");
+    return this.request(url, { ...(init || {}), headers });
+  }
+
+  /**
+   * 发送请求并解析响应体为JSON
+   * @param url 请求URL
+   * @param init 请求选项
+   * @returns 响应Promise
+   */
+  requestJson<T>(
+    url: FetchUrl,
+    init?: FetchOption,
+  ): OcPromise<T, unknown, unknown> {
+    return this.json<T>(this.request(url, init));
+  }
+
+  /**
+   * 发送JSON格式的请求并解析响应体为JSON
+   * @param url 请求URL
+   * @param init 请求选项
+   * @returns 响应Promise
+   */
+  jsonRequestJson<T>(
+    url: FetchUrl,
+    init?: FetchOption,
+  ): OcPromise<T, unknown, unknown> {
+    return this.json<T>(this.jsonRequest(url, init));
+  }
 }
 
-type OmitContentType = Exclude<string, "content-type" | "contentType">;
+// 默认客户端实例
+export const defaultClient = new Client();
 
-type JsonRequestHeaders =
-  | Headers
-  | [OmitContentType, string][]
-  | Record<OmitContentType, string>;
-
-type JsonRequestOptions = Omit<FetchOption, "headers"> & {
-  headers?: JsonRequestHeaders;
-};
+export function createCancelRequest(
+  url: FetchUrl,
+  fetchInit: FetchOption = {},
+  client?: Client,
+): OcPromise<Response, unknown, unknown> {
+  return (client ?? defaultClient).request(url, fetchInit);
+}
 
 /**
  * 创建请求体是application/json的请求
@@ -101,21 +229,10 @@ type JsonRequestOptions = Omit<FetchOption, "headers"> & {
  */
 export function createJsonRequest(
   url: FetchUrl,
-  init?: JsonRequestOptions
-): OcPromise<Response> {
-  const headers = new Headers(init?.headers);
-  headers.delete("content-type");
-  headers.append("content-type", "application/json");
-  return createCancelRequest(url, { ...(init || {}), headers });
-}
-
-/**
- * @template T
- * @param {OcPromise<Response>} response
- * @returns {OcPromise<T>}
- */
-function json<T>(response: OcPromise<Response>): OcPromise<T> {
-  return response.then((res) => res.json());
+  init?: FetchOption,
+  client?: Client,
+): OcPromise<Response, unknown, unknown> {
+  return (client ?? defaultClient).jsonRequest(url, init);
 }
 
 /**
@@ -127,10 +244,12 @@ function json<T>(response: OcPromise<Response>): OcPromise<T> {
  */
 export function createRequestJson<T>(
   url: FetchUrl,
-  init?: FetchOption
-): OcPromise<T> {
-  return json<T>(createCancelRequest(url, init));
+  init?: FetchOption,
+  client?: Client,
+): OcPromise<T, unknown, unknown> {
+  return (client ?? defaultClient).requestJson<T>(url, init);
 }
+
 /**
  * 创建请求体是application/json、响应体是json格式的请求
  * @template T
@@ -140,7 +259,8 @@ export function createRequestJson<T>(
  */
 export function createJsonRequestJson<T>(
   url: FetchUrl,
-  init?: JsonRequestOptions
-): OcPromise<T> {
-  return json<T>(createJsonRequest(url, init));
+  init?: FetchOption,
+  client?: Client,
+): OcPromise<T, unknown, unknown> {
+  return (client ?? defaultClient).jsonRequestJson<T>(url, init);
 }
