@@ -1,6 +1,6 @@
 import { OcPromiseLike, PromiseLike } from "./types";
 
-export function isPromiseLike<R = never, E = never>(
+export function isPromiseLike<R = any, E = any>(
   data: unknown,
 ): data is PromiseLike<R, E> {
   return (
@@ -10,7 +10,7 @@ export function isPromiseLike<R = never, E = never>(
     typeof data["then"] === "function"
   );
 }
-export function isOcPromiseLike<R = never, E = never, C = never>(
+export function isOcPromiseLike<R = any, E = any, C = any>(
   data: unknown,
 ): data is OcPromiseLike<R, E, C> {
   return isPromiseLike<R, E>(data) && typeof data["cancel"] === "function";
