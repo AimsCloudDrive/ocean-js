@@ -16,7 +16,7 @@ export interface ModelHandler {
   condition(condition: QueryCondition): this;
   relate(
     relateName: string,
-    callback?: ((relateModel: RelateModelHandler) => void) | undefined
+    callback?: ((relateModel: RelateModelHandler) => void) | undefined,
   ): this;
 }
 export interface RelateModelHandler extends ModelHandler {
@@ -34,9 +34,11 @@ export abstract class Model implements ModelHandler {
   }
   relate(
     relateName: string,
-    callback?: ((relateModel: RelateModel) => void) | undefined
+    callback?: ((relateModel: RelateModel) => void) | undefined,
   ): this {
     const model = new RelateModel(relateName);
+    this.relates = this.relates ?? {};
+    this.relates[relateName] = model;
     callback?.(model);
     return this;
   }
@@ -68,7 +70,7 @@ export class RelateModel extends Model implements RelateModelHandler {
     for (let i = 1; i < count; i++) {
       const model = new RelateModel(this.relateName);
       model.conditions = that.conditions?.clone();
-      that.relates[this.relateName] = model;
+      (that.relates ?? (that.relates = {}))[this.relateName] = model;
       that = model;
     }
     return this;
@@ -126,7 +128,7 @@ export class QueryProtocolBuilder {
 export function comp(
   compType: CompConditionType,
   propKey: string,
-  value: CompPropValue | ReadonlyArray<CompPropValue>
+  value: CompPropValue | ReadonlyArray<CompPropValue>,
 ): CompCondition {
   return new CompCondition(compType, propKey, value);
 }

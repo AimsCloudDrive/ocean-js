@@ -9,7 +9,7 @@ import {
   QueryCondition,
   QueryResultItem,
 } from "./interfaces";
-import { assert } from "@msom/common";
+import { assert, isObject } from "@msom/common";
 
 /*
 TODO class QueryExecutor => class QueryEngine
@@ -34,9 +34,9 @@ const FilterTypeMap: Record<CompConditionType, keyof FilterOperators<unknown>> =
 
 export class QueryExecutor {
   private cache = new Map<string, Promise<QueryResultItem[]>>();
-  private declare dbContext: DBContext;
+  declare private dbContext: DBContext;
   constructor(option: { dbContext: DBContext }) {
-    Object.assign(option);
+    Object.assign(this, option);
   }
 
   async clearCache(): Promise<void> {
@@ -73,7 +73,7 @@ export class QueryExecutor {
     };
   }
   private async processProtocol(
-    protocol: QueryProtocol
+    protocol: QueryProtocol,
   ): Promise<QueryResultItem[]> {
     const process = async (option: QueryModel) => {
       const { modelName, conditions: condition } = option;
@@ -81,10 +81,10 @@ export class QueryExecutor {
       const models: QueryResultItem[] = (
         await collection.find(this.resolveCondition(condition)).toArray()
       ).map((_model) => {
-        const { _id, ...model } = _model;
+        const { uuid } = _model;
         return {
-          _id,
-          model,
+          uuid,
+          model: _model,
           relates: {},
         };
       });
@@ -98,11 +98,13 @@ export class QueryExecutor {
        * 生成新的QueryModel，包含对应RelateModel的relates和meta中对应关系的modelName和合并后的condition
        * 递归处理新的QueryModel，将返回结果添加在当前model实例的relates中
        */
-      const relateKeys = Reflect.ownKeys(option.relates) as string[];
+      const relateKeys = isObject(option.relates)
+        ? (Reflect.ownKeys(option.relates) as string[])
+        : [];
       if (relateKeys.length === 0) {
         return models;
       }
-      const relateHandles = models.map(async ({ _id, relates }) => {
+      const relateHandles = models.map(async ({ uuid, relates }) => {
         const handles = relateKeys
           .map((relationName) => {
             const meta = this.dbContext.getModelMeta(modelName);
@@ -116,12 +118,12 @@ export class QueryExecutor {
             const relationMeta = Reflect.get(
               meta.relations,
               relationName,
-              meta.relations
+              meta.relations,
             );
             if (!relationMeta) {
               return;
             }
-            const relating = meta.relating[relationName].get(_id);
+            const relating = meta.relating[relationName]?.[uuid];
             if (!relating) {
               return;
             }
@@ -130,9 +132,9 @@ export class QueryExecutor {
             const newOption = new QueryModel(correspondingModel);
             newOption.relates = relateModel.relates;
             newOption.conditions = and(
-              ...([relateModel.conditions, comp("in", "_id", relating)].filter(
-                Boolean
-              ) as QueryCondition[])
+              ...([relateModel.conditions, comp("in", "uuid", relating)].filter(
+                Boolean,
+              ) as QueryCondition[]),
             );
             return process(newOption).then((relations) => {
               relates[relationName] = relations;

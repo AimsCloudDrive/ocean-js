@@ -29,8 +29,12 @@ export class Client {
     return `${protocol}://${host}:${port}${api}`;
   }
   createQuery(protocol: QueryProtocol) {
-    return createJsonRequestJson(this.requestHref + "/query", {
+    return fetch(this.requestHref + "/query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ protocol }),
-    });
+    }).then((res) => res.json());
   }
 }

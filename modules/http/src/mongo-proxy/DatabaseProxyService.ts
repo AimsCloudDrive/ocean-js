@@ -1,4 +1,3 @@
-import bodyParser from "body-parser";
 import express, { Request, Response, Router } from "express";
 import { DBContext } from "./DBContext";
 import { QueryExecutor } from "./QueryExecutor";
@@ -15,14 +14,14 @@ interface DatabaseProxyServiceOption {
 }
 
 export class DatabaseProxyService {
-  private declare app: ReturnType<typeof express>;
-  private declare router: Router;
-  private declare queryExecutor: QueryExecutor;
-  private declare base: string;
+  declare private app: ReturnType<typeof express>;
+  declare private router: Router;
+  declare private queryExecutor: QueryExecutor;
+  declare private base: string;
 
   constructor(
     private dbContext: DBContext,
-    option?: DatabaseProxyServiceOption
+    option?: DatabaseProxyServiceOption,
   ) {
     this.app = express();
     this.queryExecutor = new QueryExecutor({ dbContext });
@@ -35,10 +34,10 @@ export class DatabaseProxyService {
   }
 
   private setupMiddleware(): void {
-    this.app.use(bodyParser.json());
+    this.app.use(express.json());
     this.app.use((req, res, next) => {
       console.log(
-        `${new Date().toLocaleTimeString()} - ${req.method} ${req.path}`
+        `${new Date().toLocaleTimeString()} - ${req.method} ${req.path}`,
       );
       next();
     });
@@ -84,7 +83,7 @@ export class DatabaseProxyService {
         this.sendError(
           res,
           500,
-          error.message || "Failed to save model metadata"
+          error.message || "Failed to save model metadata",
         );
       }
     });
@@ -101,7 +100,7 @@ export class DatabaseProxyService {
             return this.sendError(
               res,
               404,
-              `Model metadata not found for: ${modelName}`
+              `Model metadata not found for: ${modelName}`,
             );
           }
 
@@ -110,10 +109,10 @@ export class DatabaseProxyService {
           this.sendError(
             res,
             500,
-            error.message || "Failed to get model metadata"
+            error.message || "Failed to get model metadata",
           );
         }
-      }
+      },
     );
 
     // 获取所有模型名称
@@ -171,7 +170,7 @@ export class DatabaseProxyService {
     res: Response,
     status: number,
     message: string,
-    details?: any
+    details?: any,
   ): void {
     res.status(status).json(createErrorResponse(message, details));
   }
@@ -181,14 +180,14 @@ export class DatabaseProxyService {
       console.log(`\n🚀 Database proxy service running on port ${port}`);
       console.log(`📊 Query endpoint: POST http://localhost:${port}/query`);
       console.log(
-        `📝 Model meta endpoint: POST http://localhost:${port}/model-meta`
+        `📝 Model meta endpoint: POST http://localhost:${port}/model-meta`,
       );
       console.log(
-        `📋 Model meta endpoint: GET http://localhost:${port}/model-meta/:modelName`
+        `📋 Model meta endpoint: GET http://localhost:${port}/model-meta/:modelName`,
       );
       console.log(`📚 Models endpoint: GET http://localhost:${port}/models`);
       console.log(
-        `🧹 Cache endpoint: POST http://localhost:${port}/clear-cache`
+        `🧹 Cache endpoint: POST http://localhost:${port}/clear-cache`,
       );
       console.log(`❤️  Health check: GET http://localhost:${port}/health\n`);
     });
@@ -196,7 +195,7 @@ export class DatabaseProxyService {
 }
 export function createSuccessResponse<T = any>(
   data: T,
-  message?: string
+  message?: string,
 ): SuccessResponse<T> {
   return {
     code: 0,
@@ -207,7 +206,7 @@ export function createSuccessResponse<T = any>(
 }
 export function createErrorResponse<T = any>(
   error: string,
-  details?: T
+  details?: T,
 ): ErrorResponse<T> {
   return {
     code: 1,

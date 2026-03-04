@@ -36,7 +36,7 @@ export interface ModelMeta {
   modelDesc: string;
   properties: Record<PropertyName, PropertyMeta>;
   relations: Record<RelationName, RelationMeta>;
-  relating: Record<RelationName, WeakMap<ObjectId, ObjectId[]>>;
+  relating: Record<RelationName, Record<string, string[]>>;
 }
 
 export interface QueryCondition {
@@ -83,7 +83,7 @@ export class CompCondition implements QueryCondition {
   constructor(
     compType: CompConditionType,
     propKey: string,
-    value: CompPropValue | ReadonlyArray<CompPropValue>
+    value: CompPropValue | ReadonlyArray<CompPropValue>,
   ) {
     this.type = ConditionType.COMP;
     this.compType = compType;
@@ -140,7 +140,7 @@ export class OrCondition implements QueryCondition {
 
 // 查询结果项接口
 export interface QueryResultItem {
-  _id: ObjectId;
+  uuid: string;
   model: Record<string, any>;
   relates: Record<string, QueryResultItem[]>;
   children?: QueryResultItem[];
