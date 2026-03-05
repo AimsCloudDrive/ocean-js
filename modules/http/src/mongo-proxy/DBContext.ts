@@ -3,13 +3,14 @@ import { ModelMeta } from "./interfaces";
 
 const MODEL_METADATA_COLLECTION = "__model_metas__";
 
-interface DBContextOption extends MongoClientOptions {}
+export interface DBContextOption extends MongoClientOptions {}
 
 export class DBContext {
-  private declare db: Db;
-  private declare modelMetas: Map<string, ModelMeta>;
-  private declare isConnected: boolean;
-  private declare client: MongoClient;
+  declare private db: Db;
+  declare private modelMetas: Map<string, ModelMeta>;
+  declare private isConnected: boolean;
+  declare private client: MongoClient;
+  declare connecting: Promise<any>;
 
   constructor(uri: string, option: DBContextOption = {}) {
     this.client = new MongoClient(uri, {
@@ -20,12 +21,11 @@ export class DBContext {
       ...option,
     });
     this.modelMetas = new Map<string, ModelMeta>();
-    this.isConnected = false;
   }
   async connect(dbName: string): Promise<void> {
     const { client } = this;
     try {
-      await client.connect();
+      await (this.connecting = client.connect());
       this.db = client.db(dbName);
       await this.loadModelMetas();
       this.isConnected = true;
@@ -41,6 +41,7 @@ export class DBContext {
     if (this.client) {
       await this.client.close(true);
       this.isConnected = false;
+      this.connecting = Promise.reject();
       console.log("🔌 Disconnected from MongoDB");
     }
   }
@@ -60,7 +61,7 @@ export class DBContext {
 
     try {
       const collection = this.db.collection<ModelMeta>(
-        MODEL_METADATA_COLLECTION
+        MODEL_METADATA_COLLECTION,
       );
       const metas = await collection.find().toArray();
 
@@ -79,12 +80,12 @@ export class DBContext {
 
     try {
       const collection = this.db.collection<ModelMeta>(
-        MODEL_METADATA_COLLECTION
+        MODEL_METADATA_COLLECTION,
       );
       await collection.updateOne(
         { modelName: meta.modelName },
         { $set: meta },
-        { upsert: true }
+        { upsert: true },
       );
 
       this.modelMetas.set(meta.modelName, meta);
@@ -92,7 +93,7 @@ export class DBContext {
     } catch (error) {
       console.error(
         `Failed to save model metadata for ${meta.modelName}:`,
-        error
+        error,
       );
       throw error;
     }

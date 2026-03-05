@@ -1,6 +1,6 @@
 import { Client, comp, QueryProtocolBuilder } from "@msom/http";
 
-await fetch("http://localhost:9999/clear-cache", {
+await fetch("http://localhost:9999/api/clear-cache", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -13,7 +13,7 @@ await fetch("http://localhost:9999/clear-cache", {
   );
 
 //#region test
-new Client({ port: 9999, api: "" })
+new Client({ port: 9999, api: "/api" })
   .createQuery(
     new QueryProtocolBuilder("A")
       .model("", (m) =>

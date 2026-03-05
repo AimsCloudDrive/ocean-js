@@ -1,5 +1,6 @@
 import { Filter, FilterOperators } from "mongodb";
 import { DBContext } from "./DBContext";
+import { RedisClient } from "../redis";
 import { QueryModel, QueryProtocol, and, comp } from "./QueryProtocolBuilder";
 import {
   AndCondition,
@@ -33,25 +34,38 @@ const FilterTypeMap: Record<CompConditionType, keyof FilterOperators<unknown>> =
   };
 
 export class QueryExecutor {
-  private cache = new Map<string, Promise<QueryResultItem[]>>();
   declare private dbContext: DBContext;
-  constructor(option: { dbContext: DBContext }) {
+  declare private redisClient?: RedisClient;
+  constructor(option: { dbContext: DBContext; redisClient?: RedisClient }) {
     Object.assign(this, option);
   }
 
   async clearCache(): Promise<void> {
-    this.cache.clear();
+    try {
+      await this.redisClient?.clear();
+      console.log("✅ Redis cache cleared");
+    } catch (error) {
+      console.error("❌ Redis cache clear error:", error);
+    }
   }
 
   async execute(protocol: QueryProtocol): Promise<QueryResultItem[]> {
+    // 当且仅当QueryProtocol.cache为true且redisClient存在时，才会缓存查询结果
+    if (!protocol.cache || !this.redisClient) {
+      return this.processProtocol(protocol);
+    }
     const cacheKey = this.generateCacheKey(protocol);
-    const cache = this.cache.get(cacheKey);
+    const cache = await this.redisClient.get<QueryResultItem[]>(cacheKey);
     if (cache) {
       return cache;
     }
 
     const result = this.processProtocol(protocol);
-    this.cache.set(cacheKey, result);
+    try {
+      await this.redisClient.set(cacheKey, result);
+    } catch (error) {
+      console.error("❌ Redis cache set error:", error);
+    }
     return result;
   }
   resolveCondition(condition: QueryCondition | undefined): Filter<unknown> {

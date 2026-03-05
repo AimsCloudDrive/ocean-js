@@ -1,5 +1,4 @@
 import {
-  DBContext,
   DatabaseProxyService,
   QueryProtocolBuilder,
   Client,
@@ -7,17 +6,20 @@ import {
   comp,
 } from "@msom/http";
 
-const dbContext = new DBContext("mongodb://never.aims.nevermonarch.cn:57857/", {
-  authSource: "admin",
-  auth: {
-    username: "root",
-    password: "123456",
-  },
+const service = new DatabaseProxyService({ 
+  base: "/api",
+  mongoConfig: {
+    uri: "mongodb://never.aims.nevermonarch.cn:57857/",
+    dbName: "test",
+    options: {
+      authSource: "admin",
+      auth: {
+        username: "root",
+        password: "123456",
+      },
+    },
+  }
 });
-
-await dbContext.connect("test");
-
-const service = new DatabaseProxyService(dbContext, { base: "/api" });
 
 service.start(9999);
 
