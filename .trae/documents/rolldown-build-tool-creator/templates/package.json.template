@@ -1,0 +1,27 @@
+{
+  "name": "{{projectName}}",
+  "version": "1.0.0",
+  "description": "Custom build tool based on rolldown",
+  "bin": {
+    "{{projectName}}": "./bin/index.js"
+  },
+  "scripts": {
+    "build": "node bin/{{projectName}}.js build",
+    "dev": "node bin/{{projectName}}.js dev",
+    "check": "node bin/{{projectName}}.js check",
+    "lint": "node bin/{{projectName}}.js lint"
+  },
+  "dependencies": {
+    "rolldown": "^1.0.0",
+    "commander": "^12.0.0",
+    "chalk": "^5.0.0",
+    "express": "^4.0.0",
+    "http-proxy-middleware": "^2.0.0",
+    "ws": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/express": "^4.0.0"
+  }
+}

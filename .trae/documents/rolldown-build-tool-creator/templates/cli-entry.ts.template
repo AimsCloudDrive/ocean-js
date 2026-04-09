@@ -1,0 +1,48 @@
+#!/usr/bin/env node
+
+import { Command } from 'commander';
+import chalk from 'chalk';
+import path from 'path';
+
+const program = new Command();
+const packageJson = require('../package.json');
+
+program
+  .name('{{projectName}}')
+  .version(packageJson.version)
+  .description(packageJson.description);
+
+// 注册命令
+program
+  .command('dev')
+  .description('Start development server')
+  .action(async () => {
+    const { default: dev } = await import('../src/commands/dev.js');
+    await dev();
+  });
+
+program
+  .command('build')
+  .description('Build for production')
+  .action(async () => {
+    const { default: build } = await import('../src/commands/build.js');
+    await build();
+  });
+
+program
+  .command('check')
+  .description('Check for type errors')
+  .action(async () => {
+    const { default: check } = await import('../src/commands/check.js');
+    await check();
+  });
+
+program
+  .command('lint')
+  .description('Lint code')
+  .action(async () => {
+    const { default: lint } = await import('../src/commands/lint.js');
+    await lint();
+  });
+
+program.parse(process.argv);
