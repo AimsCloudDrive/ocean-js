@@ -332,6 +332,33 @@ type EventStop = () => void;
 type EventBinding = Record<string, EventStop>;
 
 function performUnitOfWork(fiber: Fiber): Fiber | null {
+  try {
+    return performUnitOfWorkInner(fiber);
+  } catch (error) {
+    console.error('Component render error:', error);
+    
+    // 查找最近的ErrorBoundary
+    let parent = fiber.parent;
+    while (parent) {
+      if (parent.component && isErrorBoundary(parent.component)) {
+        parent.component.state = {
+          hasError: true,
+          error: error instanceof Error ? error : new Error(String(error))
+        };
+        return parent.sibling;
+      }
+      parent = parent.parent;
+    }
+    
+    throw error;
+  }
+}
+
+function isErrorBoundary(component: IComponent): boolean {
+  return 'getDerivedStateFromError' in component || 'componentDidCatch' in component;
+}
+
+function performUnitOfWorkInner(fiber: Fiber): Fiber | null {
   if (
     typeof fiber.type === "function" &&
     fiber.type !== null &&
