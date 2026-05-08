@@ -248,14 +248,82 @@ function reconcileChildren(fiber: Fiber, elements?: Msom.MsomElement<any>[]) {
     deletions.get().push(orphanFiber);
   });
 }
+
+interface FiberSnapshot {
+  props: VNodeProps;
+  effectTag: "UPDATE" | "PLACEMENT" | "DELETION" | null;
+  dom: DOMElement | null;
+}
+
+class FiberTransaction {
+  private snapshots = new Map<Fiber, FiberSnapshot>();
+  isActive = false;
+  
+  begin() {
+    this.isActive = true;
+    this.snapshots.clear();
+  }
+  
+  snapshot(fiber: Fiber) {
+    if (!this.isActive) return;
+    
+    if (!this.snapshots.has(fiber)) {
+      this.snapshots.set(fiber, {
+        props: { ...fiber.props },
+        effectTag: fiber.effectTag,
+        dom: fiber.dom
+      });
+    }
+  }
+  
+  commit() {
+    this.isActive = false;
+    this.snapshots.clear();
+  }
+  
+  rollback() {
+    this.snapshots.forEach((snapshot, fiber) => {
+      fiber.props = snapshot.props;
+      fiber.effectTag = snapshot.effectTag;
+      fiber.dom = snapshot.dom;
+    });
+    this.isActive = false;
+    this.snapshots.clear();
+  }
+}
+
+const fiberTransaction = new FiberTransaction();
+
 function workLoop(deadline: IdleDeadline) {
+  if (!fiberTransaction.isActive) {
+    fiberTransaction.begin();
+  }
+  
   while (nextUnitOfWork.get() && deadline.timeRemaining() > 0) {
-    const _nextUnitOfWork = performUnitOfWork(nextUnitOfWork.get()!);
-    nextUnitOfWork.set(_nextUnitOfWork);
+    const fiber = nextUnitOfWork.get()!;
+    fiberTransaction.snapshot(fiber);
+    
+    try {
+      const _nextUnitOfWork = performUnitOfWork(fiber);
+      nextUnitOfWork.set(_nextUnitOfWork);
+    } catch (error) {
+      console.error('Fiber processing error:', error);
+      fiberTransaction.rollback();
+      throw error;
+    }
   }
+  
   if (!nextUnitOfWork.get() && wipRoot.get()) {
-    commitRoot();
+    try {
+      commitRoot();
+      fiberTransaction.commit();
+    } catch (error) {
+      console.error('Commit error:', error);
+      fiberTransaction.rollback();
+      throw error;
+    }
   }
+  
   requestIdleCallback(workLoop);
 }
 
