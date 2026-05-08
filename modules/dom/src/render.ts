@@ -22,6 +22,7 @@ import {
 } from "./element";
 import { IComponent, IComponentProps } from "./IComponent";
 import { IRef } from "./Ref";
+import { VNode, DOMElement, EventProxy, createEventProxy, VNodeProps } from "./types";
 
 type $DOM = {
   rendering?: IComponent;
@@ -29,20 +30,19 @@ type $DOM = {
 
 const renderingKey = Symbol("rendering");
 
-getGlobalData("@msom/dom") || (getGlobalData("@msom/dom") as any) || {};
+getGlobalData("@msom/dom") || (getGlobalData("@msom/dom") as Record<string, unknown>) || {};
 
 interface Fiber {
-  type?: keyof Msom.JSX.ElementTypeMap | null;
-  dom: HTMLElement | Text | null;
-  props: Msom.H<any>;
+  type?: string | ((props: any) => VNode) | new (props: any) => IComponent | null;
+  dom: DOMElement | null;
+  props: VNodeProps;
   alternate: Fiber | null;
   child: Fiber | null;
   sibling: Fiber | null;
   parent: Fiber | null;
   effectTag: "UPDATE" | "PLACEMENT" | "DELETION" | null;
-  component: IComponent | null; // 类组件实例
-  // vNode: Msom.MsomNode | null; // 关联的VNode
-  rootFiber: Fiber | null; // 根Fiber
+  component: IComponent | null;
+  rootFiber: Fiber | null;
 }
 
 /**
@@ -50,21 +50,18 @@ interface Fiber {
  * @param element VNode元素
  * @returns 带有真实DOM的VNode
  */
-function createDom(fiber: Fiber): Text | HTMLElement {
-  // 创建元素
+function createDom(fiber: Fiber): DOMElement {
   const dom =
     fiber.type === TEXT_NODE
       ? document.createTextNode("")
       : document.createElement(fiber.type as string);
-  updateDom(dom as any, {} as any, fiber.props as any);
+  updateDom(dom, {} as VNodeProps, fiber.props);
   return dom;
 }
 
 const DOMEVENTBINDSYMBOL = Symbol("eb");
 
-function updateDom<
-  T extends Msom.JSX.ElementType | keyof Msom.JSX.IntrinsicElements,
->(dom: HTMLElement | Text, prevProps: Msom.H<T>, nextProps: Msom.H<T>) {
+function updateDom(dom: DOMElement, prevProps: VNodeProps, nextProps: VNodeProps): void {
   const {
     $ref,
     $context,
@@ -74,59 +71,64 @@ function updateDom<
     style,
     ...props
   } = nextProps;
+  
   if (dom instanceof HTMLElement) {
     dom.className = "";
     dom.style = "";
   }
 
-  // 创建事件映射表
   const eventMap = dom[DOMEVENTBINDSYMBOL] || new Map<string, EventListener>();
   dom[DOMEVENTBINDSYMBOL] = eventMap;
-  {
-    const { children, $key, $ref, $context, ...props } = prevProps;
-    Reflect.ownKeys(props).forEach((key) => {
+  
+  if (prevProps) {
+    const { children: prevChildren, $key, $ref: prevRef, $context: prevContext, ...prevRestProps } = prevProps;
+    Reflect.ownKeys(prevRestProps).forEach((key) => {
       if (typeof key === "string" && key.startsWith("on")) {
-        const ek = key.slice(2).toLocaleLowerCase();
-        const e = dom[DOMEVENTBINDSYMBOL]?.get(ek);
+        const eventName = key.slice(2).toLocaleLowerCase();
+        const e = eventMap.get(eventName);
         if (e) {
-          dom.removeEventListener(key.slice(2).toLocaleLowerCase(), e);
+          dom.removeEventListener(eventName, e);
         }
-      } else {
-        dom[key] = "";
+      } else if (dom instanceof HTMLElement) {
+        dom.removeAttribute(key);
       }
     });
   }
-  // 处理class
+  
   if (_class && dom instanceof HTMLElement) {
-    // 静态在前
     dom.className = `${className || ""} ${parseClass(_class)}`.trim();
   }
 
-  // 处理style
   if (style && dom instanceof HTMLElement) {
-    dom.style = parseStyle(style);
+    dom.style = parseStyle(style) as CSSStyleDeclaration;
   }
 
-  // 处理事件
+  const eventProps = new Map<string, EventListener>();
   Reflect.ownKeys(props)
-    .filter((key) => typeof key === "string" && key.startsWith("on"))
+    .filter((key): key is string => typeof key === "string" && key.startsWith("on"))
     .forEach((key: string) => {
-      const event = Reflect.get(props, key, props);
-      Reflect.deleteProperty(props, key);
+      const event = Reflect.get(props, key) as EventListener;
       const eventName = key.slice(2).toLowerCase();
       dom.addEventListener(eventName, event);
-      eventMap.set(eventName, event);
+      eventProps.set(eventName, event);
     });
-  // 应用其他属性
-  Object.assign(dom, props);
-  // 处理ref
-  const refs = [$ref].flat().filter((ref) => ref !== undefined);
+  
+  const remainingProps: Record<string, unknown> = {};
+  Reflect.ownKeys(props)
+    .filter((key) => !String(key).startsWith("on"))
+    .forEach((key) => {
+      remainingProps[String(key)] = Reflect.get(props, key);
+    });
+  
+  Object.assign(dom as HTMLElement, remainingProps);
+  
+  const refs = [$ref].flat().filter((ref): ref is IRef<DOMElement> => ref !== undefined && typeof ref === "object" && "set" in ref);
   if (refs.length) {
     refs.forEach((ref) => {
-      ref.set(dom as any);
+      ref.set(dom);
     });
   }
-  return dom;
+}
 }
 
 const wipRoot = new Observer<Fiber | null>();
@@ -306,9 +308,7 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
         return oldComponent;
       }
       // 创建新实例
-      const ComponentType = fiber.type as unknown as new (
-        ...args: unknown[]
-      ) => IComponent;
+      const ComponentType = fiber.type as new (props: VNodeProps) => IComponent;
       const component = new ComponentType(newProps);
       // 生命周期: created
       component.created();
@@ -327,9 +327,9 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
           c !== null &&
           "type" in c &&
           c.type === TEXT_NODE &&
-          typeof (c as any).props?.nodeValue === "function"
+          typeof (c as VNode).props?.nodeValue === "function"
         ) {
-          return (c as any).props.nodeValue;
+          return (c as VNode).props.nodeValue;
         } else {
           return c;
         }
@@ -347,7 +347,9 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
     if ($ref) {
       const _$ref = [$ref].flat();
       for (const ref of _$ref) {
-        (ref as IRef<any>).set(component);
+        if (typeof ref === "object" && "set" in ref) {
+          (ref as IRef<IComponent>).set(component);
+        }
       }
     }
     // 事件绑定
