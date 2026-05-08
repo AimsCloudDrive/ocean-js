@@ -773,7 +773,7 @@ export function updateVNodeComplete(
 }
 
 /**
- * 更新子元素
+ * 更新子元素 - 实现完整的基于key的diff算法
  * @param parentDom 父DOM元素
  * @param oldChildren 旧的子VNode数组
  * @param newChildren 新的子VNode数组
@@ -783,49 +783,148 @@ function updateChildren(
   oldChildren: Msom.MsomNode[],
   newChildren: Msom.MsomNode[],
 ): void {
-  const oldChildDoms: (HTMLElement | Text)[] = [];
-  const newChildVNodes: Msom.MsomElement[] = [];
-
-  // 收集旧的子DOM元素
+  // 构建旧子节点的key到DOM的映射
+  const oldChildMap = new Map<string | number, HTMLElement | Text>();
+  const oldChildNodes: (HTMLElement | Text)[] = [];
+  
   for (let i = 0; i < parentDom.childNodes.length; i++) {
     const child = parentDom.childNodes[i];
     if (child instanceof HTMLElement || child instanceof Text) {
-      oldChildDoms.push(child);
+      // 使用DOM元素或索引作为key
+      const key = (child as HTMLElement).getAttribute('data-key') || String(i);
+      oldChildMap.set(key, child);
+      oldChildNodes.push(child);
     }
   }
-
-  // 过滤出有效的子VNode
-  for (const child of newChildren) {
-    if (child && typeof child === "object" && "type" in child) {
-      newChildVNodes.push(child as Msom.MsomElement);
+  
+  // 构建新子节点的key映射
+  const newChildMap = new Map<string | number, Msom.MsomElement>();
+  newChildren.forEach((child, index) => {
+    if (child && typeof child === 'object' && 'type' in child) {
+      const key = (child as Msom.MsomElement).props?.$key ?? String(index);
+      newChildMap.set(key, child as Msom.MsomElement);
     }
+  });
+  
+  // 跟踪哪些旧节点已被使用
+  const usedOldKeys = new Set<string | number>();
+  
+  // 记录需要执行的操作
+  interface DOMOperation {
+    type: 'MOVE' | 'INSERT' | 'REMOVE' | 'UPDATE';
+    key: string | number;
+    dom?: HTMLElement | Text;
+    vnode?: Msom.MsomElement;
+    oldIndex?: number;
+    newIndex?: number;
   }
-
-  // 简单的diff算法：按索引更新
-  const maxLength = Math.max(oldChildDoms.length, newChildVNodes.length);
-
-  for (let i = 0; i < maxLength; i++) {
-    const oldChildDom = oldChildDoms[i];
-    const newChildVNode = newChildVNodes[i];
-
-    if (oldChildDom && newChildVNode) {
-      // 更新现有元素
-      if (oldChildDom instanceof HTMLElement) {
-        // 直接创建新元素并替换
-        const updatedChild = createDom(newChildVNode);
-        if (updatedChild._dom) {
-          parentDom.replaceChild(updatedChild._dom, oldChildDom);
+  
+  const operations: DOMOperation[] = [];
+  
+  // 第一轮：处理新children，确定每个节点的操作类型
+  newChildren.forEach((child, newIndex) => {
+    if (child && typeof child === 'object' && 'type' in child) {
+      const vnode = child as Msom.MsomElement;
+      const key = vnode.props?.$key ?? String(newIndex);
+      const oldDom = oldChildMap.get(key);
+      
+      if (oldDom) {
+        // key匹配，复用DOM
+        usedOldKeys.add(key);
+        const oldIndex = oldChildNodes.indexOf(oldDom);
+        
+        if (oldIndex !== newIndex) {
+          // 需要移动
+          operations.push({
+            type: 'MOVE',
+            key,
+            dom: oldDom,
+            oldIndex,
+            newIndex
+          });
+        } else {
+          // 类型相同则更新，否则替换
+          operations.push({
+            type: 'UPDATE',
+            key,
+            dom: oldDom,
+            vnode,
+            oldIndex,
+            newIndex
+          });
+        }
+      } else {
+        // 新增节点
+        operations.push({
+          type: 'INSERT',
+          key,
+          vnode,
+          newIndex
+        });
+      }
+    }
+  });
+  
+  // 第二轮：标记需要删除的旧节点
+  oldChildMap.forEach((dom, key) => {
+    if (!usedOldKeys.has(key)) {
+      operations.push({
+        type: 'REMOVE',
+        key,
+        dom
+      });
+    }
+  });
+  
+  // 执行操作：先处理删除
+  const removeOps = operations.filter(op => op.type === 'REMOVE');
+  removeOps.forEach(op => {
+    if (op.dom) {
+      parentDom.removeChild(op.dom);
+    }
+  });
+  
+  // 处理插入和更新
+  const insertAndUpdateOps = operations.filter(op => op.type === 'INSERT' || op.type === 'UPDATE');
+  
+  // 按newIndex排序以正确的顺序插入
+  insertAndUpdateOps.sort((a, b) => (a.newIndex ?? 0) - (b.newIndex ?? 0));
+  
+  insertAndUpdateOps.forEach((op) => {
+    if (op.type === 'INSERT' && op.vnode) {
+      // 创建新DOM并插入
+      const newVNodeWithDom = createDom(op.vnode);
+      if (newVNodeWithDom._dom) {
+        // 设置data-key属性以便下次diff能找到
+        if (newVNodeWithDom._dom instanceof HTMLElement) {
+          newVNodeWithDom._dom.setAttribute('data-key', String(op.key));
+        }
+        
+        // 找到正确的插入位置
+        const refNode = parentDom.childNodes[op.newIndex ?? 0];
+        if (refNode) {
+          parentDom.insertBefore(newVNodeWithDom._dom, refNode);
+        } else {
+          parentDom.appendChild(newVNodeWithDom._dom);
         }
       }
-    } else if (oldChildDom && !newChildVNode) {
-      // 删除多余的元素
-      parentDom.removeChild(oldChildDom);
-    } else if (!oldChildDom && newChildVNode) {
-      // 添加新元素
-      const newChild = createDom(newChildVNode);
-      if (newChild._dom) {
-        parentDom.appendChild(newChild._dom);
+    } else if (op.type === 'UPDATE' && op.dom && op.vnode) {
+      // 更新现有DOM的属性
+      if (op.dom instanceof HTMLElement) {
+        // 简单属性更新
+        const { children, class: _class, style, $key, $ref, ...restProps } = op.vnode.props;
+        
+        if (_class) {
+          op.dom.className = `${parseClass(_class)} ${restProps.className || ''}`.trim();
+        }
+        
+        if (style) {
+          op.dom.style.cssText = parseStyle(style);
+        }
+        
+        // 更新其他属性
+        Object.assign(op.dom, restProps);
       }
     }
-  }
+  });
 }

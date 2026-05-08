@@ -32,8 +32,10 @@ const renderingKey = Symbol("rendering");
 
 getGlobalData("@msom/dom") || (getGlobalData("@msom/dom") as Record<string, unknown>) || {};
 
+type FiberType = string | ((props: any) => VNode) | (new (props: any) => IComponent);
+
 interface Fiber {
-  type?: string | ((props: any) => VNode) | new (props: any) => IComponent | null;
+  type?: FiberType | null;
   dom: DOMElement | null;
   props: VNodeProps;
   alternate: Fiber | null;
@@ -128,7 +130,6 @@ function updateDom(dom: DOMElement, prevProps: VNodeProps, nextProps: VNodeProps
       ref.set(dom);
     });
   }
-}
 }
 
 const wipRoot = new Observer<Fiber | null>();
