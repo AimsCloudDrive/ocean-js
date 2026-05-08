@@ -152,7 +152,6 @@ export interface HealthCheckResponse {
   timestamp: string;
   uptime: number;
   dbStatus: string;
-  redisStatus?: string;
 }
 
 // 错误响应接口

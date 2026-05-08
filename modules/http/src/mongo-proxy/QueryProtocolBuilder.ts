@@ -83,7 +83,6 @@ export class RelateModel extends Model implements RelateModelHandler {
 export interface QueryProtocol {
   start: string;
   option: QueryModel;
-  cache?: boolean;
 }
 
 export class QueryProtocolBuilder {

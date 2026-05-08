@@ -28,9 +28,8 @@
   },
   "devDependencies": {
     "@msom/common": "workspace:^",
-    "@msom/dom": "workspace:^",
-    "@msom/xbuild": "workspace:^",
-    "@msom/reaction": "workspace:^"
+    "@msom/reaction": "workspace:^",
+    "@msom/xbuild": "workspace:^"
   },
   "publishConfig": {
     "access": "public"

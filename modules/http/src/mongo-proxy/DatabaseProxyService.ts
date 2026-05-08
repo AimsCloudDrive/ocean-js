@@ -1,5 +1,4 @@
 import express, { Request, Response, Router } from "express";
-import { RedisClient } from "../redis";
 import { DBContext, DBContextOption } from "./DBContext";
 import { QueryExecutor } from "./QueryExecutor";
 import { QueryProtocol } from "./QueryProtocolBuilder";
@@ -17,10 +16,6 @@ interface DatabaseProxyServiceOption {
     dbName: string;
     options?: DBContextOption;
   };
-  redisConfig?: {
-    url?: string;
-    defaultTTL?: number;
-  };
 }
 
 export class DatabaseProxyService {
@@ -29,7 +24,6 @@ export class DatabaseProxyService {
   declare private queryExecutor: QueryExecutor;
   declare private base: string;
   declare private dbContext: DBContext;
-  declare private redisClient?: RedisClient;
 
   constructor(option: DatabaseProxyServiceOption) {
     this.app = express();
@@ -38,12 +32,8 @@ export class DatabaseProxyService {
       option.mongoConfig.options,
     );
     this.dbContext.connect(option.mongoConfig.dbName);
-    this.redisClient = option.redisConfig
-      ? new RedisClient(option.redisConfig)
-      : undefined;
     this.queryExecutor = new QueryExecutor({
       dbContext: this.dbContext,
-      redisClient: this.redisClient,
     });
     this.router = Router();
     this.base = option.base || "";
@@ -171,13 +161,6 @@ export class DatabaseProxyService {
             dbStatus,
           };
 
-          // Include Redis status only if Redis is configured
-          if (this.redisClient) {
-            // Note: We don't have a direct way to check Redis connection status
-            // For simplicity, we'll assume it's connected if it's configured
-            response.redisStatus = "connected";
-          }
-
           res.json(response);
         } catch (error: any) {
           const response: HealthCheckResponse = {
@@ -187,32 +170,7 @@ export class DatabaseProxyService {
             dbStatus: "error",
           };
 
-          // Include Redis status only if Redis is configured
-          if (this.redisClient) {
-            response.redisStatus = "error";
-          }
-
           res.status(500).json(response);
-        }
-      },
-    );
-
-    // 清空缓存端点
-    this.router.post(
-      `${this.base}/clear-cache`,
-      async (req: Request, res: Response) => {
-        try {
-          if (!this.redisClient) {
-            return this.sendError(
-              res,
-              400,
-              "Redis is not configured, cache functionality is disabled",
-            );
-          }
-          await this.queryExecutor.clearCache();
-          this.sendSuccess(res, { message: "Cache cleared successfully" });
-        } catch (error: any) {
-          this.sendError(res, 500, error.message || "Failed to clear cache");
         }
       },
     );
@@ -233,10 +191,7 @@ export class DatabaseProxyService {
 
   async start(port: number = 3000): Promise<void> {
     const prefix = `http://localhost:${port}${this.base}`;
-    await Promise.all([
-      this.dbContext.connecting,
-      this.redisClient?.connecting,
-    ]);
+    await this.dbContext.connecting;
 
     this.app.listen(port, () => {
       console.log(`\n🚀 Database proxy service running on port ${port}`);
@@ -246,7 +201,6 @@ export class DatabaseProxyService {
         `📋 Model meta endpoint: GET ${prefix}/model-meta/:modelName`,
       );
       console.log(`📚 Models endpoint: GET ${prefix}/models`);
-      console.log(`🧹 Cache endpoint: POST ${prefix}/clear-cache`);
       console.log(`❤️  Health check: GET ${prefix}/health\n`);
     });
   }
