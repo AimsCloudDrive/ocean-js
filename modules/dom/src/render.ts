@@ -594,40 +594,40 @@ function commitWork(fiber?: Fiber | null) {
     const newVNode = component.render() || undefined;
 
     if (fiber.effectTag === "UPDATE" && oldVNode && newVNode) {
-      // 更新组件
-      // 这里需要递归渲染新的VNode并更新DOM
-      // 由于Fiber架构的特性，我们需要手动处理组件的DOM更新
       const container = domParent as HTMLElement;
+      const oldDom = component.el;
 
-      // 如果组件已挂载，需要更新DOM
-      if (wasMounted) {
-        // 获取组件当前的DOM元素
-        const componentDom = component.el;
-        if (componentDom && container.contains(componentDom)) {
-          // 移除旧的DOM
-          container.removeChild(componentDom);
+      if (wasMounted && oldDom && newVNode.type === oldVNode.type) {
+        // 类型相同，in-place更新
+        updateVNodeInPlace(oldDom as HTMLElement, oldVNode, newVNode as Msom.MsomElement);
+      } else if (wasMounted && oldDom && container.contains(oldDom as Node)) {
+        // 类型改变，替换DOM
+        container.removeChild(oldDom as Node);
+        
+        const tempContainer = document.createDocumentFragment();
+        renderComponentVNode(newVNode as Msom.MsomElement, tempContainer, component);
+        
+        while (tempContainer.firstChild) {
+          const child = tempContainer.firstChild;
+          container.appendChild(child);
+          if (child instanceof HTMLElement && !Reflect.get(child, "$owner")) {
+            Object.assign(child, { $owner: component });
+          }
+        }
+      } else {
+        // 首次挂载
+        const tempContainer = document.createDocumentFragment();
+        renderComponentVNode(newVNode as Msom.MsomElement, tempContainer, component);
+        
+        while (tempContainer.firstChild) {
+          const child = tempContainer.firstChild;
+          container.appendChild(child);
+          if (child instanceof HTMLElement && !Reflect.get(child, "$owner")) {
+            Object.assign(child, { $owner: component });
+          }
         }
       }
 
-      // 渲染新的VNode到临时容器
-      const tempContainer = document.createDocumentFragment();
-      renderComponentVNode(
-        newVNode as Msom.MsomElement,
-        tempContainer,
-        component,
-      );
-
-      // 将新DOM添加到父容器
-      while (tempContainer.firstChild) {
-        const child = tempContainer.firstChild;
-        container.appendChild(child);
-        // 将类组件实例附着在dom上
-        if (child instanceof HTMLElement && !Reflect.get(child, "$owner")) {
-          Object.assign(child, { $owner: component });
-        }
-      }
-
-      // 更新组件VNode
       const vNodeWithDOM = getComponentVNode(component);
       if (vNodeWithDOM) {
         setComponentVNode(component, vNodeWithDOM);
@@ -790,12 +790,36 @@ function renderComponentVNode(
   }
 }
 
-Object.assign(window, {
-  bbbb: {
-    wipRoot,
-    currentRoot,
-    deletions,
-    nextUnitOfWork,
-    commitRoot,
-  },
-});
+function updateVNodeInPlace(
+  dom: HTMLElement,
+  oldVNode: VNode,
+  newVNode: Msom.MsomElement
+): void {
+  if (!oldVNode || !newVNode) return;
+  
+  const { children, class: _class, style, $key, $ref, ...restProps } = newVNode.props;
+  
+  if (_class) {
+    dom.className = parseClass(_class);
+  }
+  
+  if (style) {
+    dom.style.cssText = parseStyle(style);
+  }
+  
+  Object.assign(dom, restProps);
+}
+
+if (process.env.NODE_ENV === 'development') {
+  Object.defineProperty(window, '__MSOM_DEVTOOLS__', {
+    value: {
+      wipRoot,
+      currentRoot,
+      deletions,
+      nextUnitOfWork,
+      commitRoot,
+    },
+    writable: false,
+    configurable: true
+  });
+}
