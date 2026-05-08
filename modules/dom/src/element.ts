@@ -470,7 +470,7 @@ const eventBindingMap = new WeakMap<
   { [K in PropertyKey]: Parameters<Event["on"]>[1] }
 >();
 
-const componentCache = new Map<any, IComponent>();
+const componentCache = new WeakMap<object, IComponent>();
 
 function _mountComponent(element: Msom.MsomElement<any>, container: Element) {
   withoutTrack(() => {
@@ -496,10 +496,12 @@ function _mountComponent(element: Msom.MsomElement<any>, container: Element) {
 
     // 获取或创建组件实例
     const component = (() => {
-      let component = componentCache.get(_props.$key);
+      // 使用元素作为缓存key
+      const cacheKey = element as object;
+      let component = componentCache.get(cacheKey);
       if (!component) {
         component = new element.type(_props) as IComponent;
-        _props.$key != undefined && componentCache.set(_props.$key, component);
+        componentCache.set(cacheKey, component);
       } else {
         component.set(_props as IComponentProps, true);
       }
