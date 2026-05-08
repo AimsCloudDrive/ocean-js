@@ -183,36 +183,54 @@ function reconcileChildren(fiber: Fiber, elements?: Msom.MsomElement<any>[]) {
     return;
   }
   let oldFiber = fiber.alternate && fiber.alternate.child;
+  // 构建旧fiber的key映射，用于高效查找
+  const oldFiberMap = new Map<string | number, Fiber>();
+  let tempOldFiber = oldFiber;
+  while (tempOldFiber) {
+    const key = tempOldFiber.props?.$key ?? index;
+    oldFiberMap.set(key, tempOldFiber);
+    tempOldFiber = tempOldFiber.sibling;
+  }
+  
   while (index < elements?.length || oldFiber != null) {
     const element = elements[index];
-    const sameType = oldFiber && element && oldFiber.type === element.type;
+    const key = element?.props?.$key ?? index;
+    const oldFiberByKey = oldFiberMap.get(key);
+    const sameType = oldFiberByKey && element && oldFiberByKey.type === element.type;
+    const sameKey = oldFiberByKey && element && 
+                   (oldFiberByKey.props?.$key === element.props?.$key || 
+                    oldFiberByKey.props?.$key === undefined && element.props?.$key === undefined);
     let newFiber: Fiber | null = null;
-    if (sameType) {
-      assert(oldFiber);
+    
+    if (sameType && sameKey) {
+      // 类型和key都相同，复用旧fiber
+      assert(oldFiberByKey);
       newFiber = {
-        type: oldFiber.type,
+        type: oldFiberByKey.type,
         child: null,
         sibling: null,
         props: element.props,
         parent: fiber,
-        dom: oldFiber.dom,
-        alternate: oldFiber,
+        dom: oldFiberByKey.dom,
+        alternate: oldFiberByKey,
         effectTag: "UPDATE",
-        component: oldFiber.component, // 保留组件实例
+        component: oldFiberByKey.component,
         rootFiber: null,
       };
-    }
-    if (element && !sameType) {
+      oldFiberMap.delete(key);
+    } else if (element && !sameType) {
+      // 类型不同但有新元素
       newFiber = createFiber(element, fiber);
     }
-    if (oldFiber && !sameType) {
-      oldFiber.effectTag = "DELETION";
-      deletions.get().push(oldFiber);
+    if (oldFiberByKey && !sameType) {
+      // 类型不同，标记删除旧的
+      oldFiberByKey.effectTag = "DELETION";
+      deletions.get().push(oldFiberByKey);
     }
-    if (oldFiber) {
-      oldFiber = oldFiber.sibling;
+    // 清理已匹配的旧fiber
+    if (oldFiberByKey) {
+      oldFiberMap.delete(key);
     }
-
     if (index === 0) {
       fiber.child = newFiber;
     } else if (prevSibling) {
@@ -221,6 +239,11 @@ function reconcileChildren(fiber: Fiber, elements?: Msom.MsomElement<any>[]) {
     prevSibling = newFiber;
     index++;
   }
+  // 清理未匹配到的旧fiber
+  oldFiberMap.forEach((orphanFiber) => {
+    orphanFiber.effectTag = "DELETION";
+    deletions.get().push(orphanFiber);
+  });
 }
 function workLoop(deadline: IdleDeadline) {
   while (nextUnitOfWork.get() && deadline.timeRemaining() > 0) {
@@ -267,14 +290,16 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
 
     // 获取或创建组件实例
     const component = (() => {
+      // 获取key用于复用判断
+      const oldKey = fiber.alternate?.props?.$key;
+      const newKey = props.$key;
+      const sameKey = oldKey === newKey || 
+                     (oldKey === undefined && newKey === undefined);
+      
       // 如果是更新，尝试从旧的fiber中获取组件实例
       if (
         fiber.alternate?.component &&
-        (Object.is(fiber.alternate.type, fiber.type) ||
-          Object.is(
-            fiber.alternate.props.$key ?? Symbol(),
-            props.$key ?? Symbol(),
-          ))
+        (Object.is(fiber.alternate.type, fiber.type) || sameKey)
       ) {
         const oldComponent = fiber.alternate.component;
         oldComponent.set(newProps as IComponentProps, true);
