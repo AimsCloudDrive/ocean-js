@@ -22,6 +22,7 @@ import {
 } from "./element";
 import { IComponent, IComponentProps } from "./IComponent";
 import { IRef } from "./Ref";
+import { VNode, DOMElement, EventProxy, createEventProxy, VNodeProps } from "./types";
 
 type $DOM = {
   rendering?: IComponent;
@@ -29,20 +30,21 @@ type $DOM = {
 
 const renderingKey = Symbol("rendering");
 
-getGlobalData("@msom/dom") || (getGlobalData("@msom/dom") as any) || {};
+getGlobalData("@msom/dom") || (getGlobalData("@msom/dom") as Record<string, unknown>) || {};
+
+type FiberType = string | ((props: any) => VNode) | (new (props: any) => IComponent);
 
 interface Fiber {
-  type?: keyof Msom.JSX.ElementTypeMap | null;
-  dom: HTMLElement | Text | null;
-  props: Msom.H<any>;
+  type?: FiberType | null;
+  dom: DOMElement | null;
+  props: VNodeProps;
   alternate: Fiber | null;
   child: Fiber | null;
   sibling: Fiber | null;
   parent: Fiber | null;
   effectTag: "UPDATE" | "PLACEMENT" | "DELETION" | null;
-  component: IComponent | null; // 类组件实例
-  // vNode: Msom.MsomNode | null; // 关联的VNode
-  rootFiber: Fiber | null; // 根Fiber
+  component: IComponent | null;
+  rootFiber: Fiber | null;
 }
 
 /**
@@ -50,21 +52,18 @@ interface Fiber {
  * @param element VNode元素
  * @returns 带有真实DOM的VNode
  */
-function createDom(fiber: Fiber): Text | HTMLElement {
-  // 创建元素
+function createDom(fiber: Fiber): DOMElement {
   const dom =
     fiber.type === TEXT_NODE
       ? document.createTextNode("")
       : document.createElement(fiber.type as string);
-  updateDom(dom as any, {} as any, fiber.props as any);
+  updateDom(dom, {} as VNodeProps, fiber.props);
   return dom;
 }
 
 const DOMEVENTBINDSYMBOL = Symbol("eb");
 
-function updateDom<
-  T extends Msom.JSX.ElementType | keyof Msom.JSX.IntrinsicElements,
->(dom: HTMLElement | Text, prevProps: Msom.H<T>, nextProps: Msom.H<T>) {
+function updateDom(dom: DOMElement, prevProps: VNodeProps, nextProps: VNodeProps): void {
   const {
     $ref,
     $context,
@@ -74,59 +73,63 @@ function updateDom<
     style,
     ...props
   } = nextProps;
+  
   if (dom instanceof HTMLElement) {
     dom.className = "";
     dom.style = "";
   }
 
-  // 创建事件映射表
   const eventMap = dom[DOMEVENTBINDSYMBOL] || new Map<string, EventListener>();
   dom[DOMEVENTBINDSYMBOL] = eventMap;
-  {
-    const { children, $key, $ref, $context, ...props } = prevProps;
-    Reflect.ownKeys(props).forEach((key) => {
+  
+  if (prevProps) {
+    const { children: prevChildren, $key, $ref: prevRef, $context: prevContext, ...prevRestProps } = prevProps;
+    Reflect.ownKeys(prevRestProps).forEach((key) => {
       if (typeof key === "string" && key.startsWith("on")) {
-        const ek = key.slice(2).toLocaleLowerCase();
-        const e = dom[DOMEVENTBINDSYMBOL]?.get(ek);
+        const eventName = key.slice(2).toLocaleLowerCase();
+        const e = eventMap.get(eventName);
         if (e) {
-          dom.removeEventListener(key.slice(2).toLocaleLowerCase(), e);
+          dom.removeEventListener(eventName, e);
         }
-      } else {
-        dom[key] = "";
+      } else if (dom instanceof HTMLElement) {
+        dom.removeAttribute(key);
       }
     });
   }
-  // 处理class
+  
   if (_class && dom instanceof HTMLElement) {
-    // 静态在前
     dom.className = `${className || ""} ${parseClass(_class)}`.trim();
   }
 
-  // 处理style
   if (style && dom instanceof HTMLElement) {
-    dom.style = parseStyle(style);
+    dom.style = parseStyle(style) as CSSStyleDeclaration;
   }
 
-  // 处理事件
+  const eventProps = new Map<string, EventListener>();
   Reflect.ownKeys(props)
-    .filter((key) => typeof key === "string" && key.startsWith("on"))
+    .filter((key): key is string => typeof key === "string" && key.startsWith("on"))
     .forEach((key: string) => {
-      const event = Reflect.get(props, key, props);
-      Reflect.deleteProperty(props, key);
+      const event = Reflect.get(props, key) as EventListener;
       const eventName = key.slice(2).toLowerCase();
       dom.addEventListener(eventName, event);
-      eventMap.set(eventName, event);
+      eventProps.set(eventName, event);
     });
-  // 应用其他属性
-  Object.assign(dom, props);
-  // 处理ref
-  const refs = [$ref].flat().filter((ref) => ref !== undefined);
+  
+  const remainingProps: Record<string, unknown> = {};
+  Reflect.ownKeys(props)
+    .filter((key) => !String(key).startsWith("on"))
+    .forEach((key) => {
+      remainingProps[String(key)] = Reflect.get(props, key);
+    });
+  
+  Object.assign(dom as HTMLElement, remainingProps);
+  
+  const refs = [$ref].flat().filter((ref): ref is IRef<DOMElement> => ref !== undefined && typeof ref === "object" && "set" in ref);
   if (refs.length) {
     refs.forEach((ref) => {
-      ref.set(dom as any);
+      ref.set(dom);
     });
   }
-  return dom;
 }
 
 const wipRoot = new Observer<Fiber | null>();
@@ -183,36 +186,54 @@ function reconcileChildren(fiber: Fiber, elements?: Msom.MsomElement<any>[]) {
     return;
   }
   let oldFiber = fiber.alternate && fiber.alternate.child;
+  // 构建旧fiber的key映射，用于高效查找
+  const oldFiberMap = new Map<string | number, Fiber>();
+  let tempOldFiber = oldFiber;
+  while (tempOldFiber) {
+    const key = tempOldFiber.props?.$key ?? index;
+    oldFiberMap.set(key, tempOldFiber);
+    tempOldFiber = tempOldFiber.sibling;
+  }
+  
   while (index < elements?.length || oldFiber != null) {
     const element = elements[index];
-    const sameType = oldFiber && element && oldFiber.type === element.type;
+    const key = element?.props?.$key ?? index;
+    const oldFiberByKey = oldFiberMap.get(key);
+    const sameType = oldFiberByKey && element && oldFiberByKey.type === element.type;
+    const sameKey = oldFiberByKey && element && 
+                   (oldFiberByKey.props?.$key === element.props?.$key || 
+                    oldFiberByKey.props?.$key === undefined && element.props?.$key === undefined);
     let newFiber: Fiber | null = null;
-    if (sameType) {
-      assert(oldFiber);
+    
+    if (sameType && sameKey) {
+      // 类型和key都相同，复用旧fiber
+      assert(oldFiberByKey);
       newFiber = {
-        type: oldFiber.type,
+        type: oldFiberByKey.type,
         child: null,
         sibling: null,
         props: element.props,
         parent: fiber,
-        dom: oldFiber.dom,
-        alternate: oldFiber,
+        dom: oldFiberByKey.dom,
+        alternate: oldFiberByKey,
         effectTag: "UPDATE",
-        component: oldFiber.component, // 保留组件实例
+        component: oldFiberByKey.component,
         rootFiber: null,
       };
-    }
-    if (element && !sameType) {
+      oldFiberMap.delete(key);
+    } else if (element && !sameType) {
+      // 类型不同但有新元素
       newFiber = createFiber(element, fiber);
     }
-    if (oldFiber && !sameType) {
-      oldFiber.effectTag = "DELETION";
-      deletions.get().push(oldFiber);
+    if (oldFiberByKey && !sameType) {
+      // 类型不同，标记删除旧的
+      oldFiberByKey.effectTag = "DELETION";
+      deletions.get().push(oldFiberByKey);
     }
-    if (oldFiber) {
-      oldFiber = oldFiber.sibling;
+    // 清理已匹配的旧fiber
+    if (oldFiberByKey) {
+      oldFiberMap.delete(key);
     }
-
     if (index === 0) {
       fiber.child = newFiber;
     } else if (prevSibling) {
@@ -221,15 +242,88 @@ function reconcileChildren(fiber: Fiber, elements?: Msom.MsomElement<any>[]) {
     prevSibling = newFiber;
     index++;
   }
+  // 清理未匹配到的旧fiber
+  oldFiberMap.forEach((orphanFiber) => {
+    orphanFiber.effectTag = "DELETION";
+    deletions.get().push(orphanFiber);
+  });
 }
+
+interface FiberSnapshot {
+  props: VNodeProps;
+  effectTag: "UPDATE" | "PLACEMENT" | "DELETION" | null;
+  dom: DOMElement | null;
+}
+
+class FiberTransaction {
+  private snapshots = new Map<Fiber, FiberSnapshot>();
+  isActive = false;
+  
+  begin() {
+    this.isActive = true;
+    this.snapshots.clear();
+  }
+  
+  snapshot(fiber: Fiber) {
+    if (!this.isActive) return;
+    
+    if (!this.snapshots.has(fiber)) {
+      this.snapshots.set(fiber, {
+        props: { ...fiber.props },
+        effectTag: fiber.effectTag,
+        dom: fiber.dom
+      });
+    }
+  }
+  
+  commit() {
+    this.isActive = false;
+    this.snapshots.clear();
+  }
+  
+  rollback() {
+    this.snapshots.forEach((snapshot, fiber) => {
+      fiber.props = snapshot.props;
+      fiber.effectTag = snapshot.effectTag;
+      fiber.dom = snapshot.dom;
+    });
+    this.isActive = false;
+    this.snapshots.clear();
+  }
+}
+
+const fiberTransaction = new FiberTransaction();
+
 function workLoop(deadline: IdleDeadline) {
+  if (!fiberTransaction.isActive) {
+    fiberTransaction.begin();
+  }
+  
   while (nextUnitOfWork.get() && deadline.timeRemaining() > 0) {
-    const _nextUnitOfWork = performUnitOfWork(nextUnitOfWork.get()!);
-    nextUnitOfWork.set(_nextUnitOfWork);
+    const fiber = nextUnitOfWork.get()!;
+    fiberTransaction.snapshot(fiber);
+    
+    try {
+      const _nextUnitOfWork = performUnitOfWork(fiber);
+      nextUnitOfWork.set(_nextUnitOfWork);
+    } catch (error) {
+      console.error('Fiber processing error:', error);
+      fiberTransaction.rollback();
+      throw error;
+    }
   }
+  
   if (!nextUnitOfWork.get() && wipRoot.get()) {
-    commitRoot();
+    try {
+      commitRoot();
+      fiberTransaction.commit();
+    } catch (error) {
+      console.error('Commit error:', error);
+      fiberTransaction.rollback();
+      throw error;
+    }
   }
+  
   requestIdleCallback(workLoop);
 }
 
@@ -238,6 +332,33 @@ type EventStop = () => void;
 type EventBinding = Record<string, EventStop>;
 
 function performUnitOfWork(fiber: Fiber): Fiber | null {
+  try {
+    return performUnitOfWorkInner(fiber);
+  } catch (error) {
+    console.error('Component render error:', error);
+    
+    // 查找最近的ErrorBoundary
+    let parent = fiber.parent;
+    while (parent) {
+      if (parent.component && isErrorBoundary(parent.component)) {
+        parent.component.state = {
+          hasError: true,
+          error: error instanceof Error ? error : new Error(String(error))
+        };
+        return parent.sibling;
+      }
+      parent = parent.parent;
+    }
+    
+    throw error;
+  }
+}
+
+function isErrorBoundary(component: IComponent): boolean {
+  return 'getDerivedStateFromError' in component || 'componentDidCatch' in component;
+}
+
+function performUnitOfWorkInner(fiber: Fiber): Fiber | null {
   if (
     typeof fiber.type === "function" &&
     fiber.type !== null &&
@@ -267,23 +388,23 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
 
     // 获取或创建组件实例
     const component = (() => {
+      // 获取key用于复用判断
+      const oldKey = fiber.alternate?.props?.$key;
+      const newKey = props.$key;
+      const sameKey = oldKey === newKey || 
+                     (oldKey === undefined && newKey === undefined);
+      
       // 如果是更新，尝试从旧的fiber中获取组件实例
       if (
         fiber.alternate?.component &&
-        (Object.is(fiber.alternate.type, fiber.type) ||
-          Object.is(
-            fiber.alternate.props.$key ?? Symbol(),
-            props.$key ?? Symbol(),
-          ))
+        (Object.is(fiber.alternate.type, fiber.type) || sameKey)
       ) {
         const oldComponent = fiber.alternate.component;
         oldComponent.set(newProps as IComponentProps, true);
         return oldComponent;
       }
       // 创建新实例
-      const ComponentType = fiber.type as unknown as new (
-        ...args: unknown[]
-      ) => IComponent;
+      const ComponentType = fiber.type as new (props: VNodeProps) => IComponent;
       const component = new ComponentType(newProps);
       // 生命周期: created
       component.created();
@@ -302,9 +423,9 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
           c !== null &&
           "type" in c &&
           c.type === TEXT_NODE &&
-          typeof (c as any).props?.nodeValue === "function"
+          typeof (c as VNode).props?.nodeValue === "function"
         ) {
-          return (c as any).props.nodeValue;
+          return (c as VNode).props.nodeValue;
         } else {
           return c;
         }
@@ -322,7 +443,9 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
     if ($ref) {
       const _$ref = [$ref].flat();
       for (const ref of _$ref) {
-        (ref as IRef<any>).set(component);
+        if (typeof ref === "object" && "set" in ref) {
+          (ref as IRef<IComponent>).set(component);
+        }
       }
     }
     // 事件绑定
@@ -471,40 +594,40 @@ function commitWork(fiber?: Fiber | null) {
     const newVNode = component.render() || undefined;
 
     if (fiber.effectTag === "UPDATE" && oldVNode && newVNode) {
-      // 更新组件
-      // 这里需要递归渲染新的VNode并更新DOM
-      // 由于Fiber架构的特性，我们需要手动处理组件的DOM更新
       const container = domParent as HTMLElement;
+      const oldDom = component.el;
 
-      // 如果组件已挂载，需要更新DOM
-      if (wasMounted) {
-        // 获取组件当前的DOM元素
-        const componentDom = component.el;
-        if (componentDom && container.contains(componentDom)) {
-          // 移除旧的DOM
-          container.removeChild(componentDom);
+      if (wasMounted && oldDom && newVNode.type === oldVNode.type) {
+        // 类型相同，in-place更新
+        updateVNodeInPlace(oldDom as HTMLElement, oldVNode, newVNode as Msom.MsomElement);
+      } else if (wasMounted && oldDom && container.contains(oldDom as Node)) {
+        // 类型改变，替换DOM
+        container.removeChild(oldDom as Node);
+        
+        const tempContainer = document.createDocumentFragment();
+        renderComponentVNode(newVNode as Msom.MsomElement, tempContainer, component);
+        
+        while (tempContainer.firstChild) {
+          const child = tempContainer.firstChild;
+          container.appendChild(child);
+          if (child instanceof HTMLElement && !Reflect.get(child, "$owner")) {
+            Object.assign(child, { $owner: component });
+          }
+        }
+      } else {
+        // 首次挂载
+        const tempContainer = document.createDocumentFragment();
+        renderComponentVNode(newVNode as Msom.MsomElement, tempContainer, component);
+        
+        while (tempContainer.firstChild) {
+          const child = tempContainer.firstChild;
+          container.appendChild(child);
+          if (child instanceof HTMLElement && !Reflect.get(child, "$owner")) {
+            Object.assign(child, { $owner: component });
+          }
         }
       }
 
-      // 渲染新的VNode到临时容器
-      const tempContainer = document.createDocumentFragment();
-      renderComponentVNode(
-        newVNode as Msom.MsomElement,
-        tempContainer,
-        component,
-      );
-
-      // 将新DOM添加到父容器
-      while (tempContainer.firstChild) {
-        const child = tempContainer.firstChild;
-        container.appendChild(child);
-        // 将类组件实例附着在dom上
-        if (child instanceof HTMLElement && !Reflect.get(child, "$owner")) {
-          Object.assign(child, { $owner: component });
-        }
-      }
-
-      // 更新组件VNode
       const vNodeWithDOM = getComponentVNode(component);
       if (vNodeWithDOM) {
         setComponentVNode(component, vNodeWithDOM);
@@ -667,12 +790,36 @@ function renderComponentVNode(
   }
 }
 
-Object.assign(window, {
-  bbbb: {
-    wipRoot,
-    currentRoot,
-    deletions,
-    nextUnitOfWork,
-    commitRoot,
-  },
-});
+function updateVNodeInPlace(
+  dom: HTMLElement,
+  oldVNode: VNode,
+  newVNode: Msom.MsomElement
+): void {
+  if (!oldVNode || !newVNode) return;
+  
+  const { children, class: _class, style, $key, $ref, ...restProps } = newVNode.props;
+  
+  if (_class) {
+    dom.className = parseClass(_class);
+  }
+  
+  if (style) {
+    dom.style.cssText = parseStyle(style);
+  }
+  
+  Object.assign(dom, restProps);
+}
+
+if (process.env.NODE_ENV === 'development') {
+  Object.defineProperty(window, '__MSOM_DEVTOOLS__', {
+    value: {
+      wipRoot,
+      currentRoot,
+      deletions,
+      nextUnitOfWork,
+      commitRoot,
+    },
+    writable: false,
+    configurable: true
+  });
+}
