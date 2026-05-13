@@ -4,3 +4,4 @@ export * from "./typeUtils";
 export * from "./ImageSplitter";
 export * from "./debounce";
 export * from "./singleton";
+export * from "./mapAssign";
