@@ -1,7 +1,7 @@
-import { Nullable, createFunction } from "../global";
-import { isObject } from "../object";
-import { assert } from "../assert";
-import { regressRange } from "../number";
+import { Nullable, createFunction } from '../global';
+import { isObject } from '../object';
+import { assert } from '../assert';
+import { regressRange } from '../number';
 
 type NotOriginType = object | Array<any> | (() => void);
 
@@ -38,7 +38,7 @@ export class AnyMap<V = any> {
 export type CollectionEvent = Record<never, never>;
 
 /** 集合键类型，可以是字符串或数字 */
-export type CollectionKey = string | number | symbol;
+export type CollectionKey = any;
 
 /**
  * 获取集合元素键值的函数类型
@@ -56,10 +56,7 @@ interface ToArray<T = unknown> {
    * @param filter 可选的过滤函数
    * @param mapper 可选的映射函数（此重载中不使用）
    */
-  toArray(
-    filter?: Nullable | createFunction<[T, CollectionKey, this, boolean]>,
-    mapper?: Nullable
-  ): T[];
+  toArray(filter?: Nullable | createFunction<[T, CollectionKey, this, boolean]>, mapper?: Nullable): T[];
 
   /**
    * 将集合转换为数组（带映射器）
@@ -79,11 +76,11 @@ interface ToArray<T = unknown> {
  */
 export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
   /** 获取元素键值的函数 */
-  private declare getKey: CollectionGetKey<T>;
+  declare private getKey: CollectionGetKey<T>;
   /** 存储所有元素的数组 */
-  private declare elements: Array<T>;
+  declare private elements: Array<T>;
   /** 键值到数组索引的映射 */
-  private declare indexMap: AnyMap<number>;
+  declare private indexMap: AnyMap<number>;
 
   /**
    * 创建集合实例
@@ -91,7 +88,7 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    */
   constructor(getKey?: CollectionGetKey<T>) {
     // 确保提供了获取键值的函数
-    assert(getKey, "miss get unique key");
+    assert(getKey, 'miss get unique key');
     this.getKey = getKey;
     // 初始化存储结构
     this.elements = new Array<T>();
@@ -199,18 +196,19 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    * @param force 当元素已存在时的处理选项
    * @param exist.index 是否保持原有元素的位置。true: 保持原位置，false: 使用新位置
    * @param exist.element 是否使用新元素替换原有元素。true: 使用新元素，false: 保持原有元素
+   *
+   * eg.1 insert(xxx, 1, { newIndex: true, newElement: true }) -> 在新位置插入新元素，删除旧位置的旧元素
+   * eg.2 insert(xxx, 1, { newIndex: false, newElement: false }) -> 无变化
+   * eg.3 insert(xxx, 1, { newIndex: true, newElement: false }) -> 将旧元素移动到新位置
+   * eg.4 insert(xxx, 1, { newIndex: false, newElement: true }) -> 在旧位置替换新元素
+   * eg.5 insert(xxx, 1, false) -> 无变化
+   * eg.6 insert(xxx, 1, true) -> eg.1
    */
-  insert(
-    element: T,
-    index: number,
-    force?: { newIndex?: boolean; newElement?: boolean } | boolean
-  ) {
+  insert(element: T, index: number, force?: { newIndex?: boolean; newElement?: boolean } | boolean) {
     index = regressRange(index, [0, this.elements.length]);
     const key = this.getKey(element);
     const oIndex = this.getIndex(key);
-    force = isObject(force)
-      ? force
-      : { newIndex: !!force, newElement: !!force };
+    force = isObject(force) ? force : { newIndex: !!force, newElement: !!force };
     const { newIndex, newElement } = force;
     if (oIndex === -1) {
       // 元素不存在时，直接插入到指定位置
@@ -227,7 +225,7 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
         return;
       }
       const oElement = this.elements[oIndex];
-      const placeholder = Symbol("placegholder");
+      const placeholder = Symbol('placegholder');
       // 使用占位符标记原位置
       this.elements[oIndex] = placeholder as unknown as T;
       if (!newIndex) {
@@ -344,9 +342,8 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
    * @param handler 处理每个元素的回调函数，(element, key, index, this): void
    */
   each(handler: createFunction<[T, CollectionKey, number, this, void]>) {
-    this.elements.forEach((element, index) =>
-      handler(element, this.getKey(element), index, this)
-    );
+    const es = [...this.elements];
+    es.forEach((element, index) => handler(element, this.getKey(element), index, this));
   }
 
   toArray<RT = T>(
@@ -366,9 +363,7 @@ export class Collection<T = unknown> implements Iterable<T>, ToArray<T> {
       }
 
       // 如果有映射函数，使用映射后的值；否则直接使用原始值
-      const value = mapper
-        ? mapper(element, key, this)
-        : (element as unknown as RT);
+      const value = mapper ? mapper(element, key, this) : (element as unknown as RT);
 
       result.push(value);
     }

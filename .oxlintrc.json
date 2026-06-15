@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "rules": {
+    "no-console": "off",
+    "no-debugger": "off",
+    "prefer-const": "error",
+    "no-var": "error",
+    "no-empty": "warn",
+    "no-undef": "error",
+    "eslint/no-unused-vars": "off"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2020": true
+  },
+  "globals": {
+    "__dirname": "readonly",
+    "console": "readonly",
+    "document": "readonly",
+    "window": "readonly",
+    "Image": "readonly",
+    "cancelAnimationFrame": "readonly",
+    "requestAnimationFrame": "readonly",
+    "ResizeObserver": "readonly"
+  },
+  "ignorePatterns": ["node_modules", "dist"]
+}

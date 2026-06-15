@@ -26,8 +26,8 @@
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
     "compile": "xbuild build -C",
-    "build::vite": "pnpm run clean && vite build -c ../../vite.config.ts",
-    "build": "xbuild build",
+    "build": "pnpm run clean && vite build -c ../../vite.config.ts",
+    "build::xbuild": "xbuild build",
     "build:ts": "xbuild build --dev",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "dev": "pnpm run compile && pnpm run --filter=./example dev"

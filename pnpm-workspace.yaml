@@ -1,3 +1,6 @@
 packages:
   - "modules/**"
   - "modules/**/example"
+allowBuilds:
+  '@swc/core': true
+  esbuild: false
