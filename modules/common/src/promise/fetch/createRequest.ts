@@ -1,11 +1,7 @@
 import { Cloneable } from "../../object";
 import { OcPromise } from "../OcPromise";
 
-type FetchParams =
-  | string
-  | Record<string, any>
-  | URLSearchParams
-  | Iterable<[string, any]>;
+type FetchParams = string | Record<string, any> | URLSearchParams | Iterable<[string, any]>;
 type FetchUrl = string | URL | Request;
 type FetchOption = RequestInit & {
   params?: FetchParams;
@@ -23,12 +19,10 @@ export interface ClientConfig {
 
 export type RequestInterceptor = (
   url: FetchUrl,
-  init: FetchOption,
+  init: FetchOption
 ) => Promise<[FetchUrl, FetchOption]> | [FetchUrl, FetchOption];
 
-export type ResponseInterceptor = (
-  response: Response | unknown,
-) => Promise<Response | unknown> | Response | unknown;
+export type ResponseInterceptor = (response: Response | unknown) => Promise<Response | unknown> | Response | unknown;
 
 export class Client implements Cloneable<Client> {
   private config: ClientConfig;
@@ -66,9 +60,7 @@ export class Client implements Cloneable<Client> {
         if (Array.isArray(value)) {
           // 过滤掉null和undefined值
           // 遍历每个元素添加到URLSearchParams中
-          value.forEach(
-            (v) => v != null && urlObj.searchParams.append(key, String(v)),
-          );
+          value.forEach((v) => v != null && urlObj.searchParams.append(key, String(v)));
         } else if (value != null) {
           // 非数组值直接设置
           urlObj.searchParams.set(key, String(value));
@@ -78,9 +70,7 @@ export class Client implements Cloneable<Client> {
     // 拼接完整URL
     try {
       if (typeof url === "string") {
-        const baseURL = url.startsWith("/")
-          ? this.config.baseURL || window.location.origin
-          : undefined;
+        const baseURL = url.startsWith("/") ? this.config.baseURL || window.location.origin : undefined;
         const urlObj = new URL(url, baseURL);
         applyParams(urlObj);
         return urlObj.toString();
@@ -99,18 +89,13 @@ export class Client implements Cloneable<Client> {
     return url;
   }
 
-  request(
-    url: FetchUrl,
-    init: FetchOption = {},
-  ): OcPromise<Response, any, unknown> {
+  request(url: FetchUrl, init: FetchOption = {}): OcPromise<Response, any, unknown> {
     const controller = new AbortController();
     const timeout = init.timeout || this.config.timeout;
 
     if (typeof timeout === "number" && timeout > 0) {
       const timeoutId = setTimeout(() => controller.abort(), timeout);
-      controller.signal.addEventListener("abort", () =>
-        clearTimeout(timeoutId),
-      );
+      controller.signal.addEventListener("abort", () => clearTimeout(timeoutId));
     }
     // 合并信号量
     // 调用者传入信号量时，合并到控制器信号量中
@@ -128,7 +113,7 @@ export class Client implements Cloneable<Client> {
       };
     }
     // 处理URL参数
-    let processedUrl = this.applyParams(url, init.params);
+    const processedUrl = this.applyParams(url, init.params);
     // 合并headers
     const mergedHeaders = new Headers(this.config.headers);
     if (init.headers) {
@@ -137,7 +122,7 @@ export class Client implements Cloneable<Client> {
       });
     }
     // 构建fetch请求参数
-    let fetchInit: FetchOption = {
+    const fetchInit: FetchOption = {
       ...init,
       signal: controller.signal,
       headers: mergedHeaders,
@@ -147,9 +132,7 @@ export class Client implements Cloneable<Client> {
     delete fetchInit.timeout;
 
     // 执行请求拦截器
-    const executeRequestInterceptors = (
-      currentPromise: OcPromise<[FetchUrl, FetchOption], any, any>,
-    ) => {
+    const executeRequestInterceptors = (currentPromise: OcPromise<[FetchUrl, FetchOption], any, any>) => {
       if (this.config.requestInterceptors) {
         for (const interceptor of this.config.requestInterceptors) {
           currentPromise = currentPromise.then((res) => {
@@ -162,9 +145,7 @@ export class Client implements Cloneable<Client> {
     };
 
     // 执行响应拦截器
-    const executeResponseInterceptors = (
-      promise: OcPromise<Response | unknown, any, any>,
-    ) => {
+    const executeResponseInterceptors = (promise: OcPromise<Response | unknown, any, any>) => {
       let currentPromise = promise;
 
       if (this.config.responseInterceptors) {
@@ -179,17 +160,10 @@ export class Client implements Cloneable<Client> {
     };
 
     // 创建Promise实例
-    const initPromise = OcPromise.resolve<[FetchUrl, FetchOption]>([
-      processedUrl,
-      fetchInit,
-    ]);
+    const initPromise = OcPromise.resolve<[FetchUrl, FetchOption]>([processedUrl, fetchInit]);
     let fetchPromise: OcPromise<Response | unknown, any, any>;
     const resPromise = executeRequestInterceptors(initPromise).then((res) => {
-      const { promise, resolve, reject } = OcPromise.withResolvers<
-        Response | unknown,
-        any,
-        any
-      >();
+      const { promise, resolve, reject } = OcPromise.withResolvers<Response | unknown, any, any>();
       fetchPromise = promise;
       fetchPromise.canceled(() => controller.abort());
       // 执行请求
@@ -221,9 +195,7 @@ export class Client implements Cloneable<Client> {
     return this.request(url, { ...init, method: "PATCH" });
   }
 
-  private json<T>(
-    response: OcPromise<Response, unknown, unknown>,
-  ): OcPromise<T, unknown, unknown> {
+  private json<T>(response: OcPromise<Response, unknown, unknown>): OcPromise<T, unknown, unknown> {
     return response.then((res) => res.json());
   }
 
@@ -233,10 +205,7 @@ export class Client implements Cloneable<Client> {
    * @param init 请求选项
    * @returns 响应Promise
    */
-  jsonRequest(
-    url: FetchUrl,
-    init?: FetchOption,
-  ): OcPromise<Response, unknown, unknown> {
+  jsonRequest(url: FetchUrl, init?: FetchOption): OcPromise<Response, unknown, unknown> {
     const headers = new Headers(init?.headers || this.config.headers);
     headers.delete("content-type");
     headers.append("content-type", "application/json");
@@ -249,10 +218,7 @@ export class Client implements Cloneable<Client> {
    * @param init 请求选项
    * @returns 响应Promise
    */
-  requestJson<T>(
-    url: FetchUrl,
-    init?: FetchOption,
-  ): OcPromise<T, unknown, unknown> {
+  requestJson<T>(url: FetchUrl, init?: FetchOption): OcPromise<T, unknown, unknown> {
     return this.json<T>(this.request(url, init));
   }
 
@@ -262,10 +228,7 @@ export class Client implements Cloneable<Client> {
    * @param init 请求选项
    * @returns 响应Promise
    */
-  jsonRequestJson<T>(
-    url: FetchUrl,
-    init?: FetchOption,
-  ): OcPromise<T, unknown, unknown> {
+  jsonRequestJson<T>(url: FetchUrl, init?: FetchOption): OcPromise<T, unknown, unknown> {
     return this.json<T>(this.jsonRequest(url, init));
   }
 }
@@ -276,7 +239,7 @@ export const defaultClient = new Client();
 export function createCancelRequest(
   url: FetchUrl,
   fetchInit: FetchOption = {},
-  client?: Client,
+  client?: Client
 ): OcPromise<Response, unknown, unknown> {
   return (client ?? defaultClient).request(url, fetchInit);
 }
@@ -290,7 +253,7 @@ export function createCancelRequest(
 export function createJsonRequest(
   url: FetchUrl,
   init?: FetchOption,
-  client?: Client,
+  client?: Client
 ): OcPromise<Response, unknown, unknown> {
   return (client ?? defaultClient).jsonRequest(url, init);
 }
@@ -305,7 +268,7 @@ export function createJsonRequest(
 export function createRequestJson<T>(
   url: FetchUrl,
   init?: FetchOption,
-  client?: Client,
+  client?: Client
 ): OcPromise<T, unknown, unknown> {
   return (client ?? defaultClient).requestJson<T>(url, init);
 }
@@ -320,7 +283,7 @@ export function createRequestJson<T>(
 export function createJsonRequestJson<T>(
   url: FetchUrl,
   init?: FetchOption,
-  client?: Client,
+  client?: Client
 ): OcPromise<T, unknown, unknown> {
   return (client ?? defaultClient).jsonRequestJson<T>(url, init);
 }
