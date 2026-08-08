@@ -1,7 +1,6 @@
-import { Component, ComponentProps } from "@msom/component";
+import { Component, ComponentProps, option } from "@msom/component";
 
-export interface ErrorBoundaryProps {
-  children?: Msom.MsomNode;
+export interface ErrorBoundaryProps extends ComponentProps {
   fallback?: Msom.MsomElement;
   onError?: (error: Error, errorInfo: any) => void;
 }
@@ -12,28 +11,25 @@ export interface ErrorBoundaryState {
   errorInfo?: any;
 }
 
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps> {
   @option({ type: "unknown" })
-  children?: Msom.MsomNode;
-  
+  declare children?: Msom.MsomNode;
+
   @option({ type: "unknown" })
-  fallback?: Msom.MsomElement;
-  
+  declare fallback?: Msom.MsomElement;
+
   @option({ type: "function" })
-  onError?: (error: Error, errorInfo: any) => void;
+  declare onError?: (error: Error, errorInfo: any) => void;
 
   state: ErrorBoundaryState = {
     hasError: false,
-    error: null
+    error: null,
   };
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
       hasError: true,
-      error
+      error,
     };
   }
 
@@ -41,27 +37,27 @@ export class ErrorBoundary extends Component<
     this.state = {
       hasError: true,
       error,
-      errorInfo
+      errorInfo,
     };
-    
-    if (this.props.onError) {
-      this.props.onError(error, errorInfo);
+
+    if (this.onError) {
+      this.onError(error, errorInfo);
     }
   }
 
   render(): Msom.MsomNode | null {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
+      if (this.fallback) {
+        return this.fallback;
       }
-      
+
       return (
         <div style={{
           padding: "20px",
           backgroundColor: "#fee",
           border: "1px solid #fcc",
           borderRadius: "4px",
-          color: "#c33"
+          color: "#c33",
         }}>
           <h2 style={{ margin: "0 0 10px 0" }}>Something went wrong</h2>
           <details style={{ whiteSpace: "pre-wrap" }}>
@@ -74,6 +70,6 @@ export class ErrorBoundary extends Component<
       );
     }
 
-    return this.props.children ?? null;
+    return this.children ?? null;
   }
 }

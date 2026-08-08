@@ -68,7 +68,7 @@ export function createEventProxy<E extends Event>(e: E): EventProxy {
   return new Proxy(e, {
     get(target, prop, receiver) {
       if (prop === "nativeEvent") {
-        return receiver;
+        return target;
       }
       const value = Reflect.get(target, prop, target);
       return typeof value === "function" ? value.bind(target) : value;

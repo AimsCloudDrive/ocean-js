@@ -12,5 +12,13 @@ export default defineConfig({
         return entryName + ".js";
       },
     },
+    rollupOptions: {
+      ...config.build?.rollupOptions,
+      external: [
+        ...(config.build?.rollupOptions?.external as any[] || []),
+        "modules/dom/jsx-runtime",
+        "modules/dom/jsx-dev-runtime",
+      ],
+    },
   },
 });
