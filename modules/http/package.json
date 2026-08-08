@@ -34,15 +34,13 @@
   },
   "dependencies": {
     "@msom/common": "workspace:^",
-    "@msom/http": "file:",
-    "@types/body-parser": "^1.19.6",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
-    "@types/mongodb": "^4.0.7",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "mongodb": "^6.18.0",
-    "redis": "^5.12.1"
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3"
   }
 }

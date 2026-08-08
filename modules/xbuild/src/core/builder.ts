@@ -1,6 +1,5 @@
 import { assert, nil } from "@msom/common";
 import { ProxyRules, createServer, staticMiddle } from "@msom/http";
-import { rollupPluginHTML as html } from "@web/rollup-plugin-html";
 import * as fs from "fs";
 import { JSDOM } from "jsdom";
 import path from "path";

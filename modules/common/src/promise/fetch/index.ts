@@ -1,2 +1,7 @@
 export * from "./client";
-// export * from "./createRequest";
+export {
+  createCancelRequest,
+  createJsonRequest,
+  createRequestJson,
+  createJsonRequestJson,
+} from "./createRequest";
