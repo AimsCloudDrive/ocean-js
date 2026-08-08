@@ -1,15 +1,124 @@
 {
+  // Schema URI，用于编辑器工具提示
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "printWidth": 120,
-  "tabWidth": 2,
-  "useTabs": false,
-  "semi": true,
-  "singleQuote": false,
-  "quoteProps": "as-needed",
-  "trailingComma": "es5",
-  "bracketSpacing": true,
+
+  // 箭头函数唯一参数是否使用括号包裹。可选值: "always" | "avoid"
+  // "always": 始终添加括号 (x) => x
+  // "avoid": 尽量省略括号 x => x
   "arrowParens": "always",
+
+  // 多行 HTML/JSX/Vue/Angular 元素的 `>` 符号是否放在最后一行的末尾
+  // 而不是单独一行（不适用于自闭合元素）
+  "bracketSameLine": false,
+
+  // 对象字面量的括号内是否打印空格
+  // true: { foo: bar }
+  // false: {foo: bar}
+  "bracketSpacing": true,
+
+  // 控制是否格式化文件中的嵌入部分（例如 CSS-in-JS 或 JS-in-Vue 等）
+  // 注意：XXX-in-JS 支持尚不完善
+  // 可选值: "auto" | "off"
+  "embeddedLanguageFormatting": "auto",
+
+  // 使用哪种行尾字符。注意：不支持 "auto"
+  // 可选值: "lf" | "crlf" | "cr"
+  // 会覆盖 .editorconfig 的 end_of_line 配置
   "endOfLine": "lf",
-  "vueIndentScriptAndStyle": true,
-  "ignorePatterns": ["node_modules", "dist"]
+
+  // 指定 HTML、Vue、Angular 和 Handlebars 的全局空白敏感度
+  // 可选值: "css" | "strict" | "ignore"
+  "htmlWhitespaceSensitivity": "css",
+
+  // 忽略匹配这些 glob 模式的文件
+  // 模式基于 oxfmt 配置文件所在位置进行匹配
+  "ignorePatterns": [],
+
+  // 是否在文件末尾插入最后的换行符
+  // 会覆盖 .editorconfig 的 insert_final_newline 配置
+  "insertFinalNewline": true,
+
+  // 是否启用 JSDoc 注释格式化
+  // 启用后，JSDoc 注释会被规范化和重新格式化：标签别名规范化、描述首字母大写、长行自动换行、短注释折叠为单行
+  // 设为 true 或对象启用（使用默认值），省略或设为 false 则禁用
+  "jsdoc": false,
+
+  // JSX 中是否使用单引号而不是双引号
+  "jsxSingleQuote": false,
+
+  // 对象字面量在可能适合一行或跨越多行时如何换行
+  // "preserve": 默认行为，如果第一个属性前有换行符则格式化为多行
+  // "collapse": 尝试折叠为单行
+  "objectWrap": "preserve",
+
+  // 针对特定文件的覆盖配置
+  // 当文件匹配多个覆盖时，后面的覆盖优先（数组顺序很重要）
+  "overrides": [],
+
+  // 指定格式化器换行的行长度（字符数）
+  // 如果不希望格式化 Markdown 时自动换行，可以设置 proseWrap 选项禁用
+  // 会覆盖 .editorconfig 的 max_line_length 配置
+  "printWidth": 100,
+
+  // 如何包装 Markdown 散文文本
+  // "preserve": 默认，不改变 Markdown 文本中的换行（部分服务使用对换行敏感的渲染器）
+  // "always": 按 printWidth 宽度自动换行散文
+  // "never": 强制所有散文块放在单行上，依赖编辑器/查看器的软换行
+  "proseWrap": "preserve",
+
+  // 对象属性何时使用引号
+  // "as-needed": 仅在需要时添加引号
+  // "consistent": 如果至少有一个属性需要引号，则所有属性都加引号
+  // "preserve": 保留用户输入的引号风格
+  "quoteProps": "as-needed",
+
+  // 语句末尾是否打印分号
+  "semi": true,
+
+  // 在 HTML、Vue 和 JSX 中强制每行只有一个属性
+  "singleAttributePerLine": false,
+
+  // 是否使用单引号而不是双引号
+  // 对于 JSX，可以设置 jsxSingleQuote 选项单独控制
+  // 会覆盖 .editorconfig 的 quote_type 配置
+  "singleQuote": false,
+
+  // 是否排序 import 语句
+  // 使用与 eslint-plugin-perfectionist/sort-imports 类似的算法
+  // 设为 true 或对象启用（使用默认值），省略或设为 false 则禁用
+  "sortImports": false,
+
+  // 是否排序 package.json 中的键
+  // 该算法与 prettier-plugin-sort-packagejson 不兼容，但更清晰易导航
+  // 设为 true 或对象启用，默认启用
+  "sortPackageJson": true,
+
+  // 是否排序 Tailwind CSS 类名
+  // 使用与 prettier-plugin-tailwindcss 相同的算法
+  // 选项名称省略了原插件中使用的 tailwind 前缀（例如 config 代替 tailwindConfig）
+  // 设为 true 或对象启用（使用默认值），省略或设为 false 则禁用
+  "sortTailwindcss": false,
+
+  // prettier-plugin-svelte 相关选项
+  // 设为 true 或对象启用 .svelte 文件格式化，设为 false（在 overrides 中很有用）或省略则禁用
+  // 设为 true 会重置为默认值 —— 从父作用域继承的任何选项都会被丢弃
+  // 注意：prettier-plugin-svelte 在运行时需要 svelte 包（svelte/compiler），
+  // 但 Oxfmt 不会捆绑或自动安装它。你必须在项目中自行安装 svelte，否则格式化将在运行时失败。
+  "svelte": false,
+
+  // 指定每个缩进级别的空格数
+  // 会覆盖 .editorconfig 的 indent_size（回退到 .editorconfig.tab_width）
+  "tabWidth": 2,
+
+  // 在多行逗号分隔的语法结构中尽可能打印尾随逗号
+  // 单行数组不会获得尾随逗号
+  // 可选值: "all" | "es5" | "none"
+  "trailingComma": "all",
+
+  // 是否使用制表符（Tab）而不是空格缩进
+  // 会覆盖 .editorconfig 的 indent_style
+  "useTabs": false,
+
+  // Vue 文件中 `<script>` 和 `<style>` 标签内的代码是否缩进
+  "vueIndentScriptAndStyle": false
 }
