@@ -1,0 +1,40 @@
+import { createJsonRequestJson } from "@msom/common";
+import { QueryProtocol } from "./QueryProtocolBuilder";
+
+interface ClientOption {
+  host?: string;
+  port?: number;
+  protocol?: string;
+  api?: string;
+}
+
+export class Client {
+  declare private host: string;
+  declare private port: number;
+  declare private protocol: string;
+  declare private api: string;
+  constructor(option: ClientOption = {}) {
+    const { host = "localhost", protocol = "http", api = "" } = option;
+    let port = option.port;
+    if (
+      typeof port !== "number" ||
+      Math.min(Math.max(0, port), 65535) !== port
+    ) {
+      port = 5174;
+    }
+    Object.assign(this, { host, port, protocol, api });
+  }
+  private get requestHref() {
+    const { protocol, host, port, api } = this;
+    return `${protocol}://${host}:${port}${api}`;
+  }
+  createQuery(protocol: QueryProtocol) {
+    return fetch(this.requestHref + "/query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ protocol }),
+    }).then((res) => res.json());
+  }
+}
