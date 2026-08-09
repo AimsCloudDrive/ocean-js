@@ -5,6 +5,7 @@ import {
 } from "rolldown";
 import { PluginManager, XBuildPlugin } from "./plugin";
 import { ProxyRules } from "@msom/http";
+import { PostCSSPluginOptions } from "./postcssPlugin";
 
 export type XBuildMode = "development" | "production";
 
@@ -23,11 +24,17 @@ export interface XbuildDevOptions {
   proxy?: ProxyRules;
 }
 
+export interface XBuildCssOptions {
+  /** PostCSS 相关配置 */
+  postcss?: PostCSSPluginOptions;
+}
+
 interface BaseXbuildConfig {
   build?: Omit<RolldownOptions, "output"> & {
     output?: XBuildOutputOptions | XBuildOutputOptions[];
   };
   dev?: XbuildDevOptions;
+  css?: XBuildCssOptions;
 }
 
 export interface XBuildConfig extends BaseXbuildConfig {

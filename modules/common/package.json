@@ -3,10 +3,21 @@
   "name": "@msom/common",
   "version": "0.0.22",
   "description": "@msom/common",
+  "keywords": [
+    "common",
+    "msom"
+  ],
+  "license": "MIT",
+  "author": "msom",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "type": "module",
   "main": "dist/index.cjs.js",
   "module": "dist/index.js",
   "typings": "dist/types/index.d.ts",
-  "type": "module",
   "exports": {
     ".": {
       "require": "./dist/index.cjs.js",
@@ -14,29 +25,18 @@
       "types": "./dist/types/index.d.ts"
     }
   },
-  "files": [
-    "dist",
-    "src",
-    "README.md"
-  ],
-  "keywords": [
-    "msom",
-    "common"
-  ],
-  "author": "msom",
-  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
     "build": "pnpm run clean && pnpm run check && vite build -c ../../vite.config.ts",
-    "build::xbuild": "rimraf dist/types && pnpm run check && xbuild build -c ../../xbuild.config.ts",
+    "build::xbuild": "pnpm run clean && pnpm run check && tsc -b && xbuild build -c ../../xbuild.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks",
     "unrel": "pnpm unpublish --force",
     "rel": "pnpm publish",
     "dev": "pnpm run -r --filter=./example dev"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

@@ -13,29 +13,22 @@ import {
   RolldownPluginOption,
   rolldown,
 } from "rolldown";
-import postcss from "rollup-plugin-postcss";
 import { Only, StringOrRegExp, getModuleName } from "../utils/common";
 import { Logger } from "../utils/logger";
 import { PluginManager } from "./plugin";
-import {
-  LoadedXbuildConfig,
-  XBuildContext,
-  XBuildOutputOptions,
-  XbuildDevOptions,
-} from "./types";
+import { LoadedXbuildConfig, XBuildContext, XBuildOutputOptions, XbuildDevOptions } from "./types";
 import { htmlEntryPlugin } from "./htmlEntryPlugin";
+import { postcssPlugin } from "./postcssPlugin";
 
-const defaultRolldownPlugins: RolldownPluginOption<unknown>[] = [
-  postcss({
-    extract: true,
-    sourceMap: true,
-  }),
-  htmlEntryPlugin(),
-];
+/** 默认的 PostCSS 配置 */
+const defaultPostcssOptions = {
+  extract: true,
+  sourceMap: true,
+};
 /**
  * 打包工具相关依赖
  */
-const defaultRolldownExternal = [
+const defaultRolldownExternal: StringOrRegExp[] = [
   /^@rolldown\//,
   /^rolldown/,
   /^@babel\//,
@@ -43,6 +36,7 @@ const defaultRolldownExternal = [
   /rollup/,
   /^http/,
   /^@web\//,
+  /^node:/,
   "net",
   "autoprefixer",
   "chalk",
@@ -55,7 +49,18 @@ const defaultRolldownExternal = [
   "fs",
   "path",
   "url",
-  "rollup-plugin-postcss",
+  "express",
+  "body-parser",
+  "cors",
+  "router",
+  "send",
+  "serve-static",
+  "parseurl",
+  "mime-types",
+  "cookie-signature",
+  "etag",
+  "safer-buffer",
+  "iconv-lite",
 ];
 
 enum FileLikeType {
@@ -88,31 +93,31 @@ export class XBuilder {
     return new PluginManager(this.config?.pluginManager || []);
   }
 
+  /** 构建默认的 rolldown 插件列表，合并用户配置的 css.postcss */
+  get defaultPlugins(): RolldownPluginOption<unknown>[] {
+    const postcssOptions = {
+      ...defaultPostcssOptions,
+      ...this.config.css?.postcss,
+    };
+    return [postcssPlugin(postcssOptions), htmlEntryPlugin()];
+  }
+
   private buildHtml(filePath: string) {
     const fileContent = fs.readFileSync(path.resolve(filePath), "utf-8");
     const html = new JSDOM(fileContent);
-    const script = html.window.document.querySelector(
-      "script#script-main[type=module]"
-    ) as HTMLScriptElement;
+    const script = html.window.document.querySelector("script#script-main[type=module]") as HTMLScriptElement;
     if (!script) {
       return filePath;
     } else {
       const src = script.src;
-      const changeString = (
-        str: string,
-        splitor: string,
-        replacer: ((old: string) => string) | string
-      ) => {
-        const _replacer =
-          typeof replacer === "function" ? replacer : () => replacer;
+      const changeString = (str: string, splitor: string, replacer: ((old: string) => string) | string) => {
+        const _replacer = typeof replacer === "function" ? replacer : () => replacer;
         return str
           .split(splitor)
           .map((v, i, a) => (i === a.length - 1 ? _replacer(v) : v))
           .join(splitor);
       };
-      const fileName = changeString(src.split("/").pop()!, "/", (v) =>
-        changeString(v, ".", "js")
-      );
+      const fileName = changeString(src.split("/").pop()!, "/", (v) => changeString(v, ".", "js"));
       script.src = "./" + fileName;
       const { output } = this.rolldownOptions;
       const dir = [output].flat().reduce((a, b) => b?.dir || a, "./dist");
@@ -126,14 +131,9 @@ export class XBuilder {
   private async generate(bundle: RolldownBuild, output: OutputOptions) {
     const chunk = await bundle.generate(output).then((v) => v.output);
     if (chunk.length > 0) {
-      const res = this.pluginManager.apply(
-        "transform",
-        chunk[0].code,
-        chunk[0].fileName,
-        chunk[0].map
-      );
+      const res = this.pluginManager.apply("transform", chunk[0].code, chunk[0].fileName, chunk[0].map);
       if (res && typeof res === "object") {
-        chunk[0] = { ...chunk[0], ...res } as typeof chunk[0];
+        chunk[0] = { ...chunk[0], ...res } as (typeof chunk)[0];
       }
     }
     return chunk;
@@ -144,7 +144,7 @@ export class XBuilder {
     if (!config.build) {
       return {
         input: "./index.html",
-        plugins: [...defaultRolldownPlugins],
+        plugins: [...this.defaultPlugins],
         output: [
           {
             dir: "./dist",
@@ -155,12 +155,7 @@ export class XBuilder {
     } else {
       const options = {} as RolldownOptions;
       Object.assign(options, config.build);
-      options.output = [
-        options.output as Exclude<
-          Exclude<LoadedXbuildConfig["build"], undefined>["output"],
-          undefined
-        >,
-      ]
+      options.output = [options.output as Exclude<Exclude<LoadedXbuildConfig["build"], undefined>["output"], undefined>]
         .flat()
         .filter(Boolean)
         .map((out: XBuildOutputOptions) => {
@@ -171,26 +166,17 @@ export class XBuilder {
           }
           return result;
         });
-      options.plugins = [...defaultRolldownPlugins].concat(
-        [config.build?.plugins].flat().filter(Boolean)
-      );
+      options.plugins = [...this.defaultPlugins].concat([config.build?.plugins].flat().filter(Boolean));
       options.external = [
         ...defaultRolldownExternal,
-        ...([config.build.external].flat() as (
-          | StringOrRegExp
-          | Only<ExternalOption, Function>
-        )[]),
+        ...([config.build.external].flat() as (StringOrRegExp | Only<ExternalOption, Function>)[]),
       ];
 
       return options;
     }
   }
 
-  private write(
-    filePath: string,
-    data: string | NodeJS.ArrayBufferView,
-    options: fs.WriteFileOptions
-  ) {
+  private write(filePath: string, data: string | NodeJS.ArrayBufferView, options: fs.WriteFileOptions) {
     let _options = options as Exclude<typeof options, string | null>;
     if (typeof options === "string") {
       _options = {
@@ -299,40 +285,26 @@ export class XBuilder {
         }
       });
       // 写chunk
-      chunks.forEach(
-        ({
-          fileName,
-          facadeModuleId,
-          code,
-          sourcemapFileName,
-          map,
-          ...option
-        }) => {
-          fileName = nil(
-            typeof chunkFileNames === "function"
-              ? chunkFileNames({
-                  ...option,
-                  facadeModuleId: facadeModuleId || "",
-                  name: fileName,
-                })
-              : chunkFileNames,
-            fileName
-          );
-          write(path.resolve(dir, fileName), code);
-          if (map && sourcemapFileName) {
-            sourcemapFileName = path.resolve(
-              path.dirname(path.resolve(dir, sourcemapFileName)),
-              fileName + ".map"
-            );
-            write(sourcemapFileName, map.toString());
-          }
+      chunks.forEach(({ fileName, facadeModuleId, code, sourcemapFileName, map, ...option }) => {
+        fileName = nil(
+          typeof chunkFileNames === "function"
+            ? chunkFileNames({
+                ...option,
+                facadeModuleId: facadeModuleId || "",
+                name: fileName,
+              })
+            : chunkFileNames,
+          fileName
+        );
+        write(path.resolve(dir, fileName), code);
+        if (map && sourcemapFileName) {
+          sourcemapFileName = path.resolve(path.dirname(path.resolve(dir, sourcemapFileName)), fileName + ".map");
+          write(sourcemapFileName, map.toString());
         }
-      );
+      });
       // 写静态资源
       assets.forEach(({ source, fileName }) => {
-        source &&
-          fileName &&
-          write(path.resolve(dir, fileName), source.toString());
+        source && fileName && write(path.resolve(dir, fileName), source.toString());
       });
     }
     let error: any;
@@ -355,8 +327,7 @@ export class XBuilder {
 
   private getDevOptions(
     option: XbuildDevOptions
-  ): Required<Omit<XbuildDevOptions, "proxy">> &
-    Pick<XbuildDevOptions, "proxy"> {
+  ): Required<Omit<XbuildDevOptions, "proxy">> & Pick<XbuildDevOptions, "proxy"> {
     const dev = this.config.dev || {};
     const options = {
       ...this.defaultDevOption,
@@ -376,14 +347,9 @@ export class XBuilder {
 
     try {
       console.log(path.resolve("./"));
-      console.log(
-        path.relative(path.resolve("./"), path.resolve("../../dist"))
-      );
+      console.log(path.relative(path.resolve("./"), path.resolve("../../dist")));
       createServer(option.port, {
-        middles: [
-          staticMiddle(path.resolve(process.cwd(), option.public)),
-          staticMiddle(path.resolve("../dist")),
-        ],
+        middles: [staticMiddle(path.resolve(process.cwd(), option.public)), staticMiddle(path.resolve("../dist"))],
         routes: [
           {
             path: "/demo",
@@ -414,9 +380,7 @@ export class XBuilder {
                 <!DOCTYPE html>
                 <html>
                   <head>
-                    <title>Component Preview - ${getModuleName(
-                      modulePath
-                    )}</title>
+                    <title>Component Preview - ${getModuleName(modulePath)}</title>
                   </head>
                   <body>
                     <div id="root"></div>
@@ -444,10 +408,7 @@ export class XBuilder {
                     function buildFileTree(rootPath: string): Tree {
                       if (!fs.existsSync(rootPath)) return [];
 
-                      function buildTree(
-                        currentDir: string,
-                        relativePath: string
-                      ): Tree {
+                      function buildTree(currentDir: string, relativePath: string): Tree {
                         const items = fs.readdirSync(currentDir, {
                           withFileTypes: true,
                         });
@@ -456,15 +417,10 @@ export class XBuilder {
 
                         for (const item of items) {
                           const itemPath = path.join(currentDir, item.name);
-                          const itemRelativePath = relativePath
-                            ? `${relativePath}/${item.name}`
-                            : item.name;
+                          const itemRelativePath = relativePath ? `${relativePath}/${item.name}` : item.name;
 
                           if (item.isDirectory()) {
-                            const children = buildTree(
-                              itemPath,
-                              itemRelativePath
-                            );
+                            const children = buildTree(itemPath, itemRelativePath);
                             if (children.length > 0) {
                               dirs.push({
                                 name: item.name,
@@ -473,10 +429,7 @@ export class XBuilder {
                                 children,
                               });
                             }
-                          } else if (
-                            item.isFile() &&
-                            /.*\.(demo|dev)\.tsx?$/.test(item.name)
-                          ) {
+                          } else if (item.isFile() && /.*\.(demo|dev)\.tsx?$/.test(item.name)) {
                             files.push({
                               name: item.name,
                               path: itemRelativePath,
@@ -513,10 +466,8 @@ export class XBuilder {
       console.log(e);
     }
 
-    return new Promise<{ port: number; proxy: ProxyRules | undefined | null }>(
-      (...args) => {
-        promiseHandle = args;
-      }
-    );
+    return new Promise<{ port: number; proxy: ProxyRules | undefined | null }>((...args) => {
+      promiseHandle = args;
+    });
   }
 }
