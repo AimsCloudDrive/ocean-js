@@ -9,9 +9,11 @@ lerna-debug.log*
 
 node_modules
 dist
+dist2
 !babel-plugins/dist
 dist-ssr
 *.local
+.pnpm-store/
 
 # Editor directories and files
 .vscode/*
