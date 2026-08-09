@@ -125,13 +125,17 @@ export class XBuilder {
 
   private async generate(bundle: RolldownBuild, output: OutputOptions) {
     const chunk = await bundle.generate(output).then((v) => v.output);
-    const res = this.pluginManager.apply(
-      "transform",
-      chunk[0].code,
-      chunk[0].fileName,
-      chunk[0].map
-    );
-    Object.assign(chunk[0], res);
+    if (chunk.length > 0) {
+      const res = this.pluginManager.apply(
+        "transform",
+        chunk[0].code,
+        chunk[0].fileName,
+        chunk[0].map
+      );
+      if (res && typeof res === "object") {
+        chunk[0] = { ...chunk[0], ...res } as typeof chunk[0];
+      }
+    }
     return chunk;
   }
 
@@ -160,18 +164,12 @@ export class XBuilder {
         .flat()
         .filter(Boolean)
         .map((out: XBuildOutputOptions) => {
-          return {
-            ...out,
-            chunkFileNames:
-              out.chunkFileNames &&
-              ((info) => {
-                const name =
-                  typeof out.chunkFileNames === "function"
-                    ? out.chunkFileNames(info, out.format || "esm")
-                    : out.chunkFileNames;
-                return name || info.name;
-              }),
-          };
+          const result: any = { ...out };
+          if (typeof out.chunkFileNames === "function") {
+            const fn = out.chunkFileNames;
+            result.chunkFileNames = (info: any) => fn(info, out.format || "esm") || info.name;
+          }
+          return result;
         });
       options.plugins = [...defaultRolldownPlugins].concat(
         [config.build?.plugins].flat().filter(Boolean)

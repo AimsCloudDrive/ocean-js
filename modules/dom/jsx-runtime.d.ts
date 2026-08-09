@@ -215,7 +215,7 @@ declare namespace Msom {
       touches: TouchList;
     }
     interface AbstractView {
-      styleMedia: StyleMedia;
+      styleMedia: any;
       document: Document;
     }
 

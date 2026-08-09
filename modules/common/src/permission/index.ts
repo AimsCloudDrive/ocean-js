@@ -31,7 +31,7 @@ export const createPermission = <P extends { [K in string]: number }>(
       this.permissionState = permissionState;
     }
 
-    #parsePermissions<Ps extends (keyof P)[]>(
+    parsePermissions<Ps extends (keyof P)[]>(
       permissions: Ps,
       force?: boolean
     ): Ps {
@@ -54,13 +54,13 @@ export const createPermission = <P extends { [K in string]: number }>(
     }
 
     has(...permissions: (keyof P)[]): boolean {
-      permissions = this.#parsePermissions(permissions);
+      permissions = this.parsePermissions(permissions);
       return permissions.every(
         (permission) => this.permission & this.permissionState[permission]
       );
     }
     add(...permissions: (keyof P)[]): this {
-      permissions = this.#parsePermissions(permissions);
+      permissions = this.parsePermissions(permissions);
       this.permission |= permissions.reduce(
         (acc, permission) => acc | this.permissionState[permission],
         0
@@ -68,7 +68,7 @@ export const createPermission = <P extends { [K in string]: number }>(
       return this;
     }
     remove(...permissions: (keyof P)[]): this {
-      permissions = this.#parsePermissions(permissions);
+      permissions = this.parsePermissions(permissions);
       this.permission &= ~permissions.reduce(
         (acc, permission) => acc | this.permissionState[permission],
         0
@@ -78,7 +78,7 @@ export const createPermission = <P extends { [K in string]: number }>(
     get<Ps extends (keyof P)[]>(
       ...permissions: Ps
     ): { [k in Ps extends [] ? keyof P : Ps[number]]: boolean } {
-      permissions = this.#parsePermissions(permissions, true);
+      permissions = this.parsePermissions(permissions, true);
       return permissions.reduce(
         (acc, permission) => ({ ...acc, [permission]: this.has(permission) }),
         {} as { [k in Ps extends [] ? keyof P : Ps[number]]: boolean }
