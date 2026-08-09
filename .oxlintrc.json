@@ -1,19 +1,43 @@
 {
+  // Schema URI，用于编辑器工具提示
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "rules": {
-    "no-console": "off",
-    "no-debugger": "off",
-    "prefer-const": "error",
-    "no-var": "error",
-    "no-empty": "warn",
-    "no-undef": "error",
-    "eslint/no-unused-vars": "off"
+
+  // 启用的内置插件列表
+  // 设置 plugins 字段会覆盖默认插件集合，需列出所有要使用的插件
+  // 可用插件: "typescript", "unicorn", "oxc", "import", "react", "jsx-a11y", "next", "jsdoc", "vitest", "jest" 等
+  // 查看完整列表: https://oxc.rs/docs/guide/usage/linter/plugins.html#supported-plugins
+  "plugins": ["typescript", "unicorn", "oxc"],
+
+  // 按类别批量配置规则严重级别
+  // 通过类别启用的规则会被 rules 字段中的单个规则配置覆盖
+  // 可选值: "allow" | "warn" | "deny"（allow=关闭, warn=警告, deny=错误）
+  "categories": {
+    // 正确性规则 - 捕获潜在 bug 和错误行为
+    "correctness": "error"
+    // "nursery": "allow",       // 实验性规则（默认关闭）
+    // "pedantic": "allow",      // 吹毛求疵规则（默认关闭）
+    // "perf": "allow",          // 性能规则（默认关闭）
+    // "restriction": "allow",   // 限制性规则（默认关闭）
+    // "style": "allow",         // 风格规则（默认关闭）
+    // "suspicious": "allow",    // 可疑代码规则（默认关闭）
   },
+
+  // 环境配置，启用/禁用全局变量集合
+  // 默认: { "builtin": true }
   "env": {
-    "browser": true,
-    "node": true,
-    "es2020": true
+    "builtin": true,     // 内置环境全局变量
+    "browser": true,     // 浏览器环境全局变量（window, document 等）
+    "node": true,        // Node.js 环境全局变量（require, module 等）
+    "es2020": true       // ES2020 全局变量（Promise, BigInt 等）
   },
+
+  // 扩展的配置文件路径列表
+  // 路径相对于包含 extends 属性的配置文件位置解析
+  // 配置从第一个到最后一个合并，最后一个覆盖之前的
+  // "extends": [],
+
+  // 启用/禁用特定全局变量
+  // 可选值: "readonly" | "writeable" | "off"（readonly=只读, writeable=可写, off=禁用）
   "globals": {
     "__dirname": "readonly",
     "console": "readonly",
@@ -24,5 +48,98 @@
     "requestAnimationFrame": "readonly",
     "ResizeObserver": "readonly"
   },
-  "ignorePatterns": ["node_modules", "dist"]
+
+  // lint 时忽略的 glob 模式列表
+  // 模式相对于配置文件路径解析
+  "ignorePatterns": ["node_modules", "dist"],
+
+  // JS 插件，允许使用 ESLint 插件与 Oxlint 一起工作
+  // 注意: JS 插件处于 alpha 阶段，不遵循 semver
+  // 支持本地路径或 npm 包名，可带别名
+  // "jsPlugins": null,
+
+  // Oxlint 配置选项
+  "options": {
+    // 是否让警告产生非零退出码（等同于 --deny-warnings）
+    // "denyWarnings": false,
+
+    // 警告阈值，超过此值时以错误状态退出（等同于 --max-warnings）
+    // "maxWarnings": null,
+
+    // 报告未使用的禁用指令（如 // oxlint-disable-line）
+    // 可选值: "allow" | "warn" | "deny"
+    // "reportUnusedDisableDirectives": "allow",
+
+    // 是否尊重 eslint-disable* 和 eslint-enable* 指令（默认 true）
+    // "respectEslintDisableDirectives": true,
+
+    // 启用需要类型信息的规则（等同于 --type-aware）
+    // 需要安装 oxlint-tsgolint 包
+    // "typeAware": false,
+
+    // 启用实验性类型检查（包含 TypeScript 编译器诊断）（等同于 --type-check）
+    // 需要安装 oxlint-tsgolint 包
+    // "typeCheck": false
+  },
+
+  // 针对特定文件或文件组的规则覆盖配置
+  // "overrides": [],
+
+  // 规则配置
+  // 严重级别: "off" | "warn" | "error"（off=关闭, warn=警告, error=错误）
+  // 也可使用数组形式传递规则选项: ["error", { "option": value }]
+  "rules": {
+    "no-console": "off",
+    "no-debugger": "off",
+    "prefer-const": "error",
+    "no-var": "error",
+    "no-empty": "warn",
+    "no-undef": "error",
+    "eslint/no-unused-vars": "off"
+  },
+
+  // 插件特定配置，适用于内置和自定义插件
+  "settings": {
+    // jsx-a11y 插件配置
+    // "jsx-a11y": {
+    //   "polymorphicPropName": null,
+    //   "components": {},
+    //   "attributes": {}
+    // },
+
+    // Next.js 插件配置
+    // "next": {
+    //   "rootDir": []
+    // },
+
+    // React 插件配置
+    // "react": {
+    //   "formComponents": [],
+    //   "linkComponents": [],
+    //   "version": null,
+    //   "componentWrapperFunctions": []
+    // },
+
+    // JSDoc 插件配置
+    // "jsdoc": {
+    //   "ignorePrivate": false,
+    //   "ignoreInternal": false,
+    //   "ignoreReplacesDocs": true,
+    //   "overrideReplacesDocs": true,
+    //   "augmentsExtendsReplacesDocs": false,
+    //   "implementsReplacesDocs": false,
+    //   "exemptDestructuredRootsFromChecks": false,
+    //   "tagNamePreference": {}
+    // },
+
+    // Vitest 插件配置
+    // "vitest": {
+    //   "typecheck": false
+    // },
+
+    // Jest 插件配置
+    // "jest": {
+    //   "version": null
+    // }
+  }
 }

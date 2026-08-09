@@ -32,7 +32,7 @@
 
   // 忽略匹配这些 glob 模式的文件
   // 模式基于 oxfmt 配置文件所在位置进行匹配
-  "ignorePatterns": [],
+  "ignorePatterns": ["node_modules", "dist"],
 
   // 是否在文件末尾插入最后的换行符
   // 会覆盖 .editorconfig 的 insert_final_newline 配置
@@ -58,7 +58,7 @@
   // 指定格式化器换行的行长度（字符数）
   // 如果不希望格式化 Markdown 时自动换行，可以设置 proseWrap 选项禁用
   // 会覆盖 .editorconfig 的 max_line_length 配置
-  "printWidth": 100,
+  "printWidth": 120,
 
   // 如何包装 Markdown 散文文本
   // "preserve": 默认，不改变 Markdown 文本中的换行（部分服务使用对换行敏感的渲染器）
@@ -113,12 +113,12 @@
   // 在多行逗号分隔的语法结构中尽可能打印尾随逗号
   // 单行数组不会获得尾随逗号
   // 可选值: "all" | "es5" | "none"
-  "trailingComma": "all",
+  "trailingComma": "es5",
 
   // 是否使用制表符（Tab）而不是空格缩进
   // 会覆盖 .editorconfig 的 indent_style
   "useTabs": false,
 
   // Vue 文件中 `<script>` 和 `<style>` 标签内的代码是否缩进
-  "vueIndentScriptAndStyle": false
+  "vueIndentScriptAndStyle": true
 }
