@@ -1,5 +1,4 @@
 import babel from "@rollup/plugin-babel";
-import dts from "@rollup/plugin-typescript";
 import { defineConfig } from "vite";
 import addSourceCommentPlugin from "./vite-plugins/addSourceCommentPlugin";
 import addTsIgnorePlugin from "./vite-plugins/addTsIgnorePlugin";
@@ -16,14 +15,6 @@ export default defineConfig({
   build: {
     rollupOptions: {
       plugins: [
-        dts({
-          tsconfig: "./tsconfig.json",
-          sourceMap: true,
-          paths: {},
-          noCheck: true,
-          jsxFactory: "Msom.createElement",
-          jsxImportSource: "@msom/dom",
-        }),
         babel({
           ast: true,
           cloneInputAst: false,
