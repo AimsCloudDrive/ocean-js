@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@msom/model-designer",
+  "version": "0.0.1",
+  "description": "@msom/model-designer 模型设计器",
+  "main": "dist/index.js",
+  "typings": "dist/types/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "keywords": [
+    "msom",
+    "model-designer",
+    "model",
+    "designer"
+  ],
+  "author": "msom",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clean": "rimraf dist",
+    "version": "node ../../scripts/version.js",
+    "check": "tsc --noEmit",
+    "build": "pnpm run clean && pnpm run check && vite build -c ../../vite.config.ts",
+    "build::xbuild": "pnpm run clean && pnpm run check && xbuild build -c ./xbuild.config.ts",
+    "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks"
+  },
+  "devDependencies": {
+    "@msom/common": "workspace:^",
+    "@msom/component": "workspace:^",
+    "@msom/dom": "workspace:^",
+    "@msom/reaction": "workspace:^",
+    "@msom/xbuild": "workspace:^"
+  }
+}

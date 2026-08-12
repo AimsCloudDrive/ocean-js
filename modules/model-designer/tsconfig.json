@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declarationDir": "./dist/types",
+    "outDir": "./dist"
+  },
+  "include": [
+    "./src/**/*.ts",
+    "./src/**/*.tsx",
+    "../../modules/dom/jsx-runtime.d.ts",
+    "../../modules/dom/jsx-dev-runtime.d.ts"
+  ]
+}
