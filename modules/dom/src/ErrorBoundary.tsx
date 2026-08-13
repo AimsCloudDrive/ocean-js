@@ -1,4 +1,4 @@
-import { Component, ComponentProps, option } from "@msom/component";
+import { Component, ComponentProps, component, option } from "@msom/component";
 
 export interface ErrorBoundaryProps extends ComponentProps {
   fallback?: Msom.MsomElement;
@@ -11,6 +11,7 @@ export interface ErrorBoundaryState {
   errorInfo?: any;
 }
 
+@component("ErrorBoundary")
 export class ErrorBoundary extends Component<ErrorBoundaryProps> {
   @option({ type: "unknown" })
   declare children?: Msom.MsomNode;

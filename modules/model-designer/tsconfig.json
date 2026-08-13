@@ -1,13 +1,21 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "paths": {
+      "@msom/common": ["../common/dist/types/index.d.ts"],
+      "@msom/component": ["../component/dist/types/index.d.ts"],
+      "@msom/dom": ["../dom/dist/types/index.d.ts"],
+      "@msom/dom/jsx-runtime": ["../dom/dist/types/jsx-runtime.d.ts"],
+      "@msom/dom/jsx-dev-runtime": ["../dom/dist/types/jsx-dev-runtime.d.ts"],
+      "@msom/reaction": ["../reaction/dist/types/index.d.ts"]
+    },
     "declarationDir": "./dist/types",
     "outDir": "./dist"
   },
   "include": [
     "./src/**/*.ts",
     "./src/**/*.tsx",
-    "../../modules/dom/jsx-runtime.d.ts",
-    "../../modules/dom/jsx-dev-runtime.d.ts"
+    "./src/**/*.d.ts",
+    "../dom/jsx-runtime.d.ts"
   ]
 }

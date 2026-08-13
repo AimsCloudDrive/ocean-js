@@ -1,5 +1,5 @@
 import { nil } from "@msom/common";
-import { createElement } from "@msom/dom";
+import { createElement } from "./element";
 
 function jsxDEV<T extends Msom.JSX.ElementType>(
   type: T,

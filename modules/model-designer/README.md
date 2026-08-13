@@ -15,23 +15,44 @@
 ## 快速开始
 
 ```ts
-import { ModelDesigner, mountModelDesigner } from "@msom/model-designer";
+import {
+  ModelDesigner,
+  createHttpModelDesignerApi,
+  mountModelDesigner,
+} from "@msom/model-designer";
 
-// 方式一：挂载模型设计器到容器
-const designerRef = mountModelDesigner(document.getElementById("root")!);
-designerRef.current?.add(<div>模型节点</div>);
+const api = createHttpModelDesignerApi({ baseUrl: "/api/model-designer" });
 
-// 方式二：在 JSX 中使用
+// 方式一：挂载到容器，挂载后自动请求 bootstrap。
+const designerRef = mountModelDesigner(document.getElementById("root")!, {
+  title: "业务模型",
+  api,
+});
+
+// 方式二：在 JSX 中使用。
 function App() {
-  return <ModelDesigner />;
+  return <ModelDesigner api={api} />;
 }
 ```
+
+也可以直接传入实现 `ModelDesignerApi` 的适配器，以对接已有接口路径。默认 HTTP 适配器使用以下端点：
+
+- `GET /bootstrap`：加载 `{ canvas, models, relations }`
+- `/models`：创建、更新和删除模型
+- `PATCH /models/:id`：更新模型属性或在拖动结束后提交 `position`
+- `/relations`：创建、更新和删除关系
+- `PUT /canvas`：更新画布中心、缩放和锁定状态
+
+创建、删除、属性与锁定操作会立即调用接口；节点位置只在拖动结束时提交。请求失败时组件会回滚本地变更并显示错误信息。
 
 ## 开发
 
 ```bash
 # 类型检查
 pnpm run check
+
+# 几何逻辑测试
+pnpm run test
 
 # 构建（xbuild）
 pnpm run build::xbuild
@@ -41,9 +62,12 @@ pnpm run build::xbuild
 
 ```
 src/
+├── api.ts                      # 默认 HTTP 接口适配器
+├── geometry.ts                 # 网格、框选与关系路径算法
 ├── index.ts                    # 入口
-├── types.ts                    # 模型节点与面板配置类型
+├── types.ts                    # 模型、关系与 API 契约
 └── designer/
-    ├── ModelDesigner.tsx       # 模型设计器示例组件
+    ├── ModelDesigner.tsx       # 模型设计器组件
+    ├── style.ts                # 组件样式
     └── index.ts
 ```

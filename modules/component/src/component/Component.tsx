@@ -357,7 +357,6 @@ class ClassComponent<
         this.unmounted();
       }
       this.el.remove();
-      Object.assign(this, { el: null });
     }
   }
 

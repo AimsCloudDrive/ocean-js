@@ -582,7 +582,30 @@ function performUnitOfWorkInner(fiber: Fiber): Fiber | null {
     const updateHandle = () => {
       let newVNode = component.render();
       if (newVNode) {
-        processRender(newVNode);
+        // 在组件自己的容器内重建：先清空容器，再以 alternate: null 渲染新树。
+        // 不沿用全局 currentRoot 作为 alternate，避免整树比对把父节点误判为 DELETION 而清空整页。
+        const container = fiber.dom as HTMLElement;
+        if (container) {
+          while (container.firstChild) {
+            container.removeChild(container.firstChild);
+          }
+          deletions.length = 0;
+          wipRoot.current = {
+            parent: null,
+            dom: container,
+            props: { children: [newVNode] as any },
+            alternate: null,
+            type: null,
+            effectTag: null,
+            child: null,
+            sibling: null,
+            component: null,
+            rootFiber: null,
+            renderedVNode: null,
+          };
+          nextUnitOfWork = wipRoot.current;
+          requestIdleCallback(workLoop);
+        }
       }
     };
     // 首次渲染链接已经存在的工作根
@@ -630,7 +653,8 @@ function performUnitOfWorkInner(fiber: Fiber): Fiber | null {
   }
 
   // 将文本子节点（字符串/数字）归一化为文本元素，避免 reconcileChildren 创建 type: undefined 的 fiber
-  const rawElements = [fiber.props.children].flat();
+  // flat(Infinity) 深度展开嵌套数组（如 JSX 表达式 {list.map(...)} 产生的空数组），避免空数组被当作元素
+  const rawElements = [fiber.props.children].flat(Infinity);
   const elements = rawElements.map((el: any) => {
     if (typeof el === 'string' || typeof el === 'number') {
       return createTextElement(el.toString());

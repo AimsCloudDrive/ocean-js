@@ -16,4 +16,4 @@ export type {
 } from "./types";
 
 // 重新导出VNodeWithDOM类型
-export { VNodeWithDOM } from "@msom/common";
+export type { VNodeWithDOM } from "@msom/common";

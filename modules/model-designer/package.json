@@ -26,6 +26,7 @@
     "clean": "rimraf dist",
     "version": "node ../../scripts/version.js",
     "check": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
     "build": "pnpm run clean && pnpm run check && vite build -c ../../vite.config.ts",
     "build::xbuild": "pnpm run clean && pnpm run check && xbuild build -c ./xbuild.config.ts",
     "release": "pnpm run build && pnpm run version --patch && pnpm publish --no-git-checks"

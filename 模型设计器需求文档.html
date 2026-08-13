@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>模型设计器需求文档</title>
+<style>
+:root{
+  --primary:#2563eb;
+  --primary-weak:#eff6ff;
+  --ink:#1f2937;
+  --ink-2:#4b5563;
+  --ink-3:#9ca3af;
+  --line:#e5e7eb;
+  --bg:#f6f7fb;
+  --card:#ffffff;
+  --danger:#dc2626;
+  --ok:#16a34a;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  font-size:16px;
+  line-height:1.75;
+  padding-bottom:60px;
+}
+header{
+  background:linear-gradient(135deg,#1e3a8a,#2563eb 60%,#3b82f6);
+  color:#fff;
+  padding:34px 20px 26px;
+}
+header .tag{
+  display:inline-block;
+  font-size:12px;
+  letter-spacing:1px;
+  background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.35);
+  border-radius:999px;
+  padding:3px 12px;
+  margin-bottom:12px;
+}
+header h1{font-size:24px;font-weight:700;letter-spacing:1px}
+header p{font-size:13px;opacity:.85;margin-top:8px}
+main{max-width:720px;margin:0 auto;padding:18px 14px}
+section{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:20px 16px;
+  margin-bottom:16px;
+  box-shadow:0 1px 3px rgba(15,23,42,.05);
+}
+h2{
+  font-size:18px;
+  color:var(--primary);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:14px;
+}
+h2 .no{
+  flex:none;
+  width:24px;height:24px;
+  border-radius:8px;
+  background:var(--primary);
+  color:#fff;
+  font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+}
+h3{font-size:15.5px;margin:16px 0 8px;color:var(--ink)}
+p{margin:6px 0;color:var(--ink-2);font-size:15px}
+ul,ol{margin:6px 0 6px 22px;color:var(--ink-2);font-size:15px}
+li{margin:4px 0}
+strong{color:var(--ink);font-weight:600}
+em{font-style:normal;color:var(--primary);font-weight:600}
+.callout{
+  background:var(--primary-weak);
+  border-left:4px solid var(--primary);
+  border-radius:8px;
+  padding:10px 12px;
+  margin:10px 0;
+  font-size:14px;
+  color:var(--ink-2);
+}
+.callout.warn{background:#fff7ed;border-color:#f97316}
+.callout .t{font-weight:600;color:var(--ink)}
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13.5px;
+  margin:10px 0;
+}
+thead th{
+  background:#f3f4f6;
+  color:var(--ink);
+  font-weight:600;
+  text-align:left;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  white-space:nowrap;
+}
+tbody td{
+  padding:8px 10px;
+  border:1px solid var(--line);
+  color:var(--ink-2);
+  vertical-align:top;
+}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+code{
+  background:#f3f4f6;
+  border:1px solid var(--line);
+  border-radius:5px;
+  padding:1px 6px;
+  font-size:13px;
+  color:#0f766e;
+  font-family:Consolas,Menlo,monospace;
+}
+pre{
+  background:#111827;
+  color:#e5e7eb;
+  border-radius:10px;
+  padding:14px;
+  overflow-x:auto;
+  font-size:13px;
+  line-height:1.7;
+  font-family:Consolas,Menlo,monospace;
+  margin:10px 0;
+}
+pre .cm{color:#6b7280}
+.fig{
+  background:#fafbfd;
+  border:1px dashed #cbd5e1;
+  border-radius:10px;
+  padding:10px;
+  margin:10px 0;
+  text-align:center;
+}
+.fig .cap{font-size:12px;color:var(--ink-3);margin-top:6px}
+svg{max-width:100%;height:auto}
+.pill{
+  display:inline-block;
+  font-size:12px;
+  border-radius:999px;
+  padding:2px 10px;
+  margin-right:6px;
+  border:1px solid var(--line);
+  background:#f9fafb;
+  color:var(--ink-2);
+}
+.pill.b{background:var(--primary-weak);border-color:#bfdbfe;color:var(--primary)}
+.pill.g{background:#f0fdf4;border-color:#bbf7d0;color:var(--ok)}
+.pill.r{background:#fef2f2;border-color:#fecaca;color:var(--danger)}
+.badge{
+  display:inline-block;
+  font-size:11px;
+  border-radius:5px;
+  padding:1px 7px;
+  margin-left:6px;
+  vertical-align:2px;
+}
+.badge.need{background:#fef2f2;color:var(--danger);border:1px solid #fecaca}
+.badge.sug{background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd}
+.toc{list-style:none;margin-left:0}
+.toc li{margin:2px 0}
+.toc a{color:var(--ink-2);text-decoration:none;font-size:14px;display:block;padding:4px 6px;border-radius:8px}
+.toc a:active,.toc a:hover{background:var(--primary-weak);color:var(--primary)}
+footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
+@media(min-width:640px){
+  main{padding:24px 20px}
+  header{padding:44px 40px}
+  header h1{font-size:30px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="tag">需求文档 · PRD · v1.0</span>
+  <h1>模型设计器（model-designer）</h1>
+  <p>基于 Canvas 的可视化模型编辑器 · 通过后端接口操作 MongoDB 元数据</p>
+</header>
+
+<main>
+
+<section>
+  <h2><span class="no">0</span>目录</h2>
+  <ul class="toc">
+    <li><a href="#s1">1. 需求背景与目标</a></li>
+    <li><a href="#s2">2. 名词定义</a></li>
+    <li><a href="#s3">3. 整体界面与布局</a></li>
+    <li><a href="#s4">4. 画布、网格与视图操作</a></li>
+    <li><a href="#s5">5. 模型（节点）</a></li>
+    <li><a href="#s6">6. 关系（连线）</a></li>
+    <li><a href="#s7">7. 锁定与拖动规则</a></li>
+    <li><a href="#s8">8. 创建操作流程</a></li>
+    <li><a href="#s9">9. 模式、接口同步与删除</a></li>
+    <li><a href="#s10">10. 框选</a></li>
+    <li><a href="#s11">11. 数据约定（MongoDB 草案）</a></li>
+  </ul>
+</section>
+
+<section id="s1">
+  <h2><span class="no">1</span>需求背景与目标</h2>
+  <p>model-designer 是当前项目的子项目，用于以图形化方式编辑和维护业务模型（可类比数据库表结构建模工具）。当前模型数据存储在 MongoDB 中，但缺少可视化的编辑界面，新增、调整模型与模型关系都需要直接操作数据，效率低且容易出错。</p>
+  <p>本期目标：实现一个基于 Canvas 的模型设计器，支持模型的创建、编辑、拖动、框选，模型间关系的建立与查看，以及画布的缩放与平移。前端通过后端接口文档定义的接口加载和操作 MongoDB 元数据。<span class="badge need">本期范围</span></p>
+  <div class="callout">前端不使用 <code>IndexedDB</code> 或其它浏览器本地数据库保存设计数据。页面初始化通过 <code>GET /api/model-designer/bootstrap</code> 加载数据；模型和关系除位置改变外均立即调用接口更新，位置变化在拖动结束或点击同步位置按钮时提交。</div>
+  <h3>设计原则</h3>
+  <ul>
+    <li>画布内所有元素（背景网格、模型、关系线、信息框）一律由 <code>Canvas 2D</code> 绘制，不使用 DOM 元素拼装。</li>
+    <li>交互优先：创建、拖动、框选、查看均通过画布直接操作完成，属性编辑通过抽屉面板辅助。</li>
+    <li>模型单点拖动严格对齐格点（落点吸附）；框选拖动自由移动；数据层位置统一保存自由坐标；所有可移动元素均受锁机制约束。</li>
+  </ul>
+</section>
+
+<section id="s2">
+  <h2><span class="no">2</span>名词定义</h2>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th style="width:110px">术语</th><th>定义</th></tr></thead>
+    <tbody>
+      <tr><td><strong>模型</strong></td><td>画布上的圆形节点，代表一个业务实体（如"用户""订单"），中间显示模型名称。</td></tr>
+      <tr><td><strong>继承模型 ID</strong></td><td>模型元数据中的 <code>parentModelId</code>，标注该模型继承自哪个模型；为空表示无继承。父模型元数据中同时记录子模型 ID（<code>childModelIds</code>）。</td></tr>
+      <tr><td><strong>继承字段</strong></td><td>通过 <code>parentModelId</code> <strong>递归查询父模型</strong>得到的字段，展示在字段列表最前，<strong>不参与排序</strong>且不可编辑。</td></tr>
+      <tr><td><strong>字段</strong></td><td>模型的属性列，含字段名、字段类型、描述；仅本模型的字段参与排序。</td></tr>
+      <tr><td><strong>关系</strong></td><td>两个模型之间的关联，双向展示，一根曲线/直线各指向一端，共享一个信息框。</td></tr>
+      <tr><td><strong>映射</strong></td><td>关系的基数表达，取值 <code>1</code> / <code>m</code> / <code>n</code>，两侧独立取值。</td></tr>
+      <tr><td><strong>继承关系</strong></td><td>子模型指向父模型的特殊关系，灰色虚线箭头，不可拖动、无信息框。</td></tr>
+      <tr><td><strong>直连状态</strong></td><td>关系的默认形态：信息框位于两模型中间，两根直线箭头。</td></tr>
+      <tr><td><strong>曲线状态</strong></td><td>信息框被拖动后关系的形态：三点贝塞尔曲线，且关系自动<strong>锁定</strong>。</td></tr>
+      <tr><td><strong>锁定</strong></td><td>模型或关系被拖动后自动进入的状态，锁定时位置不可变动；解锁后恢复可拖动。</td></tr>
+      <tr><td><strong>格点</strong></td><td>网格横竖线的交叉点，模型单点拖动吸附的目标坐标。</td></tr>
+      <tr><td><strong>信息框</strong></td><td>关系曲线（直线）上的一体化小框，同时显示两个方向的关系名称与映射。</td></tr>
+      <tr><td><strong>激活 / 选中</strong></td><td>模型被点击打开抽屉、或框选中的状态；hover 悬停亦视为激活态。</td></tr>
+      <tr><td><strong>框选</strong></td><td>拖拽矩形选择框批量选中模型与关系；支持整体拖动与批量删除。</td></tr>
+      <tr><td><strong>抽屉</strong></td><td>点击模型后从画布右侧滑出的属性面板。</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span class="no">3</span>整体界面与布局</h2>
+  <p>界面由四部分组成：<strong>顶部左上角工具区</strong>（模式切换、同步位置、删除）、<strong>左侧功能区</strong>（创建按钮组）、<strong>中央画布</strong>（Canvas，占满剩余区域）、<strong>右侧抽屉</strong>（点击模型后滑出，默认隐藏）。</p>
+  <div class="fig">
+    <svg viewBox="0 0 720 310" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
+          <path d="M16 0H0V16" fill="none" stroke="#e8ecf3" stroke-width="0.6"/>
+        </pattern>
+        <pattern id="grid2" width="80" height="80" patternUnits="userSpaceOnUse">
+          <rect width="80" height="80" fill="url(#grid)"/>
+          <path d="M80 0H0V80" fill="none" stroke="#c9d4e3" stroke-width="1.2"/>
+        </pattern>
+      </defs>
+      <rect width="720" height="310" fill="#fbfcfe"/>
+      <rect x="96" y="44" width="624" height="266" fill="url(#grid2)"/>
+      <line x1="300" y1="150" x2="470" y2="150" stroke="#2563eb" stroke-width="1.8"/>
+      <polygon points="470,150 456,140 456,160" fill="#2563eb"/>
+      <line x1="470" y1="205" x2="300" y2="205" stroke="#16a34a" stroke-width="1.8"/>
+      <polygon points="300,205 314,195 314,215" fill="#16a34a"/>
+      <rect x="345" y="162" width="86" height="32" rx="8" fill="#fff" stroke="#cbd5e1"/>
+      <text x="388" y="175" text-anchor="middle" font-size="10" fill="#2563eb" font-weight="bold">A→B 1</text>
+      <text x="388" y="188" text-anchor="middle" font-size="10" fill="#16a34a" font-weight="bold">B→A n</text>
+      <circle cx="300" cy="178" r="44" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+      <text x="300" y="183" text-anchor="middle" font-size="14" fill="#1e3a8a" font-weight="bold">用户</text>
+      <g>
+        <rect x="250" y="126" width="14" height="12" rx="3" fill="#f59e0b"/>
+        <path d="M253 126v-3a4 4 0 0 1 8 0v3" fill="none" stroke="#fff" stroke-width="1.5"/>
+      </g>
+      <circle cx="470" cy="178" r="44" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+      <text x="470" y="183" text-anchor="middle" font-size="14" fill="#14532d" font-weight="bold">订单</text>
+      <g>
+        <rect x="8" y="8" width="72" height="26" rx="7" fill="#2563eb"/>
+        <text x="44" y="25" text-anchor="middle" font-size="10.5" fill="#fff">编辑模式</text>
+        <rect x="86" y="8" width="52" height="26" rx="7" fill="#f3f4f6" stroke="#d1d5db"/>
+        <text x="112" y="25" text-anchor="middle" font-size="9.5" fill="#6b7280">同步位置</text>
+        <rect x="144" y="8" width="52" height="26" rx="7" fill="#fee2e2" stroke="#fca5a5"/>
+        <text x="170" y="25" text-anchor="middle" font-size="10.5" fill="#dc2626">删除</text>
+      </g>
+      <g>
+        <rect x="10" y="46" width="76" height="256" rx="10" fill="#ffffff" stroke="#e5e7eb"/>
+        <rect x="18" y="56" width="60" height="32" rx="7" fill="#2563eb"/>
+        <text x="48" y="76" text-anchor="middle" font-size="11" fill="#fff">创建模型</text>
+        <rect x="18" y="96" width="60" height="32" rx="7" fill="#eff6ff" stroke="#bfdbfe"/>
+        <text x="48" y="116" text-anchor="middle" font-size="11" fill="#2563eb">创建关系</text>
+        <rect x="18" y="136" width="60" height="32" rx="7" fill="#f0fdf4" stroke="#bbf7d0"/>
+        <text x="48" y="156" text-anchor="middle" font-size="11" fill="#16a34a">继承关系</text>
+      </g>
+      <g>
+        <rect x="566" y="50" width="148" height="252" rx="10" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="640" y="74" text-anchor="middle" font-size="11" fill="#1f2937" font-weight="bold">模型属性</text>
+        <line x1="576" y1="84" x2="704" y2="84" stroke="#e5e7eb"/>
+        <text x="581" y="104" font-size="9.5" fill="#9ca3af">继承模型</text>
+        <rect x="581" y="110" width="118" height="16" rx="4" fill="#f3f4f6"/>
+        <text x="581" y="138" font-size="9.5" fill="#9ca3af">字段（继承在前）</text>
+        <rect x="581" y="144" width="118" height="16" rx="4" fill="#eff6ff" stroke="#bfdbfe"/>
+        <rect x="581" y="164" width="118" height="16" rx="4" fill="#f3f4f6"/>
+        <rect x="581" y="184" width="118" height="16" rx="4" fill="#f3f4f6"/>
+      </g>
+      <g font-size="10" fill="#6b7280">
+        <text x="230" y="300" text-anchor="middle">② Canvas 画布（网格：5 格一档加粗）</text>
+        <text x="120" y="300" text-anchor="middle">① 左侧创建区</text>
+        <text x="640" y="312" text-anchor="middle">④ 右侧抽屉</text>
+      </g>
+    </svg>
+    <div class="cap">整体布局：左上角工具区 + 左侧创建按钮组 + 中央画布（5 格一档加粗网格）+ 右侧抽屉</div>
+  </div>
+  <h3>布局规则</h3>
+  <ul>
+    <li><strong>左上角工具区</strong>：模式切换（只读 / 编辑）、同步位置按钮；删除按钮在存在<strong>激活（选中）模型或关系</strong>时显示。同步位置按钮只提交画布、模型和关系的位置变化。</li>
+    <li><strong>左侧功能区</strong>：竖向按钮组，三个独立按钮：<span class="pill b">创建模型</span><span class="pill">创建关系</span><span class="pill g">继承关系</span>。</li>
+    <li>画布占据左侧工具栏与顶部工具区之外的整个区域，随窗口大小自适应。</li>
+    <li>抽屉在点击模型时从右侧滑出，宽度固定（如 320px）；再次点击其他模型切换选中对象，点击画布空白处关闭。</li>
+  </ul>
+</section>
+
+<section id="s4">
+  <h2><span class="no">4</span>画布、网格与视图操作</h2>
+  <h3>4.1 网格背景</h3>
+  <p>画布背景为<strong>横竖方格线</strong>，采用<strong>每 5 格加粗一个等级</strong>的规则，最多 3 级：</p>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>级别</th><th>格子边长</th><th>线型</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>第 1 级</td><td>基础格（16px）</td><td>细线（浅色）</td><td>普通格点，模型单点拖动吸附的最小单位</td></tr>
+      <tr><td>第 2 级</td><td>5 个基础格（80px）</td><td>加粗中线</td><td>次级参考线</td></tr>
+      <tr><td>第 3 级</td><td>25 个基础格（400px）</td><td>最粗线</td><td>画布级参考线，全图最多 3 级</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="callout warn"><span class="t">注意：</span>最小格不能设置过小，否则拖动模型时频繁跳动、难以对准，产生"跳跃感"。基础格边长取 <code>16px</code>。</div>
+  <h3>4.2 缩放与平移</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>操作</th><th>交互</th><th>参数</th></tr></thead>
+    <tbody>
+      <tr><td>缩放</td><td>滚动滚轮，以鼠标位置为锚点</td><td>范围 <code>0.5× ~ 2×</code>，步进 0.1×</td></tr>
+      <tr><td>平移</td><td>拖拽画布空白区域</td><td>不触发模型/关系拖动；与框选以拖拽起点区分</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>缩放与平移仅改变视图，不影响模型坐标的存储语义。</li>
+    <li>网格线随缩放同步变化，加粗层级按当前缩放后的格距自动适配（缩放后仍保持 5 格一档）。</li>
+  </ul>
+</section>
+
+<section id="s5">
+  <h2><span class="no">5</span>模型（节点）</h2>
+  <div class="fig">
+    <svg viewBox="0 0 400 130" xmlns="http://www.w3.org/2000/svg">
+      <rect x="140" y="10" width="120" height="110" rx="8" fill="none" stroke="#94a3b8" stroke-dasharray="5 4"/>
+      <circle cx="200" cy="65" r="44" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+      <text x="200" y="70" text-anchor="middle" font-size="15" fill="#1e3a8a" font-weight="bold">用户</text>
+      <g>
+        <rect x="150" y="20" width="14" height="12" rx="3" fill="#f59e0b"/>
+        <path d="M153 20v-3a4 4 0 0 1 8 0v3" fill="none" stroke="#fff" stroke-width="1.5"/>
+      </g>
+      <g font-size="10" fill="#9ca3af">
+        <text x="272" y="44">选中矩形（虚线包围盒）</text>
+        <text x="272" y="58">左上角锁图标</text>
+        <text x="272" y="72">边框使用模型颜色</text>
+        <text x="272" y="86">中间显示名称</text>
+        <text x="272" y="100">点击 → 弹出抽屉</text>
+      </g>
+    </svg>
+    <div class="cap">模型节点：圆形 + 主色边框 + 居中名称；选中时出现矩形包围盒，其左上角显示锁图标</div>
+  </div>
+  <h3>5.1 状态</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>状态</th><th>触发</th><th>表现</th></tr></thead>
+    <tbody>
+      <tr><td>常规</td><td>默认 / 取消选中</td><td>仅显示圆形节点</td></tr>
+      <tr><td>激活（选中）</td><td>点击打开抽屉、hover 悬停、框选命中</td><td>显示矩形包围盒与左上角锁图标；存在激活对象（模型或关系）时左上角显示删除按钮</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>5.2 自身属性</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>属性</th><th>说明</th><th>编辑规则</th></tr></thead>
+    <tbody>
+      <tr><td><strong>模型 ID</strong></td><td>模型唯一标识，<strong>即数据库集合名</strong>（每个模型对应一个集合），创建时生成</td><td><strong>编辑模式下可编辑</strong>（即重命名集合），只读模式不可改</td></tr>
+      <tr><td><strong>名称</strong></td><td>模型显示名称，画布节点中央展示</td><td>编辑模式可改</td></tr>
+      <tr><td><strong>描述</strong></td><td>模型用途说明，纯文本</td><td>编辑模式可改</td></tr>
+      <tr><td><strong>颜色</strong></td><td>节点边框主色，色板选择</td><td>编辑模式可改</td></tr>
+      <tr><td><strong>继承模型 ID</strong></td><td><code>parentModelId</code>，标注本模型继承自哪个模型，为空表示无继承；父模型元数据同步记录本模型 ID 至 <code>childModelIds</code></td><td>编辑模式可改；查询模型信息时按此 ID <strong>递归查询父模型</strong>获取继承字段</td></tr>
+      <tr><td><strong>画布位置</strong></td><td>隐性属性，节点坐标 <code>(x, y)</code>，由拖动产生</td><td>不可直接编辑；<strong>坐标从来都保存自由坐标</strong>——单点拖动吸附格点后，保存的仍是该格点处的自由坐标值（如 <code>x: 64.0</code>），不存在格点索引存储</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>5.3 字段属性</h3>
+  <ul>
+    <li>字段列表分两部分展示：<strong>继承字段在前、本模型字段在后</strong>；继承字段由 <code>parentModelId</code> 递归查询父模型得到。</li>
+    <li><strong>继承字段不参与排序</strong>，无排序手柄、不可编辑（名称、类型、描述只读），仅可展开查看描述。</li>
+    <li>本模型字段支持<strong>新增、修改、删除、排序</strong>（拖拽排序手柄调整顺序）。</li>
+    <li><strong>列表上方提供显隐图标</strong>，控制是否显示继承字段（切换继承字段区展开/收起）；该显隐状态变化后<strong>立即通过模型更新接口提交</strong>，<strong>首次进入默认显示</strong>。<span class="badge need">规则</span></li>
+    <li>行结构：<strong>行首折叠按钮</strong> → <strong>字段名</strong> → <strong>字段类型</strong>；点击折叠按钮在该行下方展开显示<strong>字段描述</strong>。</li>
+  </ul>
+  <div class="callout">字段类型建议覆盖：<code>String</code>、<code>Number</code>、<code>Boolean</code>、<code>Date</code>、<code>ObjectId</code>（引用其他模型）、<code>Array&lt;T&gt;</code>、<code>Object</code>。<span class="badge sug">建议</span></div>
+</section>
+
+<section id="s6">
+  <h2><span class="no">6</span>关系（连线）</h2>
+  <h3>6.1 两种形态</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>形态</th><th>默认 / 触发</th><th>表现</th></tr></thead>
+    <tbody>
+      <tr><td><strong>直连（默认）</strong></td><td>关系创建后的初始状态</td><td>信息框位于<strong>两模型中间</strong>，两根<strong>直线箭头</strong>分别指向两端模型</td></tr>
+      <tr><td><strong>曲线</strong></td><td>信息框被拖动后</td><td>变为三点贝塞尔曲线，且关系<strong>自动锁定</strong>，位置不再变动</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>6.2 箭头与模型保持距离</h3>
+  <ul>
+    <li>箭头<strong>不能挨着模型</strong>：线段在靠近模型边缘处截断，距模型留出固定间距（12px），该段不绘制，避免箭头压住节点。<span class="badge need">规则</span></li>
+  </ul>
+  <h3>6.3 一体信息框</h3>
+  <ul>
+    <li>信息框是<strong>一体的</strong>：一个框内同时显示两个方向的信息（如 <code>A→B 名称·映射</code> 与 <code>B→A 名称·映射</code>）。</li>
+    <li>信息框的<strong>拖动与点击均为整体同步</strong>：拖动任一部分即拖动整个框；点击框内任意位置视为点击该关系。</li>
+    <li>直连态下信息框默认居中于两模型连线上。</li>
+  </ul>
+  <h3>6.4 映射规则（1 / m / n）</h3>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>取值</th><th>含义</th><th>示例</th></tr></thead>
+    <tbody>
+      <tr><td><code>1</code></td><td>该方向一个模型至多关联对方 1 个（1:1 或多:1 的一侧）</td><td>A→B 显示 1</td></tr>
+      <tr><td><code>m</code></td><td>该方向一个模型可关联对方多个（多对多时的一侧）</td><td>A→B 显示 m</td></tr>
+      <tr><td><code>n</code></td><td>另一个方向一个模型可关联对方多个（多对多时的另一侧）</td><td>B→A 显示 n</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>两侧独立取值：<strong>多对多</strong>时一侧显示 <code>m</code>、另一侧显示 <code>n</code>。</li>
+    <li>映射值可点击关系后在抽屉中修改（见 6.6）。</li>
+  </ul>
+  <h3>6.5 关系命名</h3>
+  <ul>
+    <li>创建时默认：A→B 方向的关系名称 = B 的模型 ID，B→A 方向 = A 的模型 ID。</li>
+    <li>名称可在抽屉中修改。</li>
+  </ul>
+  <h3>6.6 点击关系查看与编辑</h3>
+  <p>点击关系（曲线、直线或信息框）弹出抽屉，<strong>这一对关系的两个方向都显示</strong>：各自的关系名称与映射，均可在编辑模式下修改。</p>
+  <h3>6.7 继承关系</h3>
+  <ul>
+    <li>以<strong>灰色虚线箭头</strong>表示，方向为<strong>子模型指向父模型</strong>。</li>
+    <li>继承关系<strong>不可拖动</strong>、<strong>没有信息框</strong>，不参与映射。</li>
+    <li>其语义与模型元数据 <code>parentModelId</code> / <code>childModelIds</code> 对应。</li>
+  </ul>
+</section>
+
+<section id="s7">
+  <h2><span class="no">7</span>锁定与拖动规则</h2>
+  <h3>7.1 锁机制</h3>
+  <div class="callout warn"><span class="t">核心规则：</span>模型与关系的矩形区域左上角都有一把锁图标。<strong>一旦被拖动（含框选整体拖动），即自动锁定</strong>，位置不可再变动；点击锁图标解锁后，才恢复可拖动。</div>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>元素</th><th>拖动触发</th><th>锁定表现</th><th>解锁行为</th></tr></thead>
+    <tbody>
+      <tr><td><strong>模型</strong></td><td>拖动节点本体、框选整体拖动</td><td>位置固定，不可再拖动</td><td>恢复可拖动，位置保持解锁前</td></tr>
+      <tr><td><strong>关系</strong></td><td>拖动信息框</td><td>曲线形态固定，不可再拖动</td><td><strong>恢复默认直连状态</strong>（信息框回中间、直线箭头），可再次拖动</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>7.2 模型拖动与吸附</h3>
+  <ul>
+    <li>模型（解锁状态下）<strong>单点拖动</strong>，松手后<strong>吸附到最近格点</strong>作为最终落点。</li>
+    <li>拖动过程中实时吸附，基础格 <code>16px</code> 保证不产生跳跃感。</li>
+    <li>吸附仅影响落点位置；数据层坐标<strong>始终以自由坐标保存</strong>，吸附后即该格点的坐标值（如 <code>(64.0, 112.0)</code>），不保存格点索引。</li>
+    <li>模型位置变化后，相连关系的曲线<strong>自动重算</strong>（保持锁定状态与信息框相对位置）。</li>
+  </ul>
+  <h3>7.3 关系拖动与绘制</h3>
+  <ul>
+    <li>关系<strong>只可拖动信息框</strong>，曲线/直线本身不可拖动；拖动信息框后关系切换为曲线形态并锁定。</li>
+    <li>曲线由三个锚点生成：<strong>源模型中心 → 信息框中心 → 目标模型中心</strong>，绘制为平滑贝塞尔曲线。</li>
+    <li>曲线穿过信息框背后的一段<strong>不绘制</strong>（信息框遮挡曲线）；箭头端按 6.2 规则与模型保持间距。</li>
+  </ul>
+  <h3>7.4 框选拖动</h3>
+  <ul>
+    <li>框选命中的内容支持<strong>整体拖动</strong>：拖动任意选中模型即可整体移动所有选中对象。</li>
+    <li>框选拖动为<strong>自由移动、不吸附格点</strong>，松手后保持当前位置。</li>
+    <li><strong>框选拖动后同样触发锁定</strong>：命中对象均自动置锁。<span class="badge need">规则</span></li>
+  </ul>
+</section>
+
+<section id="s8">
+  <h2><span class="no">8</span>创建操作流程</h2>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th>操作</th><th>前置状态</th><th>交互过程</th><th>结果</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>创建模型</strong></td>
+        <td>点击左侧"创建模型"，进入创建态</td>
+        <td>点击画布任意位置，系统取<strong>距点击点最近的格点</strong>作为新模型位置</td>
+        <td>在该格点生成新模型，自动弹出抽屉可立即编辑</td>
+      </tr>
+      <tr>
+        <td><strong>创建普通关系</strong></td>
+        <td>点击左侧"创建关系"，进入创建态</td>
+        <td>先点击<strong>源模型</strong>，再移动到<strong>目标模型</strong>上完成</td>
+        <td>生成双向关系，默认直连形态，按默认规则命名并计算映射</td>
+      </tr>
+      <tr>
+        <td><strong>创建继承关系</strong></td>
+        <td>点击左侧"继承关系"，进入创建态（与"创建关系"为<strong>两个独立按钮</strong>）</td>
+        <td>点击<strong>子模型</strong>，再点击<strong>父模型</strong></td>
+        <td>生成灰色虚线箭头（子 → 父），无信息框；<strong>子模型元数据写入 <code>parentModelId</code>，父模型元数据同步写入子模型 ID 至 <code>childModelIds</code></strong></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>创建态下点击画布空白处取消创建；创建态激活时画布出现对应提示（光标样式变化）。</li>
+    <li>仅编辑模式下可执行创建类操作。</li>
+    <li>删除继承关系（或修改 <code>parentModelId</code>）时，同时从父模型 <code>childModelIds</code> 中移除对应子模型 ID，保持双向一致。</li>
+    <li><strong>创建继承关系前必须检查是否成环</strong>：若目标父模型已经是该子模型的直接或间接后代（沿 <code>childModelIds</code> 递归可达），则拒绝创建并提示。<span class="badge need">规则</span></li>
+  </ul>
+</section>
+
+<section id="s9">
+  <h2><span class="no">9</span>模式、接口同步与删除</h2>
+  <h3>9.1 模式切换</h3>
+  <ul>
+    <li>只读 / 编辑切换按钮位于<strong>左上角</strong>。</li>
+    <li>编辑模式：全部操作可用（创建、拖动、编辑、删除、同步位置）。</li>
+    <li>只读模式：仅可查看与打开抽屉（只读展示），创建、拖动、编辑、删除、同步位置均禁用。</li>
+  </ul>
+  <h3>9.2 接口同步</h3>
+  <ul>
+    <li>页面初始化调用 <code>GET /api/model-designer/bootstrap</code>，一次性加载画布基础元数据、模型元数据和关系元数据。</li>
+    <li>模型和关系除位置改变外，创建、编辑、锁定、解锁、继承字段显隐及删除操作均<strong>立即调用接口更新</strong>。</li>
+    <li>模型、关系和画布的位置变化在拖动结束后调用对应接口提交；左上角同步位置按钮可统一重试尚未成功提交的位置变化。</li>
+    <li>接口请求期间显示操作中状态；请求失败时回滚到最近一次服务端状态或保留当前界面并提供重试，不写入 <code>IndexedDB</code>。</li>
+  </ul>
+  <h3>9.3 删除模型（递归规则）</h3>
+  <div class="callout warn"><span class="t">核心规则：</span>删除模型前<strong>先检查是否有继承它的子模型</strong>（通过 <code>childModelIds</code>）；有子模型时，须确认子模型已被选中（框选命中）才能删除，否则<strong>拒绝本次删除</strong>；子模型选中则<strong>先递归删除子模型</strong>，再删除该模型。</div>
+  <ul>
+    <li>递归判断：对每个子模型重复上述检查（其自身是否有继承它的后代），直至所有后代可删或被拒绝。</li>
+    <li>删除模型的同时，删除与其关联的<strong>全部关系</strong>（普通关系与继承关系），并同步清理相关模型元数据（父/子 ID 引用）。</li>
+  </ul>
+  <h3>9.4 删除关系</h3>
+  <ul>
+    <li>关系<strong>可直接删除</strong>，无继承检查、无级联逻辑。</li>
+    <li><strong>删除入口与模型一致：使用左上角删除按钮</strong>——选中（激活）模型或关系时按钮可用，点击删除当前激活对象。<span class="badge need">规则</span></li>
+  </ul>
+</section>
+
+<section id="s10">
+  <h2><span class="no">10</span>框选</h2>
+  <h3>10.1 命中规则</h3>
+  <ul>
+    <li>框选<strong>同时包含模型与关系</strong>：模型与矩形框相交即选中；关系的连线（或信息框）与矩形框相交即选中。<span class="badge need">规则</span></li>
+    <li>框选命中后，模型显示包围盒与锁图标，关系高亮显示。</li>
+  </ul>
+  <h3>10.2 框选拖动</h3>
+  <ul>
+    <li>框选命中的内容支持<strong>整体拖动</strong>，拖动过程中<strong>任意移动、不吸附格点</strong>。</li>
+    <li>框选拖动后命中对象<strong>自动锁定</strong>（同 7.4）。</li>
+  </ul>
+  <h3>10.3 框选删除</h3>
+  <div class="callout"><span class="t">规则：</span>框选删除时，<strong>关系不按框选直接判定删除</strong>，按如下两步处理：① <strong>排除</strong>——关系两端中任一端属于选中（被删）模型集合的，排除不处理（删除模型时会自动删除其关联关系，避免重复）；② <strong>单独删除</strong>——剩下的、与选择框相交且<strong>两端都不属于选中模型集合</strong>的关系，单独删除。</div>
+  <ul>
+    <li>模型删除按 9.3 递归规则执行；被删模型的所有关联关系随模型删除自动清理。</li>
+    <li>框选删除同样受继承递归规则约束（有未被选中的子模型时拒绝删除父模型）。</li>
+  </ul>
+</section>
+
+<section id="s11">
+  <h2><span class="no">11</span>数据约定（MongoDB 正式格式）</h2>
+  <p><strong>每个模型对应一个集合</strong>，集合内只保存该模型的<strong>真实数据文档</strong>；所有元数据统一存放在特殊集合 <code>__META__</code> 中。真实数据文档通过 <code>uuid</code> 与关系元数据中的 <code>related</code> 关联。</p>
+  <h3>11.1 真实数据集合（每个模型一个，集合名 = 模型 ID）</h3>
+  <pre><span class="cm">// 集合：user（集合名即模型 ID）</span>
+{
+  "uuid": "8f2a9c1e-4b3d-...",   <span class="cm">// 真实数据文档必有的 uuid，系统自动生成</span>
+  "username": "zhangsan",        <span class="cm">// 业务字段</span>
+  "age": 28
+}</pre>
+  <h3>11.2 __META__ 集合：基础元数据文档（仅一个）</h3>
+  <pre>{
+  "META_TYPE": "base",           <span class="cm">// 元数据类型：base</span>
+  "center": { "x": 0, "y": 0 },  <span class="cm">// 画布中心坐标</span>
+  "scale": 1                     <span class="cm">// 缩放大小</span>
+}</pre>
+  <h3>11.3 __META__ 集合：模型元数据文档（每个模型一个）</h3>
+  <pre>{
+  "META_TYPE": "model",          <span class="cm">// 元数据类型：model</span>
+  "model": {                     <span class="cm">// 模型基础信息</span>
+    "id": "user",                <span class="cm">// 模型 ID（对应集合名，编辑模式下可修改即重命名集合）</span>
+    "name": "用户",
+    "description": "平台注册用户",
+    "color": "#2563eb",
+    "locked": false,
+    "parentModelId": null,       <span class="cm">// 继承来源模型 ID</span>
+    "childModelIds": []          <span class="cm">// 继承该模型的子模型 ID 列表</span>
+  },
+  "fields": [                    <span class="cm">// 字段信息（仅本模型自有字段）</span>
+    { "name": "username", "type": "String", "description": "登录名" }
+  ],
+  "position": { "x": 68.5, "y": 112 }   <span class="cm">// 位置信息（自由坐标）</span>
+}</pre>
+  <h3>11.4 __META__ 集合：普通关系元数据文档（每个普通关系一个）</h3>
+  <pre>{
+  "META_TYPE": "relation",       <span class="cm">// 元数据类型：relation</span>
+  "relationship": {              <span class="cm">// 关系信息：一个对象，两个键即双向关系名</span>
+    "订单ID": {                  <span class="cm">// 该方向关系名（默认 = 指向模型 ID）</span>
+      "source": "user",          <span class="cm">// 源模型</span>
+      "target": "order",         <span class="cm">// 指向模型</span>
+      "related": {               <span class="cm">// 真实数据文档关联：键 = 源模型文档 uuid，值 = 指向模型文档 uuid 数组（双向均维护）</span>
+        "8f2a9c1e-...": ["5d1b3a77-...", "0c9e4f22-..."]
+      },
+      "mappingType": "1"         <span class="cm">// 映射：1 / m / n</span>
+    },
+    "用户ID": {                  <span class="cm">// 另一个方向关系名</span>
+      "source": "order",
+      "target": "user",
+      "related": {               <span class="cm">// 反向同样维护：键 = 该方向源模型文档 uuid，值 = 指向模型文档 uuid 数组</span>
+        "5d1b3a77-...": ["8f2a9c1e-..."]
+      },
+      "mappingType": "m"
+    }
+  },
+  "relationType": "relation",    <span class="cm">// 关系类型</span>
+  "position": { "x": 300.0, "y": 200.0 }   <span class="cm">// 信息框中心坐标（自由坐标）</span>
+}</pre>
+  <h3>11.5 __META__ 集合：继承关系元数据文档（每个继承关系一个）</h3>
+  <pre>{
+  "META_TYPE": "relation",       <span class="cm">// 元数据类型仍为 relation</span>
+  "relationType": "inherit",     <span class="cm">// 通过关系类型区分：inherit</span>
+  "source": "child",             <span class="cm">// 源模型（子模型）</span>
+  "target": "parent"             <span class="cm">// 指向模型（父模型）</span>
+}</pre>
+  <div class="callout">已确认：关系<strong>不保存描述数据</strong>（<code>relationship</code> 每方向仅含 <code>source</code> / <code>target</code> / <code>related</code> / <code>mappingType</code>）；<strong><code>related</code> 双向均须维护</strong>——A→B 方向存源模型文档 uuid 到目标文档 uuid 数组的映射，B→A 方向存反向映射。画布设置和继承字段显隐状态统一通过后端接口保存，不使用浏览器本地数据库。</div>
+</section>
+
+</main>
+
+<footer>模型设计器（model-designer）需求文档 · 版本 v1.0 · 2026-08-13</footer>
+
+</body>
+</html>
