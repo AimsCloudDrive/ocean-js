@@ -1,0 +1,90 @@
+:root {
+  --md-primary: #2563eb;
+  --md-primary-weak: #eff6ff;
+  --md-ink: #1f2937;
+  --md-ink-2: #4b5563;
+  --md-ink-3: #9ca3af;
+  --md-line: #e5e7eb;
+  --md-bg: #f6f7fb;
+  --md-card: #ffffff;
+  --md-danger: #dc2626;
+  --md-ok: #16a34a;
+  --md-radius: 10px;
+  --md-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+    "Noto Sans CJK SC", sans-serif;
+  color: var(--md-ink);
+  background: var(--md-bg);
+  font-size: 14px;
+}
+
+/* 按钮基础 */
+.md-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--md-line);
+  background: var(--md-card);
+  color: var(--md-ink-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.md-btn:hover:not(:disabled) {
+  border-color: var(--md-primary);
+  color: var(--md-primary);
+}
+.md-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.md-btn--primary {
+  background: var(--md-primary);
+  border-color: var(--md-primary);
+  color: #fff;
+}
+.md-btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  color: #fff;
+}
+.md-btn--danger {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: var(--md-danger);
+}
+.md-btn--danger:hover:not(:disabled) {
+  background: var(--md-danger);
+  color: #fff;
+}
+.md-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+.md-btn--sm {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.md-btn--active {
+  background: var(--md-primary);
+  border-color: var(--md-primary);
+  color: #fff;
+}

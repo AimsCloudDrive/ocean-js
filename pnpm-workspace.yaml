@@ -52,6 +52,7 @@ overrides:
 packages:
   - "modules/**"
   - "modules/**/example"
+  - "!modules/model-designer-vue"
 allowBuilds:
   "@swc/core": true
   esbuild: false

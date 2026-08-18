@@ -14,6 +14,7 @@ dist2
 dist-ssr
 *.local
 .pnpm-store/
+.pnpm-store-vue/
 
 # Editor directories and files
 .vscode/*

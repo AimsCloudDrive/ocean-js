@@ -13,10 +13,31 @@
 
 ### 连接方式示例
 
+#### Linux / macOS（sshpass + ssh）
+
 ```bash
 sshpass -p 'tx009618.' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
   -o UserKnownHostsFile=/dev/null root@47.109.110.125 '<远程命令>'
 ```
+
+#### Windows（PowerShell + Posh-SSH 模块）
+
+Posh-SSH 是 PowerShell 下的 SSH 客户端模块，支持带密码直接连接，无需 `sshpass`。
+
+```powershell
+# 建立连接
+$pw = ConvertTo-SecureString 'tx009618.' -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential('root', $pw)
+$s = New-SSHSession -ComputerName '47.109.110.125' -Credential $cred -AcceptKey -ConnectionTimeout 15
+
+# 执行命令
+Invoke-SSHCommand -SessionId $s.SessionId -Command '<远程命令>' | Select-Object -ExpandProperty Output
+
+# 关闭连接
+Remove-SSHSession -SessionId $s.SessionId | Out-Null
+```
+
+> 说明：若提示找不到 `Posh-SSH`，先执行 `Install-Module -Name Posh-SSH -Scope CurrentUser -Force` 安装。
 
 ## 模型设计器后端容器挂载卷（Mounts）
 
@@ -58,7 +79,7 @@ docker restart 72d1e59133ccb8cf65a9419ba2b7a22d10ea1a57ae39c1e4127fe6ba521c0abb
 
 ## 前端构建产物（dist）
 
-模型设计器的**前端**构建产物位于 `/var/www/mma/dist/`，并运行在 **3008 端口**上：
+模型设计器的**前端**（Vue 3 + Vapor 无虚拟 DOM 版，源码在 `modules/model-designer-vue`）构建产物位于 `/var/www/mma/dist/`，运行在 **3008 端口**上：
 
 ```
 /var/www/mma/dist/
@@ -66,7 +87,21 @@ docker restart 72d1e59133ccb8cf65a9419ba2b7a22d10ea1a57ae39c1e4127fe6ba521c0abb
 └── index.html     # 入口 HTML
 ```
 
-- 前端访问地址：`http://47.109.110.125:3008`（或所在域名:3008）
+- 前端访问地址：`http://47.109.110.125:3008/demo/`（或所在域名:3008/demo/）
+
+### nginx 路由（/etc/nginx/conf.d/mma.conf）
+
+| 路径 | 处理 |
+|------|------|
+| `/demo` | `alias /var/www/mma/dist`，提供模型设计器前端（Vite `base: "/demo/"`） |
+| `/` | `root /var/www/mma` 的 MMA 站点首页 |
+| `/api/` | `proxy_pass http://127.0.0.1:9091`，转发到后端（`/api/model-designer/*` → 9091） |
+
+### 前端关键配置与构建
+
+- **vite.config.ts**：`base: "/demo/"`（对应线上 `/demo` 访问路径）；`plugin-vue` 开启 `features.vapor: true`；dev 端口 5175，`/api` 代理到 `http://47.109.110.125:9091`
+- **Vapor 组件需写 `<script setup vapor lang="ts">`**：不加 `lang="ts"` 时 Vapor 编译器不启用 TS 解析，`import type` 与模板内 TS 断言会报错
+- 子项目因 pnpm workspace 的 Junction 链接曾指向失效沙箱路径，改用 `npm install` 独立安装依赖（见下）
 
 前端与后端 dist 是两个不同的目录，注意区分：
 
