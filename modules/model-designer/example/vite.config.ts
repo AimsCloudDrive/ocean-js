@@ -7,6 +7,7 @@ const dist = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: "/demo/",
   resolve: {
     alias: [
       { find: /^@msom\/model-designer$/, replacement: dist("../dist/index.js") },

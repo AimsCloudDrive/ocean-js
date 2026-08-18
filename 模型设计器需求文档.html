@@ -140,6 +140,19 @@ pre .cm{color:#6b7280}
   text-align:center;
 }
 .fig .cap{font-size:12px;color:var(--ink-3);margin-top:6px}
+.relation-demo{
+  background:#ffffff;
+  border:1px solid #e2e8f0;
+  border-radius:8px;
+  overflow:hidden;
+  touch-action:none;
+}
+.relation-demo canvas{
+  display:block;
+  width:100%;
+  height:360px;
+  cursor:default;
+}
 svg{max-width:100%;height:auto}
 .pill{
   display:inline-block;
@@ -230,7 +243,7 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
       <tr><td><strong>映射</strong></td><td>关系的基数表达，取值 <code>1</code> / <code>m</code> / <code>n</code>，两侧独立取值。</td></tr>
       <tr><td><strong>继承关系</strong></td><td>子模型指向父模型的特殊关系，灰色虚线箭头，不可拖动、无信息框。</td></tr>
       <tr><td><strong>直连状态</strong></td><td>关系的默认形态：信息框位于两模型中间，两根直线箭头。</td></tr>
-      <tr><td><strong>曲线状态</strong></td><td>信息框被拖动后关系的形态：三点贝塞尔曲线，且关系自动<strong>锁定</strong>。</td></tr>
+      <tr><td><strong>曲线状态</strong></td><td>信息框组合被拖动后关系的形态：穿过组合几何中心点的 Catmull-Rom 插值曲线，且关系自动<strong>锁定</strong>。</td></tr>
       <tr><td><strong>锁定</strong></td><td>模型或关系被拖动后自动进入的状态，锁定时位置不可变动；解锁后恢复可拖动。</td></tr>
       <tr><td><strong>格点</strong></td><td>网格横竖线的交叉点，模型单点拖动吸附的目标坐标。</td></tr>
       <tr><td><strong>信息框</strong></td><td>关系曲线（直线）上的一体化小框，同时显示两个方向的关系名称与映射。</td></tr>
@@ -413,7 +426,7 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
     <thead><tr><th>形态</th><th>默认 / 触发</th><th>表现</th></tr></thead>
     <tbody>
       <tr><td><strong>直连（默认）</strong></td><td>关系创建后的初始状态</td><td>信息框位于<strong>两模型中间</strong>，两根<strong>直线箭头</strong>分别指向两端模型</td></tr>
-      <tr><td><strong>曲线</strong></td><td>信息框被拖动后</td><td>变为三点贝塞尔曲线，且关系<strong>自动锁定</strong>，位置不再变动</td></tr>
+      <tr><td><strong>曲线</strong></td><td>信息框被拖动后</td><td>变为穿过关系框组合中心点的 Catmull-Rom 插值曲线，且关系<strong>自动锁定</strong>，位置不再变动</td></tr>
     </tbody>
   </table>
   </div>
@@ -479,10 +492,249 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
   </ul>
   <h3>7.3 关系拖动与绘制</h3>
   <ul>
-    <li>关系<strong>只可拖动信息框</strong>，曲线/直线本身不可拖动；拖动信息框后关系切换为曲线形态并锁定。</li>
-    <li>曲线由三个锚点生成：<strong>源模型中心 → 信息框中心 → 目标模型中心</strong>，绘制为平滑贝塞尔曲线。</li>
-    <li>曲线穿过信息框背后的一段<strong>不绘制</strong>（信息框遮挡曲线）；箭头端按 6.2 规则与模型保持间距。</li>
+    <li>关系<strong>只可拖动信息框组合</strong>，曲线/直线本身不可拖动；拖动信息框组合后关系切换为曲线形态并锁定。</li>
+    <li>曲线由三个关键点生成：<strong>源模型连接点 → 关系框组合几何中心 → 目标模型连接点</strong>，绘制为 Catmull-Rom 插值曲线，曲线必须经过关系框组合几何中心。</li>
+    <li>两个方向关系框作为一个整体移动，框间距固定为 <code>20px</code>；关系框使用固定背景色、无边框、无圆角、紧凑内边距，鼠标悬停时不改变关系框样式。</li>
+    <li>箭头尖端与圆形模型边缘保持 <code>12px</code> 间距；关系线只绘制到箭头尾部，箭头部分单独绘制，避免线条压到箭头内部。</li>
+    <li>普通状态关系线颜色为 <code>rgb(255, 205, 67)</code>；鼠标悬停在关系线或任一关系框上时，关系线与箭头高亮为 <code>rgb(228, 63, 49)</code>。悬停在某个关系框上时，仅显示该关系框对应方向的单向箭头。</li>
   </ul>
+  <div class="fig">
+    <div class="relation-demo"><canvas id="ordinaryRelationDemo" aria-label="普通关系曲线示例"></canvas></div>
+    <div class="cap">普通关系前端示例：拖动两个关系框组成的整体，曲线始终经过组合几何中心；悬停关系框时切换为对应方向的高亮单向箭头。</div>
+  </div>
+  <script>
+  (function(){
+    const canvas = document.getElementById('ordinaryRelationDemo');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const normal = 'rgb(255, 205, 67)';
+    const active = 'rgb(228, 63, 49)';
+    const state = {
+      group:{x:360,y:180},
+      source:{x:110,y:180,r:42,label:'用户'},
+      target:{x:610,y:180,r:42,label:'订单'},
+      boxes:[
+        {key:'sourceToTarget',text:'订单ID：1',bg:'#ffe39a'},
+        {key:'targetToSource',text:'用户ID：m',bg:'#bfe8ff'}
+      ],
+      hover:null,
+      dragging:false,
+      dragDx:0,
+      dragDy:0
+    };
+    function resize(){
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.round(360 * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      state.source.x = Math.max(84, rect.width * 0.16);
+      state.target.x = Math.min(rect.width - 84, rect.width * 0.84);
+      state.group.x = Math.min(Math.max(state.group.x, 160), rect.width - 160);
+      draw();
+    }
+    function boxRects(){
+      ctx.font = '13px "Noto Sans CJK SC","Microsoft YaHei",sans-serif';
+      const paddingX = 8;
+      const h = 24;
+      const gap = 20;
+      const widths = state.boxes.map(box => Math.ceil(ctx.measureText(box.text).width) + paddingX * 2);
+      const totalW = widths[0] + gap + widths[1];
+      const left = state.group.x - totalW / 2;
+      return [
+        {x:left,y:state.group.y - h / 2,w:widths[0],h,box:state.boxes[0]},
+        {x:left + widths[0] + gap,y:state.group.y - h / 2,w:widths[1],h,box:state.boxes[1]}
+      ];
+    }
+    function pointOnCircle(from,to,node){
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const len = Math.hypot(dx,dy) || 1;
+      const gap = node.r + 12;
+      return {x:from.x + dx / len * gap,y:from.y + dy / len * gap};
+    }
+    function catmull(points,segments){
+      const p = [points[0],points[0],points[1],points[2],points[2]];
+      const out = [];
+      for (let i = 1; i < p.length - 2; i++) {
+        for (let j = 0; j <= segments; j++) {
+          const t = j / segments;
+          const t2 = t * t;
+          const t3 = t2 * t;
+          const p0 = p[i - 1], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2];
+          out.push({
+            x:0.5 * ((2*p1.x) + (-p0.x+p2.x)*t + (2*p0.x-5*p1.x+4*p2.x-p3.x)*t2 + (-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+            y:0.5 * ((2*p1.y) + (-p0.y+p2.y)*t + (2*p0.y-5*p1.y+4*p2.y-p3.y)*t2 + (-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+          });
+        }
+      }
+      return out;
+    }
+    function trimEnd(points,tail){
+      const result = points.slice();
+      let rest = tail;
+      while (result.length > 1 && rest > 0) {
+        const a = result[result.length - 2];
+        const b = result[result.length - 1];
+        const d = Math.hypot(b.x - a.x,b.y - a.y);
+        if (d <= rest) {
+          result.pop();
+          rest -= d;
+        } else {
+          const ratio = (d - rest) / d;
+          result[result.length - 1] = {x:a.x + (b.x - a.x) * ratio,y:a.y + (b.y - a.y) * ratio};
+          rest = 0;
+        }
+      }
+      return result;
+    }
+    function drawPath(points,color,lineWidth){
+      if (points.length < 2) return;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+    function drawArrow(tip,from,color){
+      const angle = Math.atan2(tip.y - from.y, tip.x - from.x);
+      const len = 13;
+      const spread = Math.PI / 6;
+      ctx.beginPath();
+      ctx.moveTo(tip.x, tip.y);
+      ctx.lineTo(tip.x - Math.cos(angle - spread) * len, tip.y - Math.sin(angle - spread) * len);
+      ctx.moveTo(tip.x, tip.y);
+      ctx.lineTo(tip.x - Math.cos(angle + spread) * len, tip.y - Math.sin(angle + spread) * len);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+    function drawNode(node){
+      ctx.beginPath();
+      ctx.arc(node.x,node.y,node.r,0,Math.PI*2);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fill();
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#1f2937';
+      ctx.font = '15px "Noto Sans CJK SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(node.label,node.x,node.y);
+    }
+    function drawBoxes(){
+      const rects = boxRects();
+      ctx.font = '13px "Noto Sans CJK SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      rects.forEach(rect => {
+        ctx.fillStyle = rect.box.bg;
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.fillStyle = '#1f2937';
+        ctx.fillText(rect.box.text, rect.x + rect.w / 2, rect.y + rect.h / 2 + 0.5);
+      });
+    }
+    function relationPoints(){
+      const center = {x:state.group.x,y:state.group.y};
+      const start = pointOnCircle(state.source, center, state.source);
+      const end = pointOnCircle(state.target, center, state.target);
+      return {start,center,end};
+    }
+    function draw(){
+      const width = canvas.getBoundingClientRect().width;
+      ctx.clearRect(0,0,width,360);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0,0,width,360);
+      ctx.strokeStyle = '#edf2f7';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < width; x += 24) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,360); ctx.stroke(); }
+      for (let y = 0; y < 360; y += 24) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(width,y); ctx.stroke(); }
+      const {start,center,end} = relationPoints();
+      const base = catmull([start,center,end],32);
+      const color = state.hover ? active : normal;
+      if (state.hover === 'sourceToTarget') {
+        drawPath(trimEnd(base,14),color,4);
+        drawArrow(end,base[base.length - 2],color);
+      } else if (state.hover === 'targetToSource') {
+        const rev = base.slice().reverse();
+        drawPath(trimEnd(rev,14),color,4);
+        drawArrow(start,rev[rev.length - 2],color);
+      } else {
+        drawPath(trimEnd(base,14),color,state.hover === 'line' ? 4 : 3);
+        drawPath(trimEnd(base.slice().reverse(),14),color,state.hover === 'line' ? 4 : 3);
+        drawArrow(end,base[base.length - 2],color);
+        drawArrow(start,base[1],color);
+      }
+      drawNode(state.source);
+      drawNode(state.target);
+      drawBoxes();
+    }
+    function hitBox(pos){
+      return boxRects().find(rect => pos.x >= rect.x && pos.x <= rect.x + rect.w && pos.y >= rect.y && pos.y <= rect.y + rect.h);
+    }
+    function distanceToSegment(p,a,b){
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len2 = dx*dx + dy*dy || 1;
+      const t = Math.max(0, Math.min(1, ((p.x-a.x)*dx + (p.y-a.y)*dy) / len2));
+      const x = a.x + t * dx;
+      const y = a.y + t * dy;
+      return Math.hypot(p.x - x, p.y - y);
+    }
+    function hitLine(pos){
+      const {start,center,end} = relationPoints();
+      const pts = catmull([start,center,end],32);
+      for (let i = 1; i < pts.length; i++) if (distanceToSegment(pos, pts[i-1], pts[i]) < 8) return true;
+      return false;
+    }
+    function pointer(e){
+      const rect = canvas.getBoundingClientRect();
+      return {x:e.clientX - rect.left,y:e.clientY - rect.top};
+    }
+    canvas.addEventListener('pointerdown', e => {
+      const pos = pointer(e);
+      if (hitBox(pos)) {
+        state.dragging = true;
+        state.dragDx = pos.x - state.group.x;
+        state.dragDy = pos.y - state.group.y;
+        canvas.setPointerCapture(e.pointerId);
+      }
+    });
+    canvas.addEventListener('pointermove', e => {
+      const pos = pointer(e);
+      if (state.dragging) {
+        const width = canvas.getBoundingClientRect().width;
+        state.group.x = Math.min(Math.max(pos.x - state.dragDx, 140), width - 140);
+        state.group.y = Math.min(Math.max(pos.y - state.dragDy, 72), 288);
+        draw();
+        return;
+      }
+      const box = hitBox(pos);
+      state.hover = box ? box.box.key : (hitLine(pos) ? 'line' : null);
+      canvas.style.cursor = box ? 'grab' : (state.hover === 'line' ? 'pointer' : 'default');
+      draw();
+    });
+    canvas.addEventListener('pointerup', e => {
+      state.dragging = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+      draw();
+    });
+    canvas.addEventListener('pointerleave', () => {
+      if (!state.dragging) {
+        state.hover = null;
+        canvas.style.cursor = 'default';
+        draw();
+      }
+    });
+    window.addEventListener('resize', resize);
+    resize();
+  })();
+  </script>
   <h3>7.4 框选拖动</h3>
   <ul>
     <li>框选命中的内容支持<strong>整体拖动</strong>：拖动任意选中模型即可整体移动所有选中对象。</li>
