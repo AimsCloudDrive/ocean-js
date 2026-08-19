@@ -29,7 +29,7 @@ export class RelationService {
       position: body.position,
       name: body.name,
       kind: body.kind,
-      locked: body.locked,
+      locked: !!body.position,
       data: body.data,
     };
     await this.assertRelationshipModels(relation);
@@ -47,6 +47,47 @@ export class RelationService {
     // 成环检测必须在任何数据库写入/事务之前完成，返回 400 INHERIT_CYCLE
     if (createsInheritanceCycle(models, body.source, body.target)) {
       throw new AppError(400, "INHERIT_CYCLE", "创建继承关系会形成环", { sourceModelId: body.source, targetModelId: body.target });
+    }
+    // 字段重复检测：父链向上收集所有字段名，子树向下收集所有字段名，有交集则拒绝
+    {
+      const byId = new Map(models.map((item) => [item.model.id, item]));
+      const parentChainNames = new Set<string>();
+      const visitedUp = new Set<string>();
+      let cur: string | null = body.target;
+      while (cur && !visitedUp.has(cur)) {
+        visitedUp.add(cur);
+        const m = byId.get(cur);
+        if (!m) break;
+        for (const f of m.fields) {
+          const fn = (f as Record<string, unknown>)?.name;
+          if (typeof fn === "string") parentChainNames.add(fn);
+        }
+        cur = m.model.parentModelId;
+      }
+      const descendantNames = new Set<string>();
+      const visitedDown = new Set<string>();
+      const stack = [body.source];
+      while (stack.length > 0) {
+        const curId = stack.pop()!;
+        if (visitedDown.has(curId)) continue;
+        visitedDown.add(curId);
+        const m = byId.get(curId);
+        if (!m) continue;
+        for (const f of m.fields) {
+          const fn = (f as Record<string, unknown>)?.name;
+          if (typeof fn === "string") descendantNames.add(fn);
+        }
+        if (m.model.childModelIds) {
+          for (const cid of m.model.childModelIds) stack.push(cid);
+        }
+      }
+      const dupNames: string[] = [];
+      for (const name of descendantNames) {
+        if (parentChainNames.has(name)) dupNames.push(name);
+      }
+      if (dupNames.length > 0) {
+        throw new AppError(409, "INHERIT_FIELD_DUPLICATE", `继承链条存在重复字段: ${dupNames.join(", ")}`);
+      }
     }
 
     const relation: RelationMeta = { META_TYPE: "relation", id, relationType: "inherit", source: body.source, target: body.target };
@@ -117,12 +158,12 @@ export class RelationService {
     const updated: RelationMeta = {
       ...current,
       relationship: body.relationship ?? current.relationship,
-      position: body.position ?? current.position,
+      position: body.position !== undefined ? (body.position ?? undefined) : current.position,
       name: body.name ?? current.name,
       kind: body.kind ?? current.kind,
-      locked: body.locked === undefined ? current.locked : body.locked,
       data: body.data ?? current.data,
     };
+    updated.locked = !!updated.position;
     await this.assertRelationshipModels(updated);
     await this.repository.replaceRelation(id, updated);
     return updated;
@@ -184,8 +225,7 @@ export class RelationService {
       body.kind === undefined || body.kind === "one-to-one" || body.kind === "one-to-many" || body.kind === "many-to-many",
       "kind 必须是 one-to-one、one-to-many 或 many-to-many",
     );
-    assertPayload(body.locked === undefined || typeof body.locked === "boolean", "locked 必须是布尔值");
-    assertPayload(body.position === undefined || isPoint(body.position), "position 必须包含有效的 x、y");
+    assertPayload(body.position === undefined || body.position === null || isPoint(body.position), "position 必须包含有效的 x、y");
   }
 
   private async assertRelationshipModels(relation: RelationMeta): Promise<void> {

@@ -94,9 +94,9 @@ export type ModelPatch = Partial<
 >;
 
 export type RelationPatch = Partial<
-  Pick<ModelRelation, "name" | "kind" | "locked" | "data" | "forward" | "reverse">
+  Pick<ModelRelation, "name" | "kind" | "data" | "forward" | "reverse">
 > & {
-  position?: ModelPosition;
+  position?: ModelPosition | null;
 };
 
 /** MongoDB 数据库连接信息。dbHost/dbPort/用户名/密码必填，db 用于指定默认业务库。 */

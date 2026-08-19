@@ -56,11 +56,14 @@ export class MetaRepository {
   }
 
   async listRelations(session?: ClientSession): Promise<RelationMeta[]> {
-    return this.collection.find({ META_TYPE: "relation" }, { session }).toArray() as Promise<RelationMeta[]>;
+    const docs = await this.collection.find({ META_TYPE: "relation" }, { session }).toArray();
+    return docs.map((doc) => ({ ...doc, locked: !!doc.position })) as RelationMeta[];
   }
 
   async findRelation(id: string, session?: ClientSession): Promise<RelationMeta | null> {
-    return this.collection.findOne({ META_TYPE: "relation", id }, { session }) as Promise<RelationMeta | null>;
+    const doc = await this.collection.findOne({ META_TYPE: "relation", id }, { session });
+    if (!doc) return null;
+    return { ...doc, locked: !!doc.position } as RelationMeta;
   }
 
   async insertRelation(relation: RelationMeta, session?: ClientSession): Promise<void> {

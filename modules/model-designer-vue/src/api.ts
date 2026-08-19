@@ -103,7 +103,7 @@ function toModelRelation(value: ServerRelation): ModelRelation {
       relationType: "inherit",
       position: value.position,
       name: value.name,
-      locked: value.locked,
+      locked: !!value.position,
       data: value.data,
     };
   }
@@ -181,7 +181,7 @@ function relationPayload(input: Omit<ModelRelation, "id">): Omit<ServerRelation,
     position: input.position,
     name: input.name,
     kind: input.kind,
-    locked: input.locked,
+    locked: !!input.position,
     data: input.data,
   };
 }
@@ -192,7 +192,6 @@ function relationPatchPayload(patch: RelationPatch): Partial<ServerRelation> {
   if (patch.position !== undefined) result.position = patch.position;
   if (patch.name !== undefined) result.name = patch.name;
   if (patch.kind !== undefined) result.kind = patch.kind;
-  if (patch.locked !== undefined) result.locked = patch.locked;
   if (patch.data !== undefined) result.data = patch.data;
 
   if (patch.forward || patch.reverse) {

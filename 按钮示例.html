@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图标按钮示例</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    padding: 40px;
+  }
+  .demo-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .demo-label {
+    font-size: 14px;
+    color: #666;
+    font-weight: 600;
+  }
+
+  /* ==================== 按钮基础样式 ==================== */
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #c0c0c0;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+    outline: none;
+    padding: 0;
+    line-height: 0;
+  }
+  .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.85);
+  }
+  .icon-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: #1a1a1a;
+    stroke-width: 1.8;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.15s ease;
+  }
+  .icon-btn:active svg {
+    transform: scale(0.8);
+  }
+
+  /* ==================== 第一种按钮：带激活状态 ==================== */
+  .icon-btn--toggle.icon-btn--active {
+    border-color: #facc15;
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 0 1px #facc15, 0 2px 8px rgba(250, 204, 21, 0.3);
+  }
+
+  /* ==================== 第二种按钮：普通功能按钮 ==================== */
+  /* 无额外样式，使用基础样式即可 */
+
+  .button-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 第一种按钮：创建类（带激活状态） -->
+  <div class="demo-section">
+    <div class="demo-label">第一种：创建类按钮（点击可切换激活状态，激活时边框变亮黄色）</div>
+    <div class="button-group" id="toggle-group">
+      <!-- 创建模型 -->
+      <button class="icon-btn icon-btn--toggle" data-type="model" title="创建模型">
+        <svg viewBox="0 0 24 24">
+          <rect x="4" y="4" width="16" height="16" rx="2"/>
+          <line x1="4" y1="12" x2="20" y2="12"/>
+          <line x1="12" y1="4" x2="12" y2="20"/>
+        </svg>
+      </button>
+      <!-- 创建关系 -->
+      <button class="icon-btn icon-btn--toggle" data-type="relation" title="创建关系">
+        <svg viewBox="0 0 24 24">
+          <path d="M9 12h6"/>
+          <circle cx="6" cy="12" r="3"/>
+          <circle cx="18" cy="12" r="3"/>
+        </svg>
+      </button>
+      <!-- 继承关系 -->
+      <button class="icon-btn icon-btn--toggle" data-type="inherit" title="继承关系">
+        <svg viewBox="0 0 24 24">
+          <rect x="9" y="3" width="6" height="6" rx="1"/>
+          <rect x="3" y="15" width="6" height="6" rx="1"/>
+          <rect x="15" y="15" width="6" height="6" rx="1"/>
+          <path d="M12 9v3M12 12h-6v3M12 12h6v3"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 第二种按钮：普通功能按钮 -->
+  <div class="demo-section">
+    <div class="demo-label">第二种：普通功能按钮（无激活状态，灰色边框）</div>
+    <div class="button-group">
+      <!-- 放大 -->
+      <button class="icon-btn" title="放大">
+        <svg viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="7"/>
+          <line x1="16" y1="16" x2="21" y2="21"/>
+          <line x1="11" y1="8" x2="11" y2="14"/>
+          <line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+      </button>
+      <!-- 缩小 -->
+      <button class="icon-btn" title="缩小">
+        <svg viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="7"/>
+          <line x1="16" y1="16" x2="21" y2="21"/>
+          <line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+      </button>
+      <!-- 还原 -->
+      <button class="icon-btn" title="还原">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+      </button>
+      <!-- 同步 -->
+      <button class="icon-btn" title="同步位置">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 3v12"/>
+          <path d="M8 7l4-4 4 4"/>
+          <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+        </svg>
+      </button>
+      <!-- 编辑/只读切换 -->
+      <button class="icon-btn" title="切换模式">
+        <svg viewBox="0 0 24 24">
+          <rect x="5" y="11" width="14" height="10" rx="2"/>
+          <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+        </svg>
+      </button>
+      <!-- 删除 -->
+      <button class="icon-btn" title="删除">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 7h16"/>
+          <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>
+          <line x1="10" y1="11" x2="10" y2="17"/>
+          <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+<script>
+  // 第一种按钮交互逻辑：同一组内互斥激活
+  const toggleGroup = document.getElementById("toggle-group");
+  toggleGroup.addEventListener("click", (e) => {
+    const btn = e.target.closest(".icon-btn--toggle");
+    if (!btn) return;
+    const wasActive = btn.classList.contains("icon-btn--active");
+    // 先清除所有激活状态
+    toggleGroup.querySelectorAll(".icon-btn--toggle").forEach((b) => {
+      b.classList.remove("icon-btn--active");
+    });
+    // 如果之前未激活，则激活当前按钮
+    if (!wasActive) {
+      btn.classList.add("icon-btn--active");
+    }
+  });
+</script>
+
+</body>
+</html>

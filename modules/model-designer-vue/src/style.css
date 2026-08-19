@@ -88,3 +88,49 @@ body {
   border-color: var(--md-primary);
   color: #fff;
 }
+
+/* ==================== 图标按钮 ==================== */
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #c0c0c0;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  outline: none;
+  padding: 0;
+  line-height: 0;
+  flex-shrink: 0;
+}
+.icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.85);
+}
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: #1a1a1a;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s ease;
+}
+.icon-btn:active:not(:disabled) svg {
+  transform: scale(0.8);
+}
+/* 第一种按钮：创建类，带激活状态 */
+.icon-btn--toggle.icon-btn--active {
+  border-color: #facc15;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px #facc15, 0 2px 8px rgba(250, 204, 21, 0.3);
+}

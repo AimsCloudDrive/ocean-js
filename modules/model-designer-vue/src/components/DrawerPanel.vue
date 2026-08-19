@@ -268,12 +268,17 @@ const inheritModelId = computed({
 
 <style scoped>
 .md-drawer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
   width: 320px;
-  flex: none;
+  z-index: 10;
   border-left: 1px solid var(--md-line);
   background: var(--md-card);
   display: flex;
   flex-direction: column;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
 }
 .md-drawer__header {
   display: flex;

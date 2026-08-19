@@ -202,10 +202,10 @@ export function useDesigner(
 
   const createHint = computed(() => {
     const s = createState.value;
-    if (s.type === "none") return "点击按钮开始创建";
-    if (s.type === "model") return "点击画布放置模型";
-    if (s.type === "relation") return s.step === "source" ? "点击源模型" : "点击目标模型";
-    return s.step === "child" ? "点击子模型" : "点击父模型";
+    if (s.type === "none") return "";
+    if (s.type === "model") return "创建模型: 点击画布放置模型";
+    if (s.type === "relation") return `创建关系: ${s.step === "source" ? "点击源模型" : "点击目标模型"}`;
+    return `创建继承: ${s.step === "child" ? "点击子模型" : "点击父模型"}`;
   });
 
   // ── 生命周期 ─────────────────────────────────────
@@ -411,10 +411,6 @@ export function useDesigner(
     drawGrid(ctx, w, h);
     drawRelations(ctx);
     drawModels(ctx);
-
-    if (createState.value.type !== "none") {
-      drawCreationPreview(ctx);
-    }
   }
 
   function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number): void {
@@ -727,18 +723,6 @@ export function useDesigner(
     ctx.beginPath();
     ctx.arc(x + w / 2, y + 7, 1.5, 0, Math.PI * 2);
     ctx.fill();
-  }
-
-  function drawCreationPreview(ctx: CanvasRenderingContext2D): void {
-    const cx = canvasWidth / 2;
-    const cy = canvasHeight / 2;
-    ctx.save();
-    ctx.globalAlpha = 0.06;
-    ctx.fillStyle = "#2563eb";
-    ctx.beginPath();
-    ctx.arc(cx, cy, 40, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
   }
 
   function hexToRgba(hex: string, alpha: number): string {
@@ -1059,7 +1043,7 @@ export function useDesigner(
 
   async function commitRelationPosition(relation: ModelRelation): Promise<void> {
     try {
-      await api.updateRelation(relation.id, { position: relation.position, locked: true });
+      await api.updateRelation(relation.id, { position: relation.position });
     } catch (e) {
       error.value = e instanceof Error ? e.message : "提交关系位置失败";
     }
@@ -1198,6 +1182,8 @@ export function useDesigner(
         fields: [],
       });
       models.value = [...models.value, model];
+      viewport.offsetX = canvasWidth / 2 - model.x * viewport.scale;
+      viewport.offsetY = canvasHeight / 2 - model.y * viewport.scale;
       openModelDrawer(model);
     } catch (e) {
       error.value = e instanceof Error ? e.message : "创建模型失败";
@@ -1220,7 +1206,7 @@ export function useDesigner(
         targetId,
         relationType: "relation",
         forward: { name: fwdName, source: sourceId, target: targetId, mappingType: "1" },
-        reverse: { name: revName, source: targetId, target: sourceId, mappingType: "m" },
+        reverse: { name: revName, source: targetId, target: sourceId, mappingType: "1" },
       });
       relations.value = [...relations.value, relation];
       openRelationDrawer(relation);
@@ -1240,6 +1226,12 @@ export function useDesigner(
     }
     if (childId === parentId) {
       error.value = "创建继承关系失败：不能继承自身";
+      invalidate();
+      return;
+    }
+    const duplicates = findInheritanceFieldDuplicates(childId, parentId);
+    if (duplicates.length > 0) {
+      error.value = `继承链条存在重复字段: ${duplicates.join(", ")}`;
       invalidate();
       return;
     }
@@ -1278,6 +1270,14 @@ export function useDesigner(
       invalidate();
       return;
     }
+    if (parentId) {
+      const duplicates = findInheritanceFieldDuplicates(model.id, parentId);
+      if (duplicates.length > 0) {
+        error.value = `继承链条存在重复字段: ${duplicates.join(", ")}`;
+        invalidate();
+        return;
+      }
+    }
 
     // 先移除当前已有的继承关系（存在时）
     const existing = relations.value.find(
@@ -1315,6 +1315,50 @@ export function useDesigner(
       }
       invalidate();
     }
+  }
+
+  /**
+   * 检查创建继承关系后是否会在继承链条中产生重复字段。
+   * 父模型方向：向上遍历所有祖先，收集自有字段名。
+   * 子模型方向：向下遍历所有后代，收集自有字段名。
+   * 返回两个方向中重复的字段名列表。
+   */
+  function findInheritanceFieldDuplicates(childId: string, parentId: string): string[] {
+    const parentChainNames = new Set<string>();
+    const visitedUp = new Set<string>();
+    let cur: string | null = parentId;
+    while (cur && !visitedUp.has(cur)) {
+      visitedUp.add(cur);
+      const m = models.value.find((mm) => mm.id === cur);
+      if (!m) break;
+      for (const f of m.fields ?? []) {
+        if (!f.inherited) parentChainNames.add(f.name);
+      }
+      cur = m.parentModelId ?? null;
+    }
+
+    const descendantNames = new Set<string>();
+    const visitedDown = new Set<string>();
+    const stack = [childId];
+    while (stack.length > 0) {
+      const curId = stack.pop()!;
+      if (visitedDown.has(curId)) continue;
+      visitedDown.add(curId);
+      const m = models.value.find((mm) => mm.id === curId);
+      if (!m) continue;
+      for (const f of m.fields ?? []) {
+        if (!f.inherited) descendantNames.add(f.name);
+      }
+      if (m.childModelIds) {
+        for (const cid of m.childModelIds) stack.push(cid);
+      }
+    }
+
+    const duplicates: string[] = [];
+    for (const name of descendantNames) {
+      if (parentChainNames.has(name)) duplicates.push(name);
+    }
+    return duplicates;
   }
 
   function isDescendant(rootId: string, targetId: string): boolean {
@@ -1457,6 +1501,8 @@ export function useDesigner(
     const prev = readOnly.value;
     readOnly.value = !prev;
     createState.value = { type: "none" };
+    selectedIds.value = [];
+    drawer.value = { type: "closed" };
     try {
       await api.setLocked(readOnly.value);
     } catch (e) {
@@ -1508,19 +1554,16 @@ export function useDesigner(
 
   async function toggleRelationLock(relation: ModelRelation): Promise<void> {
     if (readOnly.value) return;
-    const prev = Boolean(relation.locked);
-    relation.locked = !prev;
-    if (!relation.locked) {
-      relation.position = undefined;
-    }
+    const prevLocked = Boolean(relation.locked);
+    const prevPosition = relation.position ? { ...relation.position } : undefined;
+    relation.locked = false;
+    relation.position = undefined;
     invalidate();
     try {
-      await api.updateRelation(relation.id, {
-        locked: relation.locked,
-        position: relation.position,
-      });
+      await api.updateRelation(relation.id, { position: null });
     } catch (e) {
-      relation.locked = prev;
+      relation.locked = prevLocked;
+      relation.position = prevPosition;
       error.value = e instanceof Error ? e.message : "更新关系锁定状态失败";
       invalidate();
     }
@@ -1582,7 +1625,7 @@ export function useDesigner(
       fwdName: relation.forward?.name ?? "",
       fwdMapping: relation.forward?.mappingType ?? "1",
       revName: relation.reverse?.name ?? "",
-      revMapping: relation.reverse?.mappingType ?? "m",
+      revMapping: relation.reverse?.mappingType ?? "1",
     };
   }
 
@@ -1629,6 +1672,7 @@ export function useDesigner(
         error.value = e instanceof Error ? e.message : "保存模型失败";
       } finally {
         saving.value = false;
+        selectedIds.value = [];
         invalidate();
       }
     } else if (d.type === "relation") {
@@ -1657,6 +1701,7 @@ export function useDesigner(
         error.value = e instanceof Error ? e.message : "保存关系失败";
       } finally {
         saving.value = false;
+        selectedIds.value = [];
         invalidate();
       }
     }
