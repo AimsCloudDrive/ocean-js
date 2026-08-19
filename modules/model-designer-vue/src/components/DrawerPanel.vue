@@ -43,7 +43,7 @@ const currentRelation = computed(() => {
             <span class="md-field__label">名称</span>
             <input
               v-model="drawer.name"
-              :disabled="d.readOnly || currentModel.locked"
+              :disabled="d.readOnly"
               @input="d.setDrawerDraft({ name: (($event.target as HTMLInputElement) && ($event.target as HTMLInputElement).value) || '' })"
             />
           </div>
@@ -51,7 +51,7 @@ const currentRelation = computed(() => {
             <span class="md-field__label">描述</span>
             <textarea
               v-model="drawer.description"
-              :disabled="d.readOnly || currentModel.locked"
+              :disabled="d.readOnly"
               @input="d.setDrawerDraft({ description: (($event.target as HTMLTextAreaElement) && ($event.target as HTMLTextAreaElement).value) || '' })"
             />
           </div>
@@ -64,7 +64,7 @@ const currentRelation = computed(() => {
                 class="md-color-swatch"
                 :class="{ 'is-active': drawer.color === c }"
                 :style="{ background: c }"
-                :disabled="d.readOnly || currentModel.locked"
+                :disabled="d.readOnly"
                 @click="d.setDrawerDraft({ color: c })"
               />
             </div>
@@ -122,41 +122,37 @@ const currentRelation = computed(() => {
                 <input
                   class="md-field-name-input"
                   :value="field.name"
-                  :disabled="d.readOnly || currentModel.locked"
+                  :disabled="d.readOnly"
                   @input="d.updateField(currentModel, field.id, { name: ($event.target as HTMLInputElement).value })"
                 />
                 <select
                   class="md-field-type-select"
                   :value="field.type"
-                  :disabled="d.readOnly || currentModel.locked"
+                  :disabled="d.readOnly"
                   @change="d.updateField(currentModel, field.id, { type: ($event.target as HTMLSelectElement).value })"
                 >
                   <option v-for="t in FIELD_TYPE_OPTIONS" :key="t" :value="t">{{ t }}</option>
                 </select>
                 <div class="md-field-actions">
-                  <button class="md-btn md-btn--ghost md-btn--sm" :disabled="d.readOnly || currentModel.locked || idx === 0" @click="d.moveField(currentModel, field.id, -1)">↑</button>
-                  <button class="md-btn md-btn--ghost md-btn--sm" :disabled="d.readOnly || currentModel.locked || idx === (currentModel.fields || []).filter((f) => !f.inherited).length - 1" @click="d.moveField(currentModel, field.id, 1)">↓</button>
-                  <button class="md-btn md-btn--danger md-btn--sm" :disabled="d.readOnly || currentModel.locked" @click="d.removeField(currentModel, field.id)">删</button>
+                  <button class="md-btn md-btn--ghost md-btn--sm" :disabled="d.readOnly || idx === 0" @click="d.moveField(currentModel, field.id, -1)">↑</button>
+                  <button class="md-btn md-btn--ghost md-btn--sm" :disabled="d.readOnly || idx === (currentModel.fields || []).filter((f) => !f.inherited).length - 1" @click="d.moveField(currentModel, field.id, 1)">↓</button>
+                  <button class="md-btn md-btn--danger md-btn--sm" :disabled="d.readOnly" @click="d.removeField(currentModel, field.id)">删</button>
                 </div>
                 <div v-if="d.isFieldExpanded(field.id)" class="md-field-desc">
                   <textarea
                     class="md-field-desc-input"
                     placeholder="字段描述"
                     :value="field.description ?? ''"
-                    :disabled="d.readOnly || currentModel.locked"
+                    :disabled="d.readOnly"
                     @input="d.updateField(currentModel, field.id, { description: ($event.target as HTMLTextAreaElement).value })"
                   />
                 </div>
               </li>
             </ul>
-            <button class="md-btn md-btn--sm md-field-add" :disabled="d.readOnly || currentModel.locked" @click="d.addField(currentModel)">
+            <button class="md-btn md-btn--sm md-field-add" :disabled="d.readOnly" @click="d.addField(currentModel)">
               + 添加字段
             </button>
           </div>
-
-          <button class="md-btn md-btn--secondary" :disabled="d.readOnly" @click="d.toggleModelLock(currentModel)">
-            {{ currentModel.locked ? '解锁模型' : '锁定模型' }}
-          </button>
         </template>
       </div>
       <footer class="md-drawer__footer">
@@ -189,7 +185,7 @@ const currentRelation = computed(() => {
             <span class="md-field__label">关系名称</span>
             <input
               :value="drawer.fwdName"
-              :disabled="d.readOnly || currentRelation.locked"
+              :disabled="d.readOnly"
               @input="d.setDrawerDraft({ fwdName: ($event.target as HTMLInputElement).value })"
             />
           </div>
@@ -201,7 +197,7 @@ const currentRelation = computed(() => {
                 :key="m"
                 class="md-btn md-btn--sm"
                 :class="drawer.fwdMapping === m ? 'md-btn--active' : ''"
-                :disabled="d.readOnly || currentRelation.locked"
+                :disabled="d.readOnly"
                 @click="d.setDrawerDraft({ fwdMapping: m })"
               >{{ m }}</button>
             </div>
@@ -220,7 +216,7 @@ const currentRelation = computed(() => {
             <span class="md-field__label">关系名称</span>
             <input
               :value="drawer.revName"
-              :disabled="d.readOnly || currentRelation.locked"
+              :disabled="d.readOnly"
               @input="d.setDrawerDraft({ revName: ($event.target as HTMLInputElement).value })"
             />
           </div>
@@ -232,16 +228,12 @@ const currentRelation = computed(() => {
                 :key="m"
                 class="md-btn md-btn--sm"
                 :class="drawer.revMapping === m ? 'md-btn--active' : ''"
-                :disabled="d.readOnly || currentRelation.locked"
+                :disabled="d.readOnly"
                 @click="d.setDrawerDraft({ revMapping: m })"
               >{{ m }}</button>
             </div>
           </div>
         </div>
-
-        <button class="md-btn md-btn--secondary" :disabled="d.readOnly" @click="d.toggleRelationLock(currentRelation)">
-          {{ currentRelation.locked ? '解锁关系' : '锁定关系' }}
-        </button>
       </div>
       <footer class="md-drawer__footer">
         <button class="md-btn md-btn--danger" :disabled="d.readOnly || d.saving" @click="d.deleteRelation(currentRelation!.id)">

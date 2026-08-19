@@ -352,9 +352,9 @@ importers:
 
   modules/model-designer-server:
     dependencies:
-      '@msom/http':
-        specifier: workspace:^
-        version: link:../http
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1
       mongodb:
         specifier: ^6.20.0
         version: 6.21.0
@@ -393,6 +393,25 @@ importers:
       vue-tsc:
         specifier: ^3.3.10
         version: 3.3.10(typescript@5.8.3)
+
+  modules/model-designer-vue/example:
+    dependencies:
+      '@msom/model-designer-vue':
+        specifier: workspace:*
+        version: link:..
+      '@vue/runtime-vapor':
+        specifier: 3.6.0-rc.4
+        version: 3.6.0-rc.4(@vue/runtime-dom@3.6.0-rc.4)
+      vue:
+        specifier: 3.6.0-rc.4
+        version: 3.6.0-rc.4(typescript@7.0.2)
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.8
+        version: 6.0.8(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(less@4.8.1)(tsx@4.23.12))(vue@3.6.0-rc.4(typescript@7.0.2))
+      vite:
+        specifier: ^8.2.1
+        version: 8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(less@4.8.1)(tsx@4.23.12)
 
   modules/model-designer/example:
     devDependencies:
@@ -5160,6 +5179,12 @@ snapshots:
       vite: 8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(less@4.8.1)(tsx@4.23.12)
       vue: 3.6.0-rc.4(typescript@5.8.3)
 
+  '@vitejs/plugin-vue@6.0.8(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(less@4.8.1)(tsx@4.23.12))(vue@3.6.0-rc.4(typescript@7.0.2))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.1
+      vite: 8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(less@4.8.1)(tsx@4.23.12)
+      vue: 3.6.0-rc.4(typescript@7.0.2)
+
   '@volar/language-core@2.4.28':
     dependencies:
       '@volar/source-map': 2.4.28
@@ -6801,6 +6826,17 @@ snapshots:
       '@vue/shared': 3.6.0-rc.4
     optionalDependencies:
       typescript: 5.8.3
+
+  vue@3.6.0-rc.4(typescript@7.0.2):
+    dependencies:
+      '@vue/compiler-dom': 3.6.0-rc.4
+      '@vue/compiler-sfc': 3.6.0-rc.4
+      '@vue/runtime-dom': 3.6.0-rc.4
+      '@vue/runtime-vapor': 3.6.0-rc.4(@vue/runtime-dom@3.6.0-rc.4)
+      '@vue/server-renderer': 3.6.0-rc.4
+      '@vue/shared': 3.6.0-rc.4
+    optionalDependencies:
+      typescript: 7.0.2
 
   w3c-xmlserializer@5.0.0:
     dependencies:

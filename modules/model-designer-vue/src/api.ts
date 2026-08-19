@@ -6,11 +6,13 @@ import type {
   ModelPatch,
   ModelPosition,
   ModelRelation,
+  MongoConnectionInfo,
   RelationDirection,
   RelationPatch,
 } from "./types";
 
 export interface HttpModelDesignerApiOption {
+  /** 后端基础地址，缺省时使用 location.origin + /api/model-designer */
   baseUrl?: string;
 }
 
@@ -20,6 +22,17 @@ interface ApiEnvelope<T> {
   message: string;
   code?: string;
   requestId: string;
+}
+
+interface ConnectResult {
+  connected: boolean;
+  connectionKey: string;
+  db?: string;
+}
+
+interface DatabasesResult {
+  connectionKey: string;
+  databases: string[];
 }
 
 type ServerModelData = Omit<ModelNode, "x" | "y" | "fields">;
@@ -72,10 +85,7 @@ function toModelNode(value: ServerModel): ModelNode {
   };
 }
 
-function toRelationDirection(
-  name: string,
-  dir: ServerRelationDirection
-): RelationDirection {
+function toRelationDirection(name: string, dir: ServerRelationDirection): RelationDirection {
   return {
     name,
     source: dir.source,
@@ -129,15 +139,15 @@ function modelPayload(input: Omit<ModelNode, "id">, id: string): ServerModel {
 
 function modelPatchPayload(patch: ModelPatch): ServerModelPatch {
   const { fields, ...model } = patch;
+  delete model.id;
+  delete model.parentModelId;
   return {
     ...(fields === undefined ? {} : { fields }),
     ...(Object.keys(model).length === 0 ? {} : { model }),
   };
 }
 
-function relationPayload(
-  input: Omit<ModelRelation, "id">
-): Omit<ServerRelation, "id" | "META_TYPE"> {
+function relationPayload(input: Omit<ModelRelation, "id">): Omit<ServerRelation, "id" | "META_TYPE"> {
   if (input.relationType === "inherit") {
     return {
       relationType: "inherit",
@@ -213,18 +223,27 @@ function createModelId(): string {
 }
 
 /** 创建与模型设计器后端契约一致的 REST API 适配器。 */
-export function createHttpModelDesignerApi(
-  option: HttpModelDesignerApiOption = {}
-): ModelDesignerApi {
-  const baseUrl = (option.baseUrl || "/api/model-designer").replace(/\/$/, "");
+export function createHttpModelDesignerApi(option: HttpModelDesignerApiOption = {}): ModelDesignerApi {
+  const defaultBaseUrl = `${globalThis.location?.origin ?? ""}/api/model-designer`;
+  const baseUrl = (option.baseUrl || defaultBaseUrl).replace(/\/+$/, "");
   let canvas: ModelDesignerCanvas = { center: { x: 0, y: 0 }, scale: 1 };
-  const requestOption = (method: string, body?: unknown): RequestInit => ({
+  let connectionKey = "";
+  let db = "";
+  const contextHeaders = (): Record<string, string> => ({
+    connectionKey,
+    db,
+  });
+  const requestOption = (method: string, body?: unknown, withContext = true): RequestInit => ({
     method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    headers: {
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+      ...(withContext ? contextHeaders() : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const request = async <T>(url: string, method = "GET", body?: unknown): Promise<T> => {
-    const response = await fetch(`${baseUrl}${url}`, requestOption(method, body));
+  const request = async <T>(url: string, method = "GET", body?: unknown, withContext = true): Promise<T> => {
+    const target = `${baseUrl}${url}`;
+    const response = await fetch(target, requestOption(method, body, withContext));
     const result = (await response.json()) as ApiEnvelope<T>;
     if (!response.ok || !result.success) {
       throw new Error(result.message || `模型设计器接口请求失败：${response.status}`);
@@ -233,6 +252,28 @@ export function createHttpModelDesignerApi(
   };
 
   return {
+    connect: async (info: MongoConnectionInfo) => {
+      const result = await request<ConnectResult>(
+        "/connect",
+        "POST",
+        {
+          dbHost: info.dbHost,
+          dbPort: info.dbPort,
+          user: info.user,
+          password: info.password,
+        },
+        false
+      );
+      connectionKey = result.connectionKey;
+      db = info.db?.trim() || result.db || "";
+    },
+    listDatabases: async () => {
+      const result = await request<DatabasesResult>("/databases");
+      return result.databases;
+    },
+    selectDatabase: (nextDb: string) => {
+      db = nextDb;
+    },
     bootstrap: async () => {
       const result = await request<ServerBootstrap>("/bootstrap");
       canvas = {
@@ -247,13 +288,9 @@ export function createHttpModelDesignerApi(
       } satisfies ModelDesignerBootstrap;
     },
     createModel: async (input) =>
-      toModelNode(
-        await request<ServerModel>("/models", "POST", modelPayload(input, createModelId()))
-      ),
+      toModelNode(await request<ServerModel>("/models", "POST", modelPayload(input, createModelId()))),
     updateModel: async (id, patch: ModelPatch) =>
-      toModelNode(
-        await request<ServerModel>(`/models/${encodeURIComponent(id)}`, "PATCH", modelPatchPayload(patch))
-      ),
+      toModelNode(await request<ServerModel>(`/models/${encodeURIComponent(id)}`, "PATCH", modelPatchPayload(patch))),
     updateModelPosition: async (id, position: ModelPosition) => {
       await request<ServerModel>(`/models/${encodeURIComponent(id)}`, "PATCH", { position });
     },
@@ -261,26 +298,19 @@ export function createHttpModelDesignerApi(
       await request(`/models/${encodeURIComponent(id)}`, "DELETE");
     },
     createRelation: async (input) =>
-      toModelRelation(
-        await request<ServerRelation>("/relations", "POST", relationPayload(input))
-      ),
+      toModelRelation(await request<ServerRelation>("/relations", "POST", relationPayload(input))),
     updateRelation: async (id, patch: RelationPatch) =>
       toModelRelation(
-        await request<ServerRelation>(
-          `/relations/${encodeURIComponent(id)}`,
-          "PATCH",
-          relationPatchPayload(patch)
-        )
+        await request<ServerRelation>(`/relations/${encodeURIComponent(id)}`, "PATCH", relationPatchPayload(patch))
       ),
     deleteRelation: async (id) => {
       await request(`/relations/${encodeURIComponent(id)}`, "DELETE");
     },
     setLocked: async (locked) => {
-      const result = await request<ModelDesignerCanvas & { META_TYPE: "base" }>(
-        "/canvas",
-        "PUT",
-        { ...canvas, locked }
-      );
+      const result = await request<ModelDesignerCanvas & { META_TYPE: "base" }>("/canvas", "PUT", {
+        ...canvas,
+        locked,
+      });
       canvas = { center: result.center, scale: result.scale, locked: result.locked };
     },
   };

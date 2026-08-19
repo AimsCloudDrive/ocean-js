@@ -28,6 +28,7 @@ function onWrapperRef(el: HTMLDivElement | null): void {
         @pointerdown="d.onCanvasPointerDown"
         @pointermove="d.onCanvasPointerMove"
         @wheel="d.onCanvasWheel"
+        @contextmenu.prevent
       />
       <div v-if="d.createState.type !== 'none'" class="md-stage__hint">
         {{ d.createHint }}

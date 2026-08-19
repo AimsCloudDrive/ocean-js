@@ -4,11 +4,23 @@
   "version": "0.1.0",
   "type": "module",
   "description": "模型设计器（Vue 3 + Vapor 无虚拟 DOM 版本）",
+  "module": "dist/model-designer-vue.js",
+  "types": "types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types.d.ts",
+      "import": "./dist/model-designer-vue.js"
+    },
+    "./style.css": "./dist/model-designer-vue.css"
+  },
+  "files": ["dist", "types.d.ts"],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "example:dev": "vite --config example/vite.config.ts",
+    "example:build": "vite build --config example/vite.config.ts"
   },
   "dependencies": {
     "@vue/runtime-vapor": "3.6.0-rc.4",

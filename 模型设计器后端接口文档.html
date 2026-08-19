@@ -389,6 +389,7 @@
       <a href="#principles">设计原则</a>
       <a href="#response">统一响应</a>
       <a href="#overview">接口总览</a>
+      <a href="#connections">连接接口</a>
       <a href="#canvas">画布接口</a>
       <a href="#models">模型接口</a>
       <a href="#relations">关系接口</a>
@@ -458,29 +459,117 @@
 
     <section id="overview">
       <h2>接口总览</h2>
-      <p class="lead">接口前缀建议为 <code>/api/model-designer</code>。如果后端服务存在多项目或多数据库，需要在请求头或路径中增加项目标识。</p>
+      <p class="lead">接口前缀为 <code>/api/model-designer</code>。后端启动时不再携带数据库配置，前端需要先调用 <code>/connect</code> 创建或复用数据库连接实例；后续业务接口必须携带 <code>connectionKey</code> 和 <code>db</code>。</p>
       <div class="table-wrap">
         <table>
           <thead>
             <tr><th>模块</th><th>方法</th><th>路径</th><th>用途</th><th>前端触发时机</th></tr>
           </thead>
           <tbody>
+            <tr><td>连接</td><td>POST</td><td><code>/connect</code></td><td>创建或复用 MongoDB 连接实例，返回 connectionKey</td><td>进入设计器前选择数据库连接</td></tr>
+            <tr><td>连接</td><td>GET</td><td><code>/databases</code></td><td>查询当前连接中已经初始化的数据库</td><td>选择已初始化数据库</td></tr>
+            <tr><td>连接</td><td>POST</td><td><code>/databases/init</code></td><td>初始化指定数据库</td><td>创建新设计库或补初始化</td></tr>
             <tr><td>初始化</td><td>GET</td><td><code>/bootstrap</code></td><td>一次性返回基础元数据、模型、关系</td><td>进入设计器页面</td></tr>
             <tr><td>画布</td><td>PUT</td><td><code>/canvas</code></td><td>保存中心坐标和缩放</td><td>用户点击保存</td></tr>
+            <tr><td>模型</td><td>GET</td><td><code>/models</code></td><td>查询模型元数据列表</td><td>刷新模型列表</td></tr>
             <tr><td>模型</td><td>POST</td><td><code>/models</code></td><td>创建模型元数据和真实集合</td><td>点击创建模型</td></tr>
             <tr><td>模型</td><td>PATCH</td><td><code>/models/{modelId}</code></td><td>更新模型基础信息、字段、锁定状态；位置变更单独处理</td><td>编辑字段、名称、锁定状态时立即提交；拖动结束后再提交位置</td></tr>
             <tr><td>模型</td><td>DELETE</td><td><code>/models/{modelId}</code></td><td>删除单个模型并清理关系</td><td>点击模型删除按钮</td></tr>
             <tr><td>关系</td><td>POST</td><td><code>/relations</code></td><td>创建普通关系或继承关系</td><td>点击关系创建按钮</td></tr>
             <tr><td>关系</td><td>PATCH</td><td><code>/relations/{relationId}</code></td><td>更新普通关系映射、关联数据；位置变更单独处理</td><td>关系名称、映射、related 变更时立即提交；拖动结束后再提交位置</td></tr>
             <tr><td>关系</td><td>DELETE</td><td><code>/relations/{relationId}</code></td><td>删除普通关系或继承关系</td><td>点击关系删除按钮</td></tr>
-            <tr><td>真实数据</td><td>GET</td><td><code>/models/{modelId}/documents</code></td><td>分页查询模型真实数据</td><td>打开数据面板</td></tr>
-            <tr><td>真实数据</td><td>POST</td><td><code>/models/{modelId}/documents</code></td><td>创建真实文档并生成 uuid</td><td>新增数据</td></tr>
-            <tr><td>真实数据</td><td>PATCH</td><td><code>/models/{modelId}/documents/{uuid}</code></td><td>更新真实文档</td><td>编辑数据</td></tr>
-            <tr><td>真实数据</td><td>DELETE</td><td><code>/models/{modelId}/documents/{uuid}</code></td><td>删除真实文档并清理 related</td><td>删除数据</td></tr>
             <tr><td>批量</td><td>POST</td><td><code>/selection/delete</code></td><td>按框选结果批量删除模型和关系</td><td>框选后删除</td></tr>
           </tbody>
         </table>
       </div>
+      <h3>公共请求头</h3>
+      <p>除 <code>/connect</code> 外，连接管理接口和业务接口都需要携带连接上下文。业务接口推荐放在请求头中，避免污染业务请求体。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Header</th><th>类型</th><th>必填</th><th>适用接口</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>connectionKey</code></td><td>string</td><td>是</td><td>除 <code>/connect</code> 外全部接口</td><td><code>/connect</code> 返回的连接实例 key，格式为 <code>dbHost:dbPort</code>。</td></tr>
+            <tr><td><code>db</code></td><td>string</td><td>业务接口是</td><td>业务接口、<code>/databases/init</code></td><td>当前操作的数据库名。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="connections">
+      <h2>连接接口</h2>
+      <p>连接接口负责创建 MongoDB 客户端实例。连接实例按 <code>dbHost:dbPort</code> 缓存，<code>/connect</code> 返回的 <code>connectionKey</code> 是后续业务接口的连接标识。</p>
+      <div class="callout">除 <code>/connect</code> 外，所有连接管理和业务接口都需要传递 <code>connectionKey</code>；业务接口还必须传递当前操作数据库 <code>db</code>。推荐通过请求头传递：<code>connectionKey: 47.109.110.125:27017</code>、<code>db: model_designer</code>。后端兼容从 Query 或 Body 读取，但业务请求体示例不包含这两个控制字段。</div>
+      <div class="endpoint">
+        <span class="method">POST</span>
+        <div><p class="endpoint-path">/api/model-designer/connect</p><p class="endpoint-desc">连接 MongoDB，创建或复用连接实例。如果请求体传入 db，连接成功后会尝试初始化该数据库。</p></div>
+      </div>
+      <pre><code>{
+  "dbHost": "47.109.110.125",
+  "dbPort": 27017,
+  "user": "root",
+  "password": "password",
+  "db": "model_designer"
+}</code></pre>
+      <pre><code>{
+  "success": true,
+  "data": {
+    "connected": true,
+    "connectionKey": "47.109.110.125:27017",
+    "dbHost": "47.109.110.125",
+    "dbPort": 27017,
+    "db": "model_designer",
+    "initialized": true,
+    "alreadyInitialized": false
+  },
+  "message": "ok",
+  "requestId": "req_20260813_000010"
+}</code></pre>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <div><p class="endpoint-path">/api/model-designer/databases</p><p class="endpoint-desc">获取当前连接实例中已经初始化的数据库列表。</p></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>请求位置</th><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>Header / Query / Body</td><td><code>connectionKey</code></td><td>string</td><td>是</td><td><code>/connect</code> 返回的连接实例 key。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><code>{
+  "success": true,
+  "data": {
+    "connectionKey": "47.109.110.125:27017",
+    "databases": ["model_designer", "test_designer"]
+  },
+  "message": "ok",
+  "requestId": "req_20260813_000011"
+}</code></pre>
+      <div class="endpoint">
+        <span class="method">POST</span>
+        <div><p class="endpoint-path">/api/model-designer/databases/init</p><p class="endpoint-desc">初始化一个不存在或尚未初始化的数据库。已初始化直接成功；存在集合但未初始化时拒绝。</p></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>请求位置</th><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>Header / Query / Body</td><td><code>connectionKey</code></td><td>string</td><td>是</td><td><code>/connect</code> 返回的连接实例 key。</td></tr>
+            <tr><td>Header / Query / Body</td><td><code>db</code></td><td>string</td><td>是</td><td>需要初始化的数据库名。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><code>{
+  "success": true,
+  "data": {
+    "connectionKey": "47.109.110.125:27017",
+    "db": "model_designer",
+    "initialized": true,
+    "alreadyInitialized": false
+  },
+  "message": "ok",
+  "requestId": "req_20260813_000012"
+}</code></pre>
+      <div class="callout warn">数据库初始化通过写入 <code>__META__</code> 集合中的 <code>META_TYPE: "base"</code> 文档完成。若数据库已有集合但没有初始化标记，后端返回 <code>DATABASE_NOT_EMPTY</code>，避免覆盖未知数据。</div>
     </section>
 
     <section id="canvas">
@@ -690,6 +779,8 @@
             <tr><td>404</td><td><code>RELATION_NOT_FOUND</code></td><td>关系不存在。</td><td>刷新关系列表。</td></tr>
             <tr><td>409</td><td><code>MODEL_ID_EXISTS</code></td><td>模型 ID 已存在。</td><td>提示用户更换模型 ID。</td></tr>
             <tr><td>409</td><td><code>FIELD_NAME_EXISTS</code></td><td>字段名重复。</td><td>定位到重复字段。</td></tr>
+            <tr><td>409</td><td><code>NOT_CONNECTED</code></td><td>connectionKey 不存在或连接实例未创建。</td><td>重新调用连接接口。</td></tr>
+            <tr><td>409</td><td><code>DATABASE_NOT_EMPTY</code></td><td>数据库已有集合但没有初始化标记，不能自动初始化。</td><td>提示用户换库或人工确认数据。</td></tr>
             <tr><td>409</td><td><code>MODEL_HAS_CHILDREN</code></td><td>模型存在未一起删除的继承子模型。</td><td>提示需要同时删除子模型。</td></tr>
             <tr><td>409</td><td><code>UUID_READONLY</code></td><td>真实文档试图修改 uuid。</td><td>移除 uuid 更新字段后重试。</td></tr>
             <tr><td>500</td><td><code>META_WRITE_FAILED</code></td><td>元数据写入失败。</td><td>提示稍后重试。</td></tr>
@@ -766,7 +857,7 @@
       <div class="two-col">
         <div class="mini-card">
           <h3>事务边界</h3>
-          <p>创建继承关系、删除模型、删除真实文档清理关系，建议在同一事务或可回滚流程中完成，避免元数据与真实集合不一致。</p>
+          <p>创建继承关系、删除模型并清理关系，建议在同一事务或可回滚流程中完成，避免元数据与真实集合不一致。</p>
         </div>
         <div class="mini-card">
           <h3>字段校验</h3>

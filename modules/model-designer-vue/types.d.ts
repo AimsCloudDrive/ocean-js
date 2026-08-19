@@ -1,3 +1,52 @@
+import type { DefineComponent } from "vue";
+
+/**
+ * 模型设计器组件（Vue 3 + Vapor）。
+ * 接收数据库连接信息；未提供 password 时弹出连接信息表单。
+ */
+export declare const ModelDesigner: DefineComponent<
+  {
+    title?: string;
+    /** 自定义 API 适配器（优先级高于内置连接逻辑） */
+    api?: ModelDesignerApi;
+    bootstrap?: boolean;
+    /** 数据库主机地址 */
+    dbHost?: string;
+    /** 数据库端口 */
+    dbPort?: number;
+    /** 默认业务数据库名 */
+    db?: string;
+    /** 数据库用户名 */
+    user?: string;
+    /** 数据库密码；未接收时为驱动弹出连接信息表单 */
+    password?: string;
+  },
+  Record<never, unknown>,
+  Record<never, unknown>
+>;
+
+export default ModelDesigner;
+
+/** MongoDB 数据库连接信息。dbHost/dbPort/用户名/密码必填，db 用于指定默认业务库。 */
+export interface MongoConnectionInfo {
+  dbHost: string;
+  dbPort: number;
+  /** 默认业务数据库名 */
+  db?: string;
+  user: string;
+  password: string;
+}
+
+export interface HttpModelDesignerApiOption {
+  /** 后端基础地址，缺省时使用 location.origin + /api/model-designer */
+  baseUrl?: string;
+}
+
+/** 创建与模型设计器后端契约一致的 REST API 适配器。 */
+export declare function createHttpModelDesignerApi(
+  option?: HttpModelDesignerApiOption
+): ModelDesignerApi;
+
 export interface ModelPosition {
   x: number;
   y: number;
@@ -9,45 +58,32 @@ export interface ModelField {
   type: string;
   description?: string;
   required?: boolean;
-  /** 是否为继承字段（查询时由后端注入，前端只读） */
   inherited?: boolean;
-  /** 继承字段来源模型 ID */
   fromModelId?: string;
 }
 
-/** 画布中的模型节点。 */
 export interface ModelNode extends ModelPosition {
   id: string;
   name: string;
   description?: string;
-  /** 节点边框颜色 */
   color?: string;
   locked?: boolean;
-  /** 继承来源模型 ID，null 表示无继承 */
   parentModelId?: string | null;
-  /** 继承该模型的子模型 ID 列表 */
   childModelIds?: string[];
-  /** 是否显示继承字段（首次进入默认显示） */
   showInheritedFields?: boolean;
   fields?: ModelField[];
   data?: Record<string, unknown>;
 }
 
-/** 关系方向（A→B 或 B→A）的数据。 */
 export interface RelationDirection {
-  /** 该方向关系名称 */
   name: string;
-  /** 源模型 ID */
   source: string;
-  /** 目标模型 ID */
   target: string;
-  /** 映射类型：1 / m / n */
   mappingType: "1" | "m" | "n";
 }
 
 export type ModelRelationKind = "one-to-one" | "one-to-many" | "many-to-many";
 
-/** 模型之间的连线关系。 */
 export interface ModelRelation {
   id: string;
   sourceId: string;
@@ -55,13 +91,9 @@ export interface ModelRelation {
   name?: string;
   kind?: ModelRelationKind;
   locked?: boolean;
-  /** 信息框中心坐标 */
   position?: ModelPosition;
-  /** 关系类型：普通关系 / 继承关系 */
   relationType: "relation" | "inherit";
-  /** A→B 方向数据 */
   forward?: RelationDirection;
-  /** B→A 方向数据 */
   reverse?: RelationDirection;
   data?: Record<string, unknown>;
 }
@@ -95,23 +127,9 @@ export type ModelPatch = Partial<
 
 export type RelationPatch = Partial<
   Pick<ModelRelation, "name" | "kind" | "locked" | "data" | "forward" | "reverse">
-> & {
-  position?: ModelPosition;
-};
+> & { position?: ModelPosition };
 
-/** MongoDB 数据库连接信息。dbHost/dbPort/用户名/密码必填，db 用于指定默认业务库。 */
-export interface MongoConnectionInfo {
-  dbHost: string;
-  dbPort: number;
-  /** 默认业务数据库名 */
-  db?: string;
-  user: string;
-  password: string;
-}
-
-/** 后端适配契约；位置更新与其他变更分开，便于落实提交时机。 */
 export interface ModelDesignerApi {
-  /** 使用指定连接信息连接数据库；连接失败时抛出异常。 */
   connect(connection: MongoConnectionInfo): Promise<void>;
   listDatabases(): Promise<string[]>;
   selectDatabase(db: string): void;
@@ -125,3 +143,6 @@ export interface ModelDesignerApi {
   deleteRelation(id: string): Promise<void>;
   setLocked(locked: boolean): Promise<void>;
 }
+
+export declare const MODEL_COLORS: string[];
+export declare const FIELD_TYPE_OPTIONS: string[];

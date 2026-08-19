@@ -708,9 +708,7 @@ class ModelDesigner extends Component<ModelDesignerProps> {
       if (!source || !target) continue;
 
       if (relation.relationType === "inherit") {
-        // Check distance to line segment
-        const d = this.distToSegment(wx, wy, source.x, source.y, target.x, target.y);
-        if (d <= threshold) return relation;
+        // 继承关系不可点击、不可选中、不可拖动，直接跳过
         continue;
       }
 
@@ -742,6 +740,34 @@ class ModelDesigner extends Component<ModelDesignerProps> {
   }
 
   // ── 事件处理 ─────────────────────────────────────
+
+  onCanvasPointerMove(event: Msom.EventSystem.PointerEvent<HTMLCanvasElement>): void {
+    const els = this.getCanvasElements();
+    if (!els) return;
+    const canvas = els.canvas;
+    // 创建态保持十字光标
+    if (this.createState.type !== "none") {
+      canvas.style.cursor = "crosshair";
+      return;
+    }
+    const point = this.getCanvasPoint(event);
+    const model = this.hitTestModel(point.x, point.y);
+    if (model) {
+      canvas.style.cursor = "pointer";
+      return;
+    }
+    const infoRel = this.hitTestInfoBox(point.x, point.y);
+    if (infoRel) {
+      canvas.style.cursor = "pointer";
+      return;
+    }
+    const rel = this.hitTestRelation(point.x, point.y);
+    if (rel) {
+      canvas.style.cursor = "pointer";
+      return;
+    }
+    canvas.style.cursor = "default";
+  }
 
   onCanvasPointerDown(event: Msom.EventSystem.PointerEvent<HTMLCanvasElement>): void {
     event.preventDefault();
@@ -1652,7 +1678,7 @@ class ModelDesigner extends Component<ModelDesignerProps> {
   }
 
   addField(model: ModelNode): void {
-    if (this.readOnly || model.locked) return;
+    if (this.readOnly) return;
     const newField: ModelField = {
       id: `field_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: "新字段",
@@ -1669,7 +1695,7 @@ class ModelDesigner extends Component<ModelDesignerProps> {
   }
 
   removeField(model: ModelNode, fieldId: string): void {
-    if (this.readOnly || model.locked) return;
+    if (this.readOnly) return;
     model.fields = (model.fields ?? []).filter((f) => f.id !== fieldId || f.inherited);
     this.fieldVersion++;
     this.expandedFields.delete(fieldId);
@@ -1680,7 +1706,7 @@ class ModelDesigner extends Component<ModelDesignerProps> {
   }
 
   updateField(model: ModelNode, fieldId: string, patch: Partial<ModelField>): void {
-    if (this.readOnly || model.locked) return;
+    if (this.readOnly) return;
     const field = (model.fields ?? []).find((f) => f.id === fieldId);
     if (!field || field.inherited) return;
     Object.assign(field, patch);
@@ -1692,7 +1718,7 @@ class ModelDesigner extends Component<ModelDesignerProps> {
   }
 
   moveField(model: ModelNode, fieldId: string, dir: -1 | 1): void {
-    if (this.readOnly || model.locked) return;
+    if (this.readOnly) return;
     const ownFields = (model.fields ?? []).filter((f) => !f.inherited);
     const idx = ownFields.findIndex((f) => f.id === fieldId);
     if (idx < 0) return;
@@ -1797,6 +1823,7 @@ class ModelDesigner extends Component<ModelDesignerProps> {
                 this.readOnly && "is-locked",
               ]}
               onPointerDown={(event) => this.onCanvasPointerDown(event)}
+              onPointerMove={(event) => this.onCanvasPointerMove(event)}
               onWheel={(event) => this.onCanvasWheel(event)}
             />
             {this.createState.type !== "none" && (
@@ -1831,7 +1858,7 @@ class ModelDesigner extends Component<ModelDesignerProps> {
       const ownFields = (model.fields ?? []).filter((f) => !f.inherited);
       const inheritedFields = (model.fields ?? []).filter((f) => f.inherited);
       const showInherited = model.showInheritedFields !== false;
-      const editorLocked = this.readOnly || Boolean(model.locked);
+      const editorLocked = this.readOnly;
       const otherModels = this.models.filter((m) => m.id !== model.id);
 
       return (
@@ -1982,7 +2009,7 @@ class ModelDesigner extends Component<ModelDesignerProps> {
     // Relation drawer
     const relation = this.relations.find((r) => r.id === drawer.id);
     if (!relation) return null;
-    const editorLocked = this.readOnly || Boolean(relation.locked);
+    const editorLocked = this.readOnly;
     const sourceModel = this.models.find((m) => m.id === relation.sourceId);
     const targetModel = this.models.find((m) => m.id === relation.targetId);
 

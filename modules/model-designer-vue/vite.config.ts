@@ -6,7 +6,6 @@ const dist = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "/demo/",
   resolve: {
     alias: [],
   },
@@ -19,15 +18,29 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 5175,
     proxy: {
-      "/api": {
-        target: "http://47.109.110.125:9091",
+      "/api/model-designer": {
+        target: "http://127.0.0.1:9091",
         changeOrigin: true,
       },
     },
   },
   build: {
     outDir: "dist",
+    lib: {
+      entry: dist("./src/index.ts"),
+      name: "ModelDesignerVue",
+      fileName: "model-designer-vue",
+      formats: ["es"],
+    },
+    rollupOptions: {
+      // 将 Vue 相关依赖视为外部依赖，不打包进库
+      external: ["vue"],
+      output: {
+        globals: {
+          vue: "Vue",
+        },
+      },
+    },
   },
 });

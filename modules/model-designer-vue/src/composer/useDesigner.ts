@@ -7,6 +7,7 @@ import type {
   ModelPatch,
   ModelPosition,
   ModelRelation,
+  MongoConnectionInfo,
 } from "../types";
 import { createHttpModelDesignerApi } from "../api";
 import {
@@ -18,10 +19,8 @@ import {
   NODE_RADIUS,
   catmullRom,
   circleEdgeWithGap,
-  circleIntersectsRect,
   clamp,
   distToSegment,
-  lineIntersectsRect,
   midpoint,
   pointInCircle,
   pointInRect,
@@ -29,26 +28,9 @@ import {
   snapToGrid,
 } from "../geometry";
 
-export const MODEL_COLORS = [
-  "#2563eb",
-  "#16a34a",
-  "#dc2626",
-  "#f59e0b",
-  "#8b5cf6",
-  "#06b6d4",
-  "#ec4899",
-  "#6366f1",
-];
+export const MODEL_COLORS = ["#2563eb", "#16a34a", "#dc2626", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#6366f1"];
 
-export const FIELD_TYPE_OPTIONS = [
-  "String",
-  "Number",
-  "Boolean",
-  "Date",
-  "ObjectId",
-  "Array",
-  "Object",
-];
+export const FIELD_TYPE_OPTIONS = ["String", "Number", "Boolean", "Date", "ObjectId", "Array", "Object"];
 
 const DRAG_THRESHOLD = 4;
 const INFO_BOX_HALF_W = 46;
@@ -94,6 +76,17 @@ export interface DesignerController {
   saving: Ref<boolean>;
   readOnly: Ref<boolean>;
   error: Ref<string | undefined>;
+  /** 连接信息弹窗是否可见（未提供密码时弹出） */
+  connectionDialog: Ref<boolean>;
+  /** 连接测试请求是否进行中 */
+  connecting: Ref<boolean>;
+  /** 连接失败提示信息 */
+  connectionError: Ref<string | undefined>;
+  /** 弹窗表单的默认回显值 */
+  connectionDefault: MongoConnectionInfo;
+  databases: Ref<string[]>;
+  currentDatabase: Ref<string>;
+  switchingDatabase: Ref<boolean>;
   createState: Ref<CreateState>;
   viewport: Viewport;
   canvasEl: Ref<HTMLCanvasElement | undefined>;
@@ -110,6 +103,11 @@ export interface DesignerController {
   deleteRelation: (id: string) => Promise<void>;
   toggleModelLock: (model: ModelNode) => Promise<void>;
   toggleRelationLock: (relation: ModelRelation) => Promise<void>;
+  /** 提交连接信息测试连接；成功后关闭弹窗并加载数据，失败仅提示 */
+  confirmConnection: (info: MongoConnectionInfo) => Promise<void>;
+  /** 取消连接：关闭弹窗并展示空画布 */
+  cancelConnection: () => void;
+  changeDatabase: (db: string) => Promise<void>;
   enterCreateMode: (type: "model" | "relation" | "inherit") => void;
   exitCreateMode: () => void;
   zoomBy: (factor: number) => void;
@@ -144,11 +142,15 @@ export interface DesignerController {
 
 type Ref<T> = { value: T };
 
-export function useDesigner(option: {
-  title?: string;
-  api?: ModelDesignerApi;
-  bootstrap?: boolean;
-} = {}): DesignerController {
+export function useDesigner(
+  option: {
+    title?: string;
+    api?: ModelDesignerApi;
+    bootstrap?: boolean;
+    /** 数据库连接信息；未提供密码时弹出连接表单 */
+    connection?: Partial<MongoConnectionInfo>;
+  } = {}
+): DesignerController {
   const api = option.api || createHttpModelDesignerApi();
 
   const models = ref<ModelNode[]>([]) as Ref<ModelNode[]>;
@@ -157,8 +159,21 @@ export function useDesigner(option: {
   const drawer = ref<DrawerState>({ type: "closed" }) as Ref<DrawerState>;
   const loading = ref(false) as Ref<boolean>;
   const saving = ref(false) as Ref<boolean>;
-  const readOnly = ref(false) as Ref<boolean>;
+  const readOnly = ref(true) as Ref<boolean>;
   const error = ref<string | undefined>(undefined) as Ref<string | undefined>;
+  const connectionDialog = ref(false) as Ref<boolean>;
+  const connecting = ref(false) as Ref<boolean>;
+  const connectionError = ref<string | undefined>(undefined) as Ref<string | undefined>;
+  const connectionDefault: MongoConnectionInfo = {
+    dbHost: option.connection?.dbHost?.trim() || "127.0.0.1",
+    dbPort: Number(option.connection?.dbPort) || 27017,
+    db: option.connection?.db?.trim() || undefined,
+    user: option.connection?.user ?? "",
+    password: option.connection?.password ?? "",
+  };
+  const databases = ref<string[]>([]) as Ref<string[]>;
+  const currentDatabase = ref("") as Ref<string>;
+  const switchingDatabase = ref(false) as Ref<boolean>;
   const createState = ref<CreateState>({ type: "none" }) as Ref<CreateState>;
 
   const canvasEl = shallowRef<HTMLCanvasElement>();
@@ -176,14 +191,6 @@ export function useDesigner(option: {
   let dragCleanup: (() => void) | undefined;
   const expandedFields = new Set<string>();
   const pendingModelPositions = new Map<string, ModelPosition>();
-
-  // 框选状态
-  let selectionRect: { x: number; y: number; width: number; height: number } | undefined;
-  let pendingSelectedIds: string[] = [];
-
-  const effectiveSelectedIds = computed(() =>
-    selectionRect ? pendingSelectedIds : selectedIds.value
-  );
 
   const modeLabel = computed(() => (readOnly.value ? "只读模式" : "编辑模式"));
   const hasSelection = computed(() => selectedIds.value.length > 0);
@@ -205,7 +212,7 @@ export function useDesigner(option: {
       loading.value = false;
       return;
     }
-    void load();
+    void initializeConnection();
   });
 
   onUnmounted(() => {
@@ -275,6 +282,69 @@ export function useDesigner(option: {
   }
 
   // ── 数据加载 ─────────────────────────────────────
+  /** 挂载时初始化：未提供密码则弹出连接表单，否则直接连接并加载数据。 */
+  async function initializeConnection(): Promise<void> {
+    if ((connectionDefault.password ?? "").trim()) {
+      await confirmConnection(connectionDefault);
+      return;
+    }
+    connectionDialog.value = true;
+    loading.value = false;
+    invalidate();
+  }
+
+  /** 提交连接信息测试连接；成功则关闭弹窗并加载当前数据库，失败仅提示不关闭弹窗。 */
+  async function confirmConnection(info: MongoConnectionInfo): Promise<void> {
+    connecting.value = true;
+    connectionError.value = undefined;
+    loading.value = true;
+    try {
+      await api.connect(info);
+      databases.value = await api.listDatabases();
+      const defaultDb = info.db?.trim();
+      const nextDb = defaultDb && databases.value.includes(defaultDb) ? defaultDb : (databases.value[0] ?? "");
+      currentDatabase.value = nextDb;
+      if (nextDb) {
+        api.selectDatabase(nextDb);
+        await load();
+      } else {
+        models.value = [];
+        relations.value = [];
+        readOnly.value = true;
+      }
+      connectionDialog.value = false;
+    } catch (e) {
+      connectionError.value = "数据库连接失败";
+      connectionDialog.value = true;
+    } finally {
+      connecting.value = false;
+      loading.value = false;
+      invalidate();
+    }
+  }
+
+  /** 取消连接：关闭弹窗并展示空画布。 */
+  function cancelConnection(): void {
+    connectionDialog.value = false;
+    loading.value = false;
+    invalidate();
+  }
+
+  async function changeDatabase(nextDb: string): Promise<void> {
+    if (!nextDb || nextDb === currentDatabase.value) return;
+    switchingDatabase.value = true;
+    currentDatabase.value = nextDb;
+    api.selectDatabase(nextDb);
+    selectedIds.value = [];
+    drawer.value = { type: "closed" };
+    try {
+      await load();
+    } finally {
+      switchingDatabase.value = false;
+      invalidate();
+    }
+  }
+
   async function load(): Promise<void> {
     loading.value = true;
     error.value = undefined;
@@ -282,7 +352,7 @@ export function useDesigner(option: {
       const data = await api.bootstrap();
       models.value = data.models;
       relations.value = data.relations;
-      readOnly.value = Boolean(data.canvas.locked);
+      readOnly.value = true;
     } catch (e) {
       error.value = e instanceof Error ? e.message : "加载模型设计器失败";
     } finally {
@@ -327,8 +397,6 @@ export function useDesigner(option: {
     drawGrid(ctx, w, h);
     drawRelations(ctx);
     drawModels(ctx);
-
-    if (selectionRect) drawSelectionRect(ctx);
 
     if (createState.value.type !== "none") {
       drawCreationPreview(ctx);
@@ -399,23 +467,27 @@ export function useDesigner(option: {
     for (const model of models.value) {
       const sPos = worldToScreen(model.x, model.y);
       const color = model.color || "#2563eb";
-      const isSelected = effectiveSelectedIds.value.includes(model.id);
+      const isSelected = selectedIds.value.includes(model.id);
 
+      const box = selectionBox(sPos.x, sPos.y, r, 8);
       if (isSelected) {
-        const box = selectionBox(sPos.x, sPos.y, r, 8);
         ctx.strokeStyle = "#94a3b8";
         ctx.setLineDash([5, 4]);
         ctx.lineWidth = 1;
         ctx.strokeRect(box.x, box.y, box.width, box.height);
         ctx.setLineDash([]);
-        drawLockIcon(ctx, box.x, box.y, Boolean(model.locked));
+      }
+      if (model.locked) {
+        drawLockIcon(ctx, box.x, box.y, true);
       }
 
       ctx.beginPath();
       ctx.arc(sPos.x, sPos.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = hexToRgba(color, 0.12);
+      // 激活（选中）的模型：内部填充向不透明靠拢，但不能完全不透明
+      ctx.fillStyle = hexToRgba(color, isSelected ? 0.35 : 0.12);
       ctx.fill();
-      ctx.strokeStyle = color;
+      // 激活（选中）的模型：边框使用关系激活时的红色
+      ctx.strokeStyle = isSelected ? "#dc2626" : color;
       ctx.lineWidth = 3;
       ctx.stroke();
 
@@ -428,29 +500,27 @@ export function useDesigner(option: {
     }
   }
 
-  function lineInfoPoints(relation: ModelRelation): {
-    source: ModelNode;
-    target: ModelNode;
-    sPos: ModelPosition;
-    tPos: ModelPosition;
-    infoPos: ModelPosition;
-  } | undefined {
+  function lineInfoPoints(relation: ModelRelation):
+    | {
+        source: ModelNode;
+        target: ModelNode;
+        sPos: ModelPosition;
+        tPos: ModelPosition;
+        infoPos: ModelPosition;
+      }
+    | undefined {
     const source = models.value.find((m) => m.id === relation.sourceId);
     const target = models.value.find((m) => m.id === relation.targetId);
     if (!source || !target) return undefined;
     const sPos = worldToScreen(source.x, source.y);
     const tPos = worldToScreen(target.x, target.y);
-    const infoPos = relation.position
-      ? worldToScreen(relation.position.x, relation.position.y)
-      : midpoint(sPos, tPos);
+    const infoPos = relation.position ? worldToScreen(relation.position.x, relation.position.y) : midpoint(sPos, tPos);
     return { source, target, sPos, tPos, infoPos };
   }
 
   /** 关系信息框的屏幕矩形（用于命中检测）。 */
   function infoBoxRect(sPos: ModelPosition, tPos: ModelPosition, relation: ModelRelation) {
-    const infoPos = relation.position
-      ? worldToScreen(relation.position.x, relation.position.y)
-      : midpoint(sPos, tPos);
+    const infoPos = relation.position ? worldToScreen(relation.position.x, relation.position.y) : midpoint(sPos, tPos);
     const w = estimateInfoBoxWidth(relation) * viewport.scale;
     const h = 34 * viewport.scale;
     return { x: infoPos.x - w / 2, y: infoPos.y - h / 2, width: w, height: h, infoPos };
@@ -565,8 +635,8 @@ export function useDesigner(option: {
     ctx.fillStyle = "#16a34a";
     ctx.fillText(revText, x, y + 8);
 
-    if (effectiveSelectedIds.value.includes(relation.id)) {
-      drawLockIcon(ctx, boxX, boxY, Boolean(relation.locked));
+    if (relation.locked) {
+      drawLockIcon(ctx, boxX, boxY, true);
     }
   }
 
@@ -599,22 +669,6 @@ export function useDesigner(option: {
     ctx.beginPath();
     ctx.arc(x + w / 2, y + 7, 1.5, 0, Math.PI * 2);
     ctx.fill();
-  }
-
-  function drawSelectionRect(ctx: CanvasRenderingContext2D): void {
-    const rect = selectionRect;
-    if (!rect) return;
-    const sPos = worldToScreen(rect.x, rect.y);
-    const w = rect.width * viewport.scale;
-    const h = rect.height * viewport.scale;
-    ctx.save();
-    ctx.fillStyle = "rgba(37, 99, 235, 0.08)";
-    ctx.fillRect(sPos.x, sPos.y, w, h);
-    ctx.strokeStyle = "#2563eb";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 3]);
-    ctx.strokeRect(sPos.x, sPos.y, w, h);
-    ctx.restore();
   }
 
   function drawCreationPreview(ctx: CanvasRenderingContext2D): void {
@@ -652,7 +706,7 @@ export function useDesigner(option: {
     const iconH = 12;
 
     for (const model of models.value) {
-      if (!selectedIds.value.includes(model.id)) continue;
+      if (!model.locked) continue;
       const sPos = worldToScreen(model.x, model.y);
       const iconX = sPos.x - r - padding;
       const iconY = sPos.y - r - padding;
@@ -663,7 +717,7 @@ export function useDesigner(option: {
 
     for (const relation of relations.value) {
       if (relation.relationType === "inherit") continue;
-      if (!selectedIds.value.includes(relation.id)) continue;
+      if (!relation.locked) continue;
       const pts = lineInfoPoints(relation);
       if (!pts) continue;
       const rect = infoBoxRect(pts.sPos, pts.tPos, relation);
@@ -700,12 +754,7 @@ export function useDesigner(option: {
       if (!pts) continue;
       const { source, target } = pts;
 
-      if (relation.relationType === "inherit") {
-        if (distToSegment(wx, wy, source.x, source.y, target.x, target.y) <= threshold) {
-          return relation;
-        }
-        continue;
-      }
+      if (relation.relationType === "inherit") continue;
 
       const infoPos = relation.position ?? midpoint(source, target);
       if (relation.position || relation.locked) {
@@ -758,26 +807,23 @@ export function useDesigner(option: {
       return;
     }
 
+    // 只读模式：点击任意位置都拖动画布
+    if (readOnly.value) {
+      beginPan(event);
+      return;
+    }
+
+    // 编辑模式：仅左键参与拖动
+    if (event.button !== 0) return;
+
     const model = hitTestModel(point.x, point.y);
     if (model) {
-      if (readOnly.value) {
-        selectedIds.value = [model.id];
-        openModelDrawer(model);
-        invalidate();
-        return;
-      }
       beginModelDrag(event, model, point);
       return;
     }
 
     const infoRel = hitTestInfoBox(point.x, point.y);
     if (infoRel) {
-      if (readOnly.value) {
-        selectedIds.value = [infoRel.id];
-        openRelationDrawer(infoRel);
-        invalidate();
-        return;
-      }
       beginInfoBoxDrag(event, infoRel, point);
       return;
     }
@@ -790,11 +836,8 @@ export function useDesigner(option: {
       return;
     }
 
-    if (readOnly.value || event.button !== 0) {
-      beginPan(event);
-    } else {
-      beginBoxSelect(event, point);
-    }
+    // 空白区域：左键拖动画布
+    beginPan(event);
   }
 
   function onCanvasWheel(event: WheelEvent): void {
@@ -819,11 +862,7 @@ export function useDesigner(option: {
   }
 
   // ── 模型拖动 ─────────────────────────────────────
-  function beginModelDrag(
-    event: PointerEvent,
-    model: ModelNode,
-    startPoint: ModelPosition
-  ): void {
+  function beginModelDrag(event: PointerEvent, model: ModelNode, startPoint: ModelPosition): void {
     event.stopPropagation();
     if (!selectedIds.value.includes(model.id)) {
       selectSingle(model.id, event.shiftKey);
@@ -910,11 +949,7 @@ export function useDesigner(option: {
   }
 
   // ── 信息框拖动 ───────────────────────────────────
-  function beginInfoBoxDrag(
-    event: PointerEvent,
-    relation: ModelRelation,
-    startPoint: ModelPosition
-  ): void {
+  function beginInfoBoxDrag(event: PointerEvent, relation: ModelRelation, startPoint: ModelPosition): void {
     event.stopPropagation();
     selectSingle(relation.id, false);
 
@@ -957,62 +992,6 @@ export function useDesigner(option: {
     } catch (e) {
       error.value = e instanceof Error ? e.message : "提交关系位置失败";
     }
-  }
-
-  // ── 框选 ─────────────────────────────────────────
-  function beginBoxSelect(event: PointerEvent, startPoint: ModelPosition): void {
-    drawer.value = { type: "closed" };
-    selectedIds.value = [];
-    pendingSelectedIds = [];
-
-    const startScreen = { x: event.clientX, y: event.clientY };
-
-    const onMove = (nativeEvent: PointerEvent) => {
-      const cur = getCanvasPoint(nativeEvent);
-      selectionRect = {
-        x: Math.min(startPoint.x, cur.x),
-        y: Math.min(startPoint.y, cur.y),
-        width: Math.abs(cur.x - startPoint.x),
-        height: Math.abs(cur.y - startPoint.y),
-      };
-      const ids: string[] = [];
-      for (const model of models.value) {
-        if (circleIntersectsRect(model.x, model.y, NODE_RADIUS, selectionRect!)) {
-          ids.push(model.id);
-        }
-      }
-      for (const relation of relations.value) {
-        if (relation.relationType === "inherit") continue;
-        const pts = lineInfoPoints(relation);
-        if (!pts) continue;
-        const { source, target } = pts;
-        const infoPos = relation.position ?? midpoint(source, target);
-        if (
-          lineIntersectsRect(infoPos.x, infoPos.y, source.x, source.y, selectionRect!) ||
-          lineIntersectsRect(infoPos.x, infoPos.y, target.x, target.y, selectionRect!)
-        ) {
-          ids.push(relation.id);
-        }
-      }
-      pendingSelectedIds = ids;
-      invalidate();
-    };
-
-    const onEnd = () => {
-      dragCleanup?.();
-      dragCleanup = undefined;
-      selectionRect = undefined;
-      selectedIds.value = pendingSelectedIds;
-      pendingSelectedIds = [];
-      invalidate();
-    };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onEnd, { once: true });
-    dragCleanup = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onEnd);
-    };
   }
 
   // ── 平移 ─────────────────────────────────────────
@@ -1524,7 +1503,7 @@ export function useDesigner(option: {
   }
 
   function addField(model: ModelNode): void {
-    if (readOnly.value || model.locked) return;
+    if (readOnly.value) return;
     const newField: ModelField = {
       id: `field_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: "新字段",
@@ -1540,7 +1519,7 @@ export function useDesigner(option: {
   }
 
   function removeField(model: ModelNode, fieldId: string): void {
-    if (readOnly.value || model.locked) return;
+    if (readOnly.value) return;
     model.fields = (model.fields ?? []).filter((f) => f.id !== fieldId || f.inherited);
     expandedFields.delete(fieldId);
     invalidate();
@@ -1550,7 +1529,7 @@ export function useDesigner(option: {
   }
 
   function updateField(model: ModelNode, fieldId: string, patch: Partial<ModelField>): void {
-    if (readOnly.value || model.locked) return;
+    if (readOnly.value) return;
     const field = (model.fields ?? []).find((f) => f.id === fieldId);
     if (!field || field.inherited) return;
     Object.assign(field, patch);
@@ -1561,7 +1540,7 @@ export function useDesigner(option: {
   }
 
   function moveField(model: ModelNode, fieldId: string, dir: -1 | 1): void {
-    if (readOnly.value || model.locked) return;
+    if (readOnly.value) return;
     const ownFields = (model.fields ?? []).filter((f) => !f.inherited);
     const idx = ownFields.findIndex((f) => f.id === fieldId);
     if (idx < 0) return;
@@ -1600,6 +1579,13 @@ export function useDesigner(option: {
     saving,
     readOnly,
     error,
+    connectionDialog,
+    connecting,
+    connectionError,
+    connectionDefault,
+    databases,
+    currentDatabase,
+    switchingDatabase,
     createState,
     viewport,
     canvasEl,
@@ -1616,6 +1602,9 @@ export function useDesigner(option: {
     deleteRelation,
     toggleModelLock,
     toggleRelationLock,
+    confirmConnection,
+    cancelConnection,
+    changeDatabase,
     enterCreateMode,
     exitCreateMode,
     zoomBy,

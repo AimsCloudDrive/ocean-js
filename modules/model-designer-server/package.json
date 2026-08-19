@@ -5,13 +5,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/index.ts --db model-designer --port 9091 --mongo mongodb://47.109.110.125:27017 --user mongo --password tx009618.",
+    "start": "tsx src/index.ts --port 9091",
     "check": "tsc --noEmit",
     "test": "tsx --test test/**/*.test.ts",
     "build": "vite build"
   },
   "dependencies": {
-    "@msom/http": "workspace:^",
+    "express": "^5.2.1",
     "mongodb": "^6.20.0"
   },
   "devDependencies": {

@@ -1,0 +1,19 @@
+{
+  "name": "@msom/model-designer-vue-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@msom/model-designer-vue": "workspace:*",
+    "@vue/runtime-vapor": "3.6.0-rc.4",
+    "vue": "3.6.0-rc.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vite": "^8.2.1"
+  }
+}
