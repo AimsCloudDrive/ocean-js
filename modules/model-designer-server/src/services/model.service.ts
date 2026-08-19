@@ -44,6 +44,25 @@ export class ModelService {
     });
   }
 
+  /** 查询单个模型，返回含继承字段的最新数据。模型不存在时抛出 404。 */
+  async getById(id: string): Promise<ModelMeta> {
+    const found = await this.repository.findModel(id);
+    if (!found) throw new AppError(404, "MODEL_NOT_FOUND", "模型不存在");
+    const models = await this.repository.listModels();
+    const byId = new Map(models.map((item) => [item.model.id, item]));
+    const inherited: Array<Record<string, unknown>> = [];
+    const visited = new Set<string>();
+    let parentId = found.model.parentModelId;
+    while (parentId && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = byId.get(parentId);
+      if (!parent) break;
+      inherited.unshift(...parent.fields.map((field) => ({ ...field, inherited: true, fromModelId: parentId })));
+      parentId = parent.model.parentModelId;
+    }
+    return { ...found, fields: [...inherited, ...found.fields] };
+  }
+
   async create(payload: unknown): Promise<ModelMeta> {
     const body = payload as Partial<ModelMeta>;
     const model = body?.model;
@@ -70,14 +89,42 @@ export class ModelService {
     const current = await this.repository.findModel(id);
     if (!current) throw new AppError(404, "MODEL_NOT_FOUND", "模型不存在");
     const body = payload as Partial<ModelMeta>;
-    if (body.fields !== undefined) validateFields(body.fields);
+    const incomingFields = body.fields !== undefined
+      ? (body.fields as Array<Record<string, unknown>>).filter((f) => !f.inherited)
+      : undefined;
+    if (incomingFields !== undefined) {
+      validateFields(incomingFields);
+      if (current.model.parentModelId) {
+        const models = await this.repository.listModels();
+        const byId = new Map(models.map((m) => [m.model.id, m]));
+        const inheritedNames = new Set<string>();
+        const visited = new Set<string>();
+        let parentId = current.model.parentModelId;
+        while (parentId && !visited.has(parentId)) {
+          visited.add(parentId);
+          const parent = byId.get(parentId);
+          if (!parent) break;
+          for (const f of parent.fields) {
+            const fn = (f as Record<string, unknown>)?.name;
+            if (typeof fn === "string") inheritedNames.add(fn);
+          }
+          parentId = parent.model.parentModelId;
+        }
+        for (const f of incomingFields) {
+          const name = (f as Record<string, unknown>)?.name as string;
+          if (inheritedNames.has(name)) {
+            throw new AppError(409, "FIELD_NAME_EXISTS", `字段名 ${name} 与继承字段重复`);
+          }
+        }
+      }
+    }
     if (body.position !== undefined) assertPayload(isPoint(body.position), "position 必须包含有效的 x、y");
     const modelPatch = body.model ?? {};
     assertPayload(!("id" in modelPatch || "parentModelId" in modelPatch || "childModelIds" in modelPatch), "模型 ID 和继承字段不能直接修改");
     const updated: ModelMeta = {
       ...current,
       model: { ...current.model, ...modelPatch },
-      fields: body.fields ?? current.fields,
+      fields: incomingFields ?? current.fields.filter((f) => !f.inherited),
       position: body.position ?? current.position,
     };
     await this.repository.replaceModel(id, updated);

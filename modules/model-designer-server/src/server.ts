@@ -243,6 +243,16 @@ export function createRoutes(manager: ConnectionManager): ServerRoute[] {
     },
     {
       path: "/canvas",
+      method: "get",
+      handlers: [
+        route(async (request, response) => {
+          const s = buildServices(requestContext(manager, request));
+          success(response, await s.canvas.get());
+        }),
+      ],
+    },
+    {
+      path: "/canvas",
       method: "put",
       handlers: [
         route(async (request, response) => {
@@ -269,6 +279,16 @@ export function createRoutes(manager: ConnectionManager): ServerRoute[] {
           const s = buildServices(requestContext(manager, request));
           response.status(201);
           success(response, await s.models.create(businessBody(request)));
+        }),
+      ],
+    },
+    {
+      path: "/models/:modelId",
+      method: "get",
+      handlers: [
+        route(async (request, response) => {
+          const s = buildServices(requestContext(manager, request));
+          success(response, await s.models.getById(routeParam(request.params.modelId)));
         }),
       ],
     },

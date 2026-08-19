@@ -116,6 +116,10 @@ export interface ModelDesignerApi {
   listDatabases(): Promise<string[]>;
   selectDatabase(db: string): void;
   bootstrap(): Promise<ModelDesignerBootstrap>;
+  /** 获取画布中心坐标与缩放 */
+  getCanvas(): Promise<ModelDesignerCanvas>;
+  /** 查询单个模型（含继承字段）的最新数据 */
+  getModel(id: string): Promise<ModelNode>;
   createModel(input: Omit<ModelNode, "id">): Promise<ModelNode>;
   updateModel(id: string, patch: ModelPatch): Promise<ModelNode | void>;
   updateModelPosition(id: string, position: ModelPosition): Promise<void>;
@@ -124,4 +128,6 @@ export interface ModelDesignerApi {
   updateRelation(id: string, patch: RelationPatch): Promise<ModelRelation | void>;
   deleteRelation(id: string): Promise<void>;
   setLocked(locked: boolean): Promise<void>;
+  /** 保存画布中心坐标与缩放 */
+  saveCanvas(center: ModelPosition, scale: number): Promise<void>;
 }

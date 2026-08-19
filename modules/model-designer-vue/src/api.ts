@@ -287,6 +287,13 @@ export function createHttpModelDesignerApi(option: HttpModelDesignerApiOption = 
         relations: result.relations.map(toModelRelation),
       } satisfies ModelDesignerBootstrap;
     },
+    getCanvas: async () => {
+      const result = await request<ModelDesignerCanvas & { META_TYPE: "base" }>("/canvas");
+      canvas = { center: result.center, scale: result.scale, locked: result.locked };
+      return canvas;
+    },
+    getModel: async (id) =>
+      toModelNode(await request<ServerModel>(`/models/${encodeURIComponent(id)}`, "GET")),
     createModel: async (input) =>
       toModelNode(await request<ServerModel>("/models", "POST", modelPayload(input, createModelId()))),
     updateModel: async (id, patch: ModelPatch) =>
@@ -310,6 +317,14 @@ export function createHttpModelDesignerApi(option: HttpModelDesignerApiOption = 
       const result = await request<ModelDesignerCanvas & { META_TYPE: "base" }>("/canvas", "PUT", {
         ...canvas,
         locked,
+      });
+      canvas = { center: result.center, scale: result.scale, locked: result.locked };
+    },
+    saveCanvas: async (center: ModelPosition, scale: number) => {
+      const result = await request<ModelDesignerCanvas & { META_TYPE: "base" }>("/canvas", "PUT", {
+        center,
+        scale,
+        ...(canvas.locked === undefined ? {} : { locked: canvas.locked }),
       });
       canvas = { center: result.center, scale: result.scale, locked: result.locked };
     },

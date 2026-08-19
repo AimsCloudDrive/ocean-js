@@ -51,6 +51,7 @@ type DrawerState =
       name: string;
       description: string;
       color: string;
+      parentModelId: string | null;
     }
   | {
       type: "relation";
@@ -111,7 +112,7 @@ export interface DesignerController {
   enterCreateMode: (type: "model" | "relation" | "inherit") => void;
   exitCreateMode: () => void;
   zoomBy: (factor: number) => void;
-  resetViewport: () => void;
+  resetViewport: () => Promise<void>;
   saveDrawer: () => Promise<void>;
   closeDrawer: () => void;
   toggleInheritedFields: (model: ModelNode) => Promise<void>;
@@ -126,12 +127,15 @@ export interface DesignerController {
       name: string;
       description: string;
       color: string;
+      parentModelId: string | null;
       fwdName: string;
       fwdMapping: string;
       revName: string;
       revMapping: string;
     }>
   ) => void;
+  /** 设置/清除/切换模型的继承父模型（空值表示清除继承） */
+  setModelInheritance: (model: ModelNode, parentId: string | null) => Promise<void>;
   isFieldExpanded: (fieldId: string) => boolean;
   attachCanvas: (el: HTMLCanvasElement | undefined) => void;
   attachWrapper: (el: HTMLDivElement | undefined) => void;
@@ -353,6 +357,16 @@ export function useDesigner(
       models.value = data.models;
       relations.value = data.relations;
       readOnly.value = true;
+      if (data.canvas) {
+        const scale = clamp(
+          data.canvas.scale > 0 ? data.canvas.scale : 1,
+          MIN_SCALE,
+          MAX_SCALE
+        );
+        viewport.scale = scale;
+        viewport.offsetX = canvasWidth / 2 - data.canvas.center.x * scale;
+        viewport.offsetY = canvasHeight / 2 - data.canvas.center.y * scale;
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : "加载模型设计器失败";
     } finally {
@@ -478,7 +492,7 @@ export function useDesigner(
         ctx.setLineDash([]);
       }
       if (model.locked) {
-        drawLockIcon(ctx, box.x, box.y, true);
+        drawLockIcon(ctx, box.x - 4, box.y - 4, true);
       }
 
       ctx.beginPath();
@@ -488,7 +502,7 @@ export function useDesigner(
       ctx.fill();
       // 激活（选中）的模型：边框使用关系激活时的红色
       ctx.strokeStyle = isSelected ? "#dc2626" : color;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3 * viewport.scale;
       ctx.stroke();
 
       ctx.fillStyle = color;
@@ -521,8 +535,10 @@ export function useDesigner(
   /** 关系信息框的屏幕矩形（用于命中检测）。 */
   function infoBoxRect(sPos: ModelPosition, tPos: ModelPosition, relation: ModelRelation) {
     const infoPos = relation.position ? worldToScreen(relation.position.x, relation.position.y) : midpoint(sPos, tPos);
-    const w = estimateInfoBoxWidth(relation) * viewport.scale;
-    const h = 34 * viewport.scale;
+    const w = Math.min(estimateInfoBoxWidth(relation), 90) * viewport.scale;
+    const partH = 18 * viewport.scale;
+    const gap = 6 * viewport.scale;
+    const h = partH * 2 + gap;
     return { x: infoPos.x - w / 2, y: infoPos.y - h / 2, width: w, height: h, infoPos };
   }
 
@@ -545,8 +561,9 @@ export function useDesigner(
       const { sPos, tPos, infoPos } = pts;
 
       if (relation.relationType === "inherit") {
-        const start = circleEdgeWithGap(sPos.x, sPos.y, r, tPos.x, tPos.y, gap);
-        const end = circleEdgeWithGap(tPos.x, tPos.y, r, sPos.x, sPos.y, gap);
+        const inheritGap = gap + ARROW_SIZE * viewport.scale;
+        const start = circleEdgeWithGap(sPos.x, sPos.y, r, tPos.x, tPos.y, inheritGap);
+        const end = circleEdgeWithGap(tPos.x, tPos.y, r, sPos.x, sPos.y, inheritGap);
         ctx.save();
         ctx.strokeStyle = "#9ca3af";
         ctx.lineWidth = 1.5;
@@ -562,31 +579,49 @@ export function useDesigner(
 
       const hasCustomPos = !!relation.position;
       const isCurved = hasCustomPos || relation.locked;
+      ctx.strokeStyle = "#ffcd43";
+      ctx.lineWidth = 2;
 
       if (isCurved) {
-        const fwdStart = circleEdgeWithGap(infoPos.x, infoPos.y, 0, sPos.x, sPos.y, gap);
-        const fwdEnd = circleEdgeWithGap(sPos.x, sPos.y, r, infoPos.x, infoPos.y, gap);
-        const revStart = circleEdgeWithGap(infoPos.x, infoPos.y, 0, tPos.x, tPos.y, gap);
-        const revEnd = circleEdgeWithGap(tPos.x, tPos.y, r, infoPos.x, infoPos.y, gap);
-        const c1 = { x: (fwdStart.x + fwdEnd.x) / 2, y: (fwdStart.y + fwdEnd.y) / 2 };
-        const c2 = { x: (revStart.x + revEnd.x) / 2, y: (revStart.y + revEnd.y) / 2 };
-        ctx.strokeStyle = "#fbcf43";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(fwdStart.x, fwdStart.y);
-        ctx.quadraticCurveTo(c1.x, c1.y, fwdEnd.x, fwdEnd.y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(revStart.x, revStart.y);
-        ctx.quadraticCurveTo(c2.x, c2.y, revEnd.x, revEnd.y);
-        ctx.stroke();
-        drawArrowHead(ctx, fwdEnd.x, fwdEnd.y, Math.atan2(fwdEnd.y - c1.y, fwdEnd.x - c1.x), "#fbcf43");
-        drawArrowHead(ctx, revEnd.x, revEnd.y, Math.atan2(revEnd.y - c2.y, revEnd.x - c2.x), "#fbcf43");
+        const curve = catmullRom(
+          [{ x: sPos.x, y: sPos.y }, { x: infoPos.x, y: infoPos.y }, { x: tPos.x, y: tPos.y }],
+          64
+        );
+        const rGap = r + gap + ARROW_SIZE * viewport.scale;
+        let startIdx = 1;
+        for (let i = 1; i < curve.length; i++) {
+          const dx = curve[i].x - sPos.x;
+          const dy = curve[i].y - sPos.y;
+          if (dx * dx + dy * dy >= rGap * rGap) { startIdx = i; break; }
+        }
+        let endIdx = curve.length - 2;
+        for (let i = curve.length - 2; i >= 0; i--) {
+          const dx = curve[i].x - tPos.x;
+          const dy = curve[i].y - tPos.y;
+          if (dx * dx + dy * dy >= rGap * rGap) { endIdx = i; break; }
+        }
+        if (endIdx > startIdx) {
+          ctx.beginPath();
+          ctx.moveTo(curve[startIdx].x, curve[startIdx].y);
+          for (let i = startIdx + 1; i <= endIdx; i++) {
+            ctx.lineTo(curve[i].x, curve[i].y);
+          }
+          ctx.stroke();
+          const tStart = Math.atan2(
+            curve[startIdx + 1].y - curve[startIdx].y,
+            curve[startIdx + 1].x - curve[startIdx].x
+          );
+          drawArrowHead(ctx, curve[startIdx].x, curve[startIdx].y, tStart + Math.PI, "#ffcd43");
+          const tEnd = Math.atan2(
+            curve[endIdx].y - curve[endIdx - 1].y,
+            curve[endIdx].x - curve[endIdx - 1].x
+          );
+          drawArrowHead(ctx, curve[endIdx].x, curve[endIdx].y, tEnd, "#ffcd43");
+        }
       } else {
-        const end1 = circleEdgeWithGap(sPos.x, sPos.y, r, infoPos.x, infoPos.y, gap);
-        const end2 = circleEdgeWithGap(tPos.x, tPos.y, r, infoPos.x, infoPos.y, gap);
-        ctx.strokeStyle = "#fbcf43";
-        ctx.lineWidth = 2;
+        const lineGap = gap + ARROW_SIZE * viewport.scale;
+        const end1 = circleEdgeWithGap(sPos.x, sPos.y, r, infoPos.x, infoPos.y, lineGap);
+        const end2 = circleEdgeWithGap(tPos.x, tPos.y, r, infoPos.x, infoPos.y, lineGap);
         ctx.beginPath();
         ctx.moveTo(infoPos.x, infoPos.y);
         ctx.lineTo(end1.x, end1.y);
@@ -595,8 +630,8 @@ export function useDesigner(
         ctx.moveTo(infoPos.x, infoPos.y);
         ctx.lineTo(end2.x, end2.y);
         ctx.stroke();
-        drawArrowHead(ctx, end1.x, end1.y, end1.angle + Math.PI, "#fbcf43");
-        drawArrowHead(ctx, end2.x, end2.y, end2.angle + Math.PI, "#fbcf43");
+        drawArrowHead(ctx, end1.x, end1.y, end1.angle + Math.PI, "#ffcd43");
+        drawArrowHead(ctx, end2.x, end2.y, end2.angle + Math.PI, "#ffcd43");
       }
 
       drawInfoBox(ctx, infoPos.x, infoPos.y, relation);
@@ -606,38 +641,61 @@ export function useDesigner(
   function drawInfoBox(ctx: CanvasRenderingContext2D, x: number, y: number, relation: ModelRelation): void {
     const fwd = relation.forward;
     const rev = relation.reverse;
-    const fwdText = fwd ? `${fwd.name}·${fwd.mappingType}` : "";
-    const revText = rev ? `${rev.name}·${rev.mappingType}` : "";
-    const boxW = estimateInfoBoxWidth(relation);
-    const boxH = 34;
+    const padding = 3;
+    const boxW = Math.min(estimateInfoBoxWidth(relation), 90);
+    const partH = 18;
+    const gap = 6;
+    const totalH = partH * 2 + gap;
+    const topY = y - totalH / 2;
     const boxX = x - boxW / 2;
-    const boxY = y - boxH / 2;
+    const textMaxW = boxW - padding * 2;
 
-    ctx.fillStyle = "#fff";
-    ctx.strokeStyle = "#cbd5e1";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxW, boxH, 8);
-    ctx.fill();
-    ctx.stroke();
+    ctx.fillStyle = "#2563eb";
+    ctx.fillRect(boxX, topY, boxW, partH);
 
-    ctx.strokeStyle = "#e5e7eb";
-    ctx.beginPath();
-    ctx.moveTo(boxX, y);
-    ctx.lineTo(boxX + boxW, y);
-    ctx.stroke();
+    const botY = topY + partH + gap;
+    ctx.fillStyle = "#16a34a";
+    ctx.fillRect(boxX, botY, boxW, partH);
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = "bold 11px -apple-system, sans-serif";
-    ctx.fillStyle = "#2563eb";
-    ctx.fillText(fwdText, x, y - 8);
-    ctx.fillStyle = "#16a34a";
-    ctx.fillText(revText, x, y + 8);
+    ctx.fillStyle = "#fff";
+    drawInfoBoxText(ctx, fwd?.name ?? "", fwd?.mappingType ?? "", x, topY + partH / 2, textMaxW);
+    drawInfoBoxText(ctx, rev?.name ?? "", rev?.mappingType ?? "", x, botY + partH / 2, textMaxW);
 
     if (relation.locked) {
-      drawLockIcon(ctx, boxX, boxY, true);
+      const lockW = 14;
+      const lockH = 13;
+      const diagonal = Math.sqrt(lockW * lockW + lockH * lockH);
+      const offset = (diagonal - 2) / Math.SQRT2;
+      drawLockIcon(ctx, boxX - offset - lockW / 2, topY - offset - 5.5, true);
     }
+  }
+
+  function drawInfoBoxText(
+    ctx: CanvasRenderingContext2D,
+    name: string,
+    mapping: string,
+    cx: number,
+    cy: number,
+    maxW: number,
+  ): void {
+    const suffix = `·${mapping}`;
+    const suffixW = ctx.measureText(suffix).width;
+    const nameMaxW = maxW - suffixW;
+    let display = name;
+    if (nameMaxW > 0 && ctx.measureText(name).width > nameMaxW) {
+      let lo = 0;
+      let hi = name.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        if (ctx.measureText(name.slice(0, mid) + "…").width <= nameMaxW) lo = mid;
+        else hi = mid - 1;
+      }
+      display = name.slice(0, lo) + "…";
+    }
+    ctx.fillText(display + suffix, cx, cy);
   }
 
   function drawArrowHead(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, color: string): void {
@@ -647,9 +705,9 @@ export function useDesigner(
     ctx.rotate(angle);
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-size, -size * 0.5);
-    ctx.lineTo(-size, size * 0.5);
+    ctx.moveTo(size, 0);
+    ctx.lineTo(0, -size * 0.5);
+    ctx.lineTo(0, size * 0.5);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -701,7 +759,7 @@ export function useDesigner(
 
   function hitTestLockIcon(sx: number, sy: number): { type: "model" | "relation"; id: string } | undefined {
     const r = NODE_RADIUS * viewport.scale;
-    const padding = 8;
+    const padding = 12;
     const iconW = 14;
     const iconH = 12;
 
@@ -720,9 +778,16 @@ export function useDesigner(
       if (!relation.locked) continue;
       const pts = lineInfoPoints(relation);
       if (!pts) continue;
-      const rect = infoBoxRect(pts.sPos, pts.tPos, relation);
-      const iconX = rect.x;
-      const iconY = rect.y;
+      const boxW = Math.min(estimateInfoBoxWidth(relation), 90);
+      const partH = 18;
+      const gap = 6;
+      const totalH = partH * 2 + gap;
+      const lockW = 14;
+      const lockH = 13;
+      const diagonal = Math.sqrt(lockW * lockW + lockH * lockH);
+      const offset = (diagonal - 2) / Math.SQRT2;
+      const iconX = pts.infoPos.x - boxW / 2 - offset - lockW / 2;
+      const iconY = pts.infoPos.y - totalH / 2 - offset - 5.5;
       if (sx >= iconX && sx <= iconX + iconW && sy >= iconY && sy <= iconY + iconH) {
         return { type: "relation", id: relation.id };
       }
@@ -807,23 +872,29 @@ export function useDesigner(
       return;
     }
 
-    // 只读模式：点击任意位置都拖动画布
-    if (readOnly.value) {
-      beginPan(event);
-      return;
-    }
-
-    // 编辑模式：仅左键参与拖动
+    // 仅左键参与对象选择、抽屉打开和拖动。
     if (event.button !== 0) return;
 
     const model = hitTestModel(point.x, point.y);
     if (model) {
+      if (readOnly.value || model.locked) {
+        selectSingle(model.id, event.shiftKey);
+        openModelDrawer(model);
+        invalidate();
+        return;
+      }
       beginModelDrag(event, model, point);
       return;
     }
 
     const infoRel = hitTestInfoBox(point.x, point.y);
     if (infoRel) {
+      if (readOnly.value || infoRel.locked) {
+        selectedIds.value = [infoRel.id];
+        openRelationDrawer(infoRel);
+        invalidate();
+        return;
+      }
       beginInfoBoxDrag(event, infoRel, point);
       return;
     }
@@ -988,7 +1059,7 @@ export function useDesigner(
 
   async function commitRelationPosition(relation: ModelRelation): Promise<void> {
     try {
-      await api.updateRelation(relation.id, { position: relation.position });
+      await api.updateRelation(relation.id, { position: relation.position, locked: true });
     } catch (e) {
       error.value = e instanceof Error ? e.message : "提交关系位置失败";
     }
@@ -1030,11 +1101,21 @@ export function useDesigner(
     invalidate();
   }
 
-  function resetViewport(): void {
-    viewport.offsetX = 0;
-    viewport.offsetY = 0;
-    viewport.scale = 1;
-    invalidate();
+  async function resetViewport(): Promise<void> {
+    try {
+      const canvas = await api.getCanvas();
+      const scale = clamp(canvas.scale > 0 ? canvas.scale : 1, MIN_SCALE, MAX_SCALE);
+      viewport.scale = scale;
+      viewport.offsetX = canvasWidth / 2 - canvas.center.x * scale;
+      viewport.offsetY = canvasHeight / 2 - canvas.center.y * scale;
+      invalidate();
+    } catch {
+      // 获取失败时回退到默认
+      viewport.offsetX = 0;
+      viewport.offsetY = 0;
+      viewport.scale = 1;
+      invalidate();
+    }
   }
 
   // ── 创建模式 ─────────────────────────────────────
@@ -1179,6 +1260,59 @@ export function useDesigner(
       error.value = e instanceof Error ? e.message : "创建继承关系失败";
     } finally {
       saving.value = false;
+      invalidate();
+    }
+  }
+
+  /** 设置/清除/切换模型的继承父模型。parentId 为空时清除继承；否则切换到指定父模型。 */
+  async function setModelInheritance(model: ModelNode, parentId: string | null): Promise<void> {
+    if (readOnly.value) return;
+    if (parentId && parentId === model.parentModelId) return;
+    if (parentId && isDescendant(parentId, model.id)) {
+      error.value = "设置继承失败：目标父模型是子模型的后代，将形成继承环";
+      invalidate();
+      return;
+    }
+    if (parentId && parentId === model.id) {
+      error.value = "设置继承失败：不能继承自身";
+      invalidate();
+      return;
+    }
+
+    // 先移除当前已有的继承关系（存在时）
+    const existing = relations.value.find(
+      (r) =>
+        r.relationType === "inherit" &&
+        r.sourceId === model.id &&
+        r.targetId === model.parentModelId
+    );
+    if (existing) {
+      saving.value = true;
+      try {
+        await api.deleteRelation(existing.id);
+      } catch (e) {
+        error.value = e instanceof Error ? e.message : "更新继承关系失败";
+        invalidate();
+        return;
+      } finally {
+        saving.value = false;
+      }
+      relations.value = relations.value.filter((r) => r.id !== existing.id);
+      const prevParent = models.value.find((m) => m.id === existing.targetId);
+      if (prevParent?.childModelIds) {
+        prevParent.childModelIds = prevParent.childModelIds.filter((cid) => cid !== model.id);
+      }
+      model.parentModelId = null;
+    }
+
+    if (parentId) {
+      await createInheritanceBetween(model.id, parentId);
+    } else {
+      // 清除继承后同步抽屉并重算继承字段
+      const d = drawer.value;
+      if (d.type === "model" && d.id === model.id) {
+        drawer.value = { ...d, parentModelId: null } as DrawerState;
+      }
       invalidate();
     }
   }
@@ -1338,6 +1472,9 @@ export function useDesigner(
     saving.value = true;
     error.value = undefined;
     try {
+      const centerX = (canvasWidth / 2 - viewport.offsetX) / viewport.scale;
+      const centerY = (canvasHeight / 2 - viewport.offsetY) / viewport.scale;
+      await api.saveCanvas({ x: centerX, y: centerY }, viewport.scale);
       for (const model of models.value) {
         await api.updateModelPosition(model.id, { x: model.x, y: model.y });
       }
@@ -1398,7 +1535,44 @@ export function useDesigner(
       name: model.name,
       description: model.description || "",
       color: model.color || "#2563eb",
+      parentModelId: model.parentModelId ?? null,
     };
+    void refreshModelData(model.id);
+  }
+
+  /**
+   * 打开抽屉时重新请求该模型的最新信息（含继承字段），
+   * 避免继承关系更新后抽屉中展示的字段未同步。
+   */
+  async function refreshModelData(id: string): Promise<void> {
+    try {
+      const latest = await api.getModel(id);
+      // 更新 models 中对应模型的字段与名称等属性，保持本地状态为最新
+      const target = models.value.find((m) => m.id === id);
+      if (target) {
+        target.name = latest.name;
+        target.description = latest.description ?? "";
+        target.color = latest.color;
+        target.parentModelId = latest.parentModelId ?? null;
+        target.childModelIds = latest.childModelIds ?? target.childModelIds;
+        target.fields = latest.fields;
+        target.showInheritedFields = latest.showInheritedFields;
+      }
+      // 同步抽屉草稿，若用户已在抽屉中输入过内容，则不覆盖其输入
+      const d = drawer.value;
+      if (d.type === "model" && d.id === id) {
+        drawer.value = {
+          ...d,
+          name: latest.name,
+          description: latest.description ?? "",
+          color: latest.color ?? d.color,
+          parentModelId: latest.parentModelId ?? null,
+        };
+      }
+      invalidate();
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "获取模型信息失败";
+    }
   }
 
   function openRelationDrawer(relation: ModelRelation): void {
@@ -1422,6 +1596,7 @@ export function useDesigner(
       name: string;
       description: string;
       color: string;
+      parentModelId: string | null;
       fwdName: string;
       fwdMapping: string;
       revName: string;
@@ -1489,7 +1664,6 @@ export function useDesigner(
 
   // ── 字段管理 ─────────────────────────────────────
   async function toggleInheritedFields(model: ModelNode): Promise<void> {
-    if (readOnly.value) return;
     const prev = model.showInheritedFields;
     model.showInheritedFields = prev === false;
     invalidate();
@@ -1510,11 +1684,13 @@ export function useDesigner(
       type: "String",
       description: "",
     };
-    model.fields = [...(model.fields ?? []).filter((f) => !f.inherited), newField];
+    const inherited = (model.fields ?? []).filter((f) => f.inherited);
+    const own = (model.fields ?? []).filter((f) => !f.inherited);
+    model.fields = [...inherited, ...own, newField];
     expandedFields.add(newField.id);
     invalidate();
     void api
-      .updateModel(model.id, { fields: model.fields })
+      .updateModel(model.id, { fields: [...own, newField] })
       .catch((e) => (error.value = e instanceof Error ? e.message : "添加字段失败"));
   }
 
@@ -1523,8 +1699,9 @@ export function useDesigner(
     model.fields = (model.fields ?? []).filter((f) => f.id !== fieldId || f.inherited);
     expandedFields.delete(fieldId);
     invalidate();
+    const own = (model.fields ?? []).filter((f) => !f.inherited);
     void api
-      .updateModel(model.id, { fields: model.fields })
+      .updateModel(model.id, { fields: own })
       .catch((e) => (error.value = e instanceof Error ? e.message : "删除字段失败"));
   }
 
@@ -1532,10 +1709,20 @@ export function useDesigner(
     if (readOnly.value) return;
     const field = (model.fields ?? []).find((f) => f.id === fieldId);
     if (!field || field.inherited) return;
+    if (patch.name !== undefined) {
+      const newName = patch.name.trim();
+      if (!newName) { error.value = "字段名不能为空"; return; }
+      const dup = (model.fields ?? []).some(
+        (f) => f.id !== fieldId && f.name === newName
+      );
+      if (dup) { error.value = "字段名不能重复"; return; }
+      patch.name = newName;
+    }
     Object.assign(field, patch);
     invalidate();
+    const own = (model.fields ?? []).filter((f) => !f.inherited);
     void api
-      .updateModel(model.id, { fields: model.fields })
+      .updateModel(model.id, { fields: own })
       .catch((e) => (error.value = e instanceof Error ? e.message : "更新字段失败"));
   }
 
@@ -1553,7 +1740,7 @@ export function useDesigner(
     model.fields = [...inheritedFields, ...ownFields];
     invalidate();
     void api
-      .updateModel(model.id, { fields: model.fields })
+      .updateModel(model.id, { fields: ownFields })
       .catch((e) => (error.value = e instanceof Error ? e.message : "排序字段失败"));
   }
 
@@ -1618,6 +1805,7 @@ export function useDesigner(
     moveField,
     toggleFieldExpand,
     setDrawerDraft,
+    setModelInheritance,
     isFieldExpanded,
     attachCanvas,
     attachWrapper,

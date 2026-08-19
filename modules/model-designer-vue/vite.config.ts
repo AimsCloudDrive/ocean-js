@@ -20,7 +20,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/model-designer": {
-        target: "http://127.0.0.1:9091",
+        target: "http://47.109.110.125:9091",
         changeOrigin: true,
       },
     },

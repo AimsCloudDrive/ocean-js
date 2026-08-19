@@ -91,23 +91,24 @@ docker restart 72d1e59133ccb8cf65a9419ba2b7a22d10ea1a57ae39c1e4127fe6ba521c0abb
 
 ### nginx 路由（/etc/nginx/conf.d/mma.conf）
 
-| 路径 | 处理 |
-|------|------|
-| `/demo` | `alias /var/www/mma/dist`，提供模型设计器前端（Vite `base: "/demo/"`） |
-| `/` | `root /var/www/mma` 的 MMA 站点首页 |
-| `/api/` | `proxy_pass http://127.0.0.1:9091`，转发到后端（`/api/model-designer/*` → 9091） |
+| 路径                  | 处理                                                                             |
+| --------------------- | -------------------------------------------------------------------------------- |
+| `/demo`               | `alias /var/www/mma/dist`，提供模型设计器前端（Vite `base: "/demo/"`）           |
+| `/`                   | `root /var/www/mma` 的 MMA 站点首页                                              |
+| `/api/model-designer` | `proxy_pass http://127.0.0.1:9091`，转发到后端（`/api/model-designer/*` → 9091） |
 
 ### 前端关键配置与构建
 
-- **vite.config.ts**：`base: "/demo/"`（对应线上 `/demo` 访问路径）；`plugin-vue` 开启 `features.vapor: true`；dev 端口 5175，`/api` 代理到 `http://47.109.110.125:9091`
+- **vite.config.ts**：`base: "/demo/"`（对应线上 `/demo` 访问路径）；`plugin-vue` 开启 `features.vapor: true`；`/api/model-designer` 代理到 `http://127.0.0.1:9091`，本地调试可以启动本地后端就是代理到本地后端`http://127.0.0.1:9091`，生产环境就是代理到后端`http://47.109.110.125:9091`
 - **Vapor 组件需写 `<script setup vapor lang="ts">`**：不加 `lang="ts"` 时 Vapor 编译器不启用 TS 解析，`import type` 与模板内 TS 断言会报错
 - 子项目因 pnpm workspace 的 Junction 链接曾指向失效沙箱路径，改用 `npm install` 独立安装依赖（见下）
+- 前端打包首先库模式打包组件(在modules/model-designer-vue目录下执行pnpm run build)，然后进入demo目录打包示例应用前端(在modules/model-designer-vue/example目录下执行pnpm run build)
 
 前端与后端 dist 是两个不同的目录，注意区分：
 
-| 端 | 目录 | 内容 |
-|----|------|------|
-| 前端 | `/var/www/mma/dist/` | 构建产物（`assets/` + `index.html`） |
+| 端   | 目录                                                   | 内容                                                     |
+| ---- | ------------------------------------------------------ | -------------------------------------------------------- |
+| 前端 | `/var/www/mma/dist/`                                   | 构建产物（`assets/` + `index.html`）                     |
 | 后端 | `/opt/1panel/apps/model-designer/model-designer/dist/` | Node 产物（`index.js` + `.env`），挂载到容器 `/app/dist` |
 
 > ⚠️ 安全提示：此文件包含 root 密码，请注意不要提交到公开仓库或以其他方式泄露。

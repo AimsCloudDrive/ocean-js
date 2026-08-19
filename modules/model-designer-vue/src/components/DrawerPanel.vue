@@ -20,6 +20,19 @@ const currentRelation = computed(() => {
   if (dw.type === "relation") return d.relations.find((r) => r.id === dw.id);
   return undefined;
 });
+const otherModels = computed(() => {
+  const dw = drawer.value;
+  if (dw.type !== "model") return [];
+  return d.models.filter((m) => m.id !== dw.id);
+});
+const inheritModelId = computed({
+  get: () => currentModel.value?.parentModelId ?? "",
+  set: (val: string) => {
+    if (currentModel.value) {
+      void d.setModelInheritance(currentModel.value, val || null);
+    }
+  },
+});
 </script>
 
 <template>
@@ -71,8 +84,14 @@ const currentRelation = computed(() => {
           </div>
           <div class="md-field">
             <span class="md-field__label">继承模型</span>
-            <select :value="currentModel.parentModelId ?? ''" disabled>
+            <select
+              v-model="inheritModelId"
+              :disabled="d.readOnly"
+            >
               <option value="">无</option>
+              <option v-for="candidate in otherModels" :key="candidate.id" :value="candidate.id">
+                {{ candidate.name }}
+              </option>
             </select>
           </div>
 

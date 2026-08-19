@@ -5,7 +5,7 @@ export const BASE_GRID = 16;
 /** 模型节点半径（世界坐标） */
 export const NODE_RADIUS = 44;
 /** 箭头与模型边缘间距 */
-export const ARROW_GAP = 12;
+export const ARROW_GAP = 6;
 /** 箭头大小 */
 export const ARROW_SIZE = 10;
 
