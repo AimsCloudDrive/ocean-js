@@ -111,4 +111,56 @@ docker restart 72d1e59133ccb8cf65a9419ba2b7a22d10ea1a57ae39c1e4127fe6ba521c0abb
 | 前端 | `/var/www/mma/dist/`                                   | 构建产物（`assets/` + `index.html`）                     |
 | 后端 | `/opt/1panel/apps/model-designer/model-designer/dist/` | Node 产物（`index.js` + `.env`），挂载到容器 `/app/dist` |
 
+## 模型设计器项目文档部署
+
+生成的模型设计器相关的项目文档（如需求文档、设计文档等）需要发送到远程服务器的 `/var/www/mma/` 目录下：
+
+- **目标路径**：`/var/www/mma/`
+- **传输方式**：通过 SSH/SCP 上传至远程服务器（连接信息见上文"远程服务器连接信息"）
+
+### 更新 index.html 导航按钮
+
+上传文档后，还需在 `/var/www/mma/index.html` 中添加对应的跳转按钮。该 index.html 是 MMA 站点首页，已有的按钮格式如下：
+
+```html
+<a href="文件名.html" class="link-btn">查看文档名称</a>
+```
+
+按钮放在 `<div class="card">` 内部，与其他按钮并列。例如新增一份设计文档：
+
+```html
+<a href="模型设计器设计文档.html" class="link-btn">查看设计文档</a>
+```
+
+完整的按钮样式类为 `link-btn`（白底蓝字圆角按钮），无需额外引入 CSS。操作步骤：
+
+1. 通过 SSH 读取当前 `/var/www/mma/index.html`
+2. 在 `<div class="card">` 内最后一个 `<a>` 按钮后追加新按钮
+3. 将修改后的文件写回服务器
+
+### Windows（PowerShell + Posh-SSH 上传文件）
+
+```powershell
+# 建立连接
+$pw = ConvertTo-SecureString 'tx009618.' -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential('root', $pw)
+$s = New-SSHSession -ComputerName '47.109.110.125' -Credential $cred -AcceptKey -ConnectionTimeout 15
+
+# 上传文件（本地路径 → 远程 /var/www/mma/）
+Set-SCPItem -ComputerName '47.109.110.125' -Credential $cred -AcceptKey `
+  -Path '本地文件路径.html' -DestinationType File -Destination '/var/www/mma/'
+
+# 关闭连接
+Remove-SSHSession -SessionId $s.SessionId | Out-Null
+```
+
+### Linux / macOS（scp 上传文件）
+
+```bash
+sshpass -p 'tx009618.' scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 \
+  -o UserKnownHostsFile=/dev/null 本地文件路径.html root@47.109.110.125:/var/www/mma/
+```
+
+> 注意：上传后可通过 `http://47.109.110.125:3008/文件名.html` 访问该文档。
+
 > ⚠️ 安全提示：此文件包含 root 密码，请注意不要提交到公开仓库或以其他方式泄露。

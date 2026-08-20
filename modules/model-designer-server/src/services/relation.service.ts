@@ -11,6 +11,20 @@ function isPoint(value: unknown): value is Point {
   return !!point && Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
+function extractModelIds(rel: Pick<RelationMeta, "relationType" | "source" | "target" | "relationship">): string[] {
+  if (rel.relationType === "inherit") {
+    return [rel.source!, rel.target!];
+  }
+  const ids = new Set<string>();
+  if (rel.relationship) {
+    for (const dir of Object.values(rel.relationship)) {
+      if (typeof dir.source === "string") ids.add(dir.source);
+      if (typeof dir.target === "string") ids.add(dir.target);
+    }
+  }
+  return Array.from(ids);
+}
+
 export class RelationService {
   constructor(private readonly client: MongoClient, private readonly repository: MetaRepository) {}
 
@@ -26,6 +40,7 @@ export class RelationService {
       id,
       relationType: "relation",
       relationship: body.relationship,
+      models: extractModelIds({ relationType: "relation", relationship: body.relationship }),
       position: body.position,
       name: body.name,
       kind: body.kind,
@@ -34,7 +49,8 @@ export class RelationService {
     };
     await this.assertRelationshipModels(relation);
     await this.repository.insertRelation(relation);
-    return relation;
+    const created = await this.repository.findRelation(id);
+    return created ?? relation;
   }
 
   private async createInheritance(id: string, body: Partial<RelationMeta>): Promise<RelationMeta> {
@@ -90,7 +106,7 @@ export class RelationService {
       }
     }
 
-    const relation: RelationMeta = { META_TYPE: "relation", id, relationType: "inherit", source: body.source, target: body.target };
+    const relation: RelationMeta = { META_TYPE: "relation", id, relationType: "inherit", source: body.source, target: body.target, models: [body.source, body.target] };
     const sourceId = body.source;
     const targetId = body.target;
     const sourceWithParent: ModelMeta = { ...source, model: { ...source.model, parentModelId: targetId } };
@@ -99,7 +115,7 @@ export class RelationService {
       model: { ...target.model, childModelIds: [...new Set([...target.model.childModelIds, sourceId])] },
     };
 
-    return runWithTransaction(
+    const result = await runWithTransaction(
       this.client,
       async (session) => {
         await this.repository.insertRelation(relation, session);
@@ -109,6 +125,8 @@ export class RelationService {
       },
       () => this.createInheritanceWithoutTransaction(relation, sourceId, sourceWithParent, targetId, targetWithChild),
     );
+    const refreshed = await this.repository.findRelation(id);
+    return refreshed ?? result;
   }
 
   /** 无事务补偿：插入关系文档 → 更新子模型 parentModelId → 父模型 childModelIds 追加，任一步失败回滚已做步骤。 */
@@ -158,6 +176,7 @@ export class RelationService {
     const updated: RelationMeta = {
       ...current,
       relationship: body.relationship ?? current.relationship,
+      models: body.relationship ? extractModelIds({ relationType: "relation", relationship: body.relationship }) : current.models,
       position: body.position !== undefined ? (body.position ?? undefined) : current.position,
       name: body.name ?? current.name,
       kind: body.kind ?? current.kind,
@@ -166,7 +185,8 @@ export class RelationService {
     updated.locked = !!updated.position;
     await this.assertRelationshipModels(updated);
     await this.repository.replaceRelation(id, updated);
-    return updated;
+    const refreshed = await this.repository.findRelation(id);
+    return refreshed ?? updated;
   }
 
   async delete(id: string): Promise<void> {

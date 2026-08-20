@@ -57,13 +57,37 @@ export class MetaRepository {
 
   async listRelations(session?: ClientSession): Promise<RelationMeta[]> {
     const docs = await this.collection.find({ META_TYPE: "relation" }, { session }).toArray();
-    return docs.map((doc) => ({ ...doc, locked: !!doc.position })) as RelationMeta[];
+    return docs.map((doc) => {
+      const d = { ...doc, locked: !!doc.position } as RelationMeta;
+      d.isSelfRelation = this.computeIsSelfRelation(d);
+      return d;
+    }) as RelationMeta[];
   }
 
   async findRelation(id: string, session?: ClientSession): Promise<RelationMeta | null> {
     const doc = await this.collection.findOne({ META_TYPE: "relation", id }, { session });
     if (!doc) return null;
-    return { ...doc, locked: !!doc.position } as RelationMeta;
+    const d = { ...doc, locked: !!doc.position } as RelationMeta;
+    d.isSelfRelation = this.computeIsSelfRelation(d);
+    return d;
+  }
+
+  private computeIsSelfRelation(rel: RelationMeta): boolean {
+    if (rel.relationType === "inherit") {
+      return rel.source === rel.target;
+    }
+    if (rel.models && rel.models.length > 0) {
+      return new Set(rel.models).size === 1;
+    }
+    if (rel.relationship) {
+      const ids = new Set<string>();
+      for (const dir of Object.values(rel.relationship)) {
+        if (typeof dir.source === "string") ids.add(dir.source);
+        if (typeof dir.target === "string") ids.add(dir.target);
+      }
+      return ids.size === 1;
+    }
+    return false;
   }
 
   async insertRelation(relation: RelationMeta, session?: ClientSession): Promise<void> {

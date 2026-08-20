@@ -35,6 +35,8 @@ export const FIELD_TYPE_OPTIONS = ["String", "Number", "Boolean", "Date", "Objec
 const DRAG_THRESHOLD = 4;
 const INFO_BOX_HALF_W = 46;
 const INFO_BOX_HALF_H = 22;
+const SELF_ANGLE_OFFSET = 20 * Math.PI / 180;
+const SELF_MIN_DIST = 80;
 
 type CreateState =
   | { type: "none" }
@@ -524,13 +526,29 @@ export function useDesigner(
     if (!source || !target) return undefined;
     const sPos = worldToScreen(source.x, source.y);
     const tPos = worldToScreen(target.x, target.y);
-    const infoPos = relation.position ? worldToScreen(relation.position.x, relation.position.y) : midpoint(sPos, tPos);
+    let infoPos: ModelPosition;
+    if (relation.position) {
+      infoPos = worldToScreen(relation.position.x, relation.position.y);
+    } else if (relation.isSelfRelation) {
+      infoPos = worldToScreen(source.x + 110, source.y - 90);
+    } else {
+      infoPos = midpoint(sPos, tPos);
+    }
     return { source, target, sPos, tPos, infoPos };
   }
 
   /** 关系信息框的屏幕矩形（用于命中检测）。 */
   function infoBoxRect(sPos: ModelPosition, tPos: ModelPosition, relation: ModelRelation) {
-    const infoPos = relation.position ? worldToScreen(relation.position.x, relation.position.y) : midpoint(sPos, tPos);
+    let infoPos: ModelPosition;
+    if (relation.position) {
+      infoPos = worldToScreen(relation.position.x, relation.position.y);
+    } else if (relation.isSelfRelation) {
+      const wx = (sPos.x - viewport.offsetX) / viewport.scale + 110;
+      const wy = (sPos.y - viewport.offsetY) / viewport.scale - 90;
+      infoPos = worldToScreen(wx, wy);
+    } else {
+      infoPos = midpoint(sPos, tPos);
+    }
     const w = Math.min(estimateInfoBoxWidth(relation), 90) * viewport.scale;
     const partH = 18 * viewport.scale;
     const gap = 6 * viewport.scale;
@@ -570,6 +588,48 @@ export function useDesigner(
         ctx.stroke();
         ctx.restore();
         drawArrowHead(ctx, end.x, end.y, end.angle + Math.PI, "#9ca3af");
+        continue;
+      }
+
+      if (relation.isSelfRelation) {
+        const dx = infoPos.x - sPos.x;
+        const dy = infoPos.y - sPos.y;
+        const R = Math.hypot(dx, dy) || 1;
+        const ba = Math.atan2(dy, dx);
+        const p1 = { x: sPos.x, y: sPos.y };
+        const p2 = { x: sPos.x + R * Math.cos(ba - SELF_ANGLE_OFFSET), y: sPos.y + R * Math.sin(ba - SELF_ANGLE_OFFSET) };
+        const p4 = { x: sPos.x + R * Math.cos(ba + SELF_ANGLE_OFFSET), y: sPos.y + R * Math.sin(ba + SELF_ANGLE_OFFSET) };
+        const p5 = { x: sPos.x, y: sPos.y };
+        const curve = catmullRom([p1, p2, p4, p5], 64);
+        const rGap = r + gap + ARROW_SIZE * viewport.scale;
+        const rGap2 = rGap * rGap;
+        let startIdx = 1;
+        for (let i = 1; i < curve.length; i++) {
+          const cdx = curve[i].x - sPos.x;
+          const cdy = curve[i].y - sPos.y;
+          if (cdx * cdx + cdy * cdy >= rGap2) { startIdx = i; break; }
+        }
+        let endIdx = curve.length - 2;
+        for (let i = curve.length - 2; i >= 0; i--) {
+          const cdx = curve[i].x - sPos.x;
+          const cdy = curve[i].y - sPos.y;
+          if (cdx * cdx + cdy * cdy >= rGap2) { endIdx = i; break; }
+        }
+        ctx.strokeStyle = "#ffcd43";
+        ctx.lineWidth = 2;
+        if (endIdx > startIdx) {
+          ctx.beginPath();
+          ctx.moveTo(curve[startIdx].x, curve[startIdx].y);
+          for (let i = startIdx + 1; i <= endIdx; i++) ctx.lineTo(curve[i].x, curve[i].y);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.stroke();
+          const tStart = Math.atan2(curve[startIdx + 1].y - curve[startIdx].y, curve[startIdx + 1].x - curve[startIdx].x);
+          drawArrowHead(ctx, curve[startIdx].x, curve[startIdx].y, tStart + Math.PI, "#ffcd43");
+          const tEnd = Math.atan2(curve[endIdx].y - curve[endIdx - 1].y, curve[endIdx].x - curve[endIdx - 1].x);
+          drawArrowHead(ctx, curve[endIdx].x, curve[endIdx].y, tEnd, "#ffcd43");
+        }
+        drawSelfRelationInfoBox(ctx, infoPos.x, infoPos.y, ba, relation);
         continue;
       }
 
@@ -667,6 +727,53 @@ export function useDesigner(
       const offset = (diagonal - 2) / Math.SQRT2;
       drawLockIcon(ctx, boxX - offset - lockW / 2, topY - offset - 5.5, true);
     }
+  }
+
+  function drawSelfRelationInfoBox(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    baseAngle: number,
+    relation: ModelRelation,
+  ): void {
+    const fwd = relation.forward;
+    const rev = relation.reverse;
+    const padding = 3;
+    const boxW = Math.min(estimateInfoBoxWidth(relation), 90) * viewport.scale;
+    const partH = 18 * viewport.scale;
+    const gap = 6 * viewport.scale;
+    const totalH = partH * 2 + gap;
+    const textMaxW = boxW - padding * 2 * viewport.scale;
+    const ta = baseAngle + Math.PI / 2;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ta);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `bold ${11 * viewport.scale}px -apple-system, sans-serif`;
+
+    const w = boxW;
+    const halfW = w / 2;
+    const topY = -totalH / 2;
+    const botY = topY + partH + gap;
+
+    ctx.fillStyle = "#2563eb";
+    ctx.fillRect(-halfW, topY, w, partH);
+    ctx.fillStyle = "#16a34a";
+    ctx.fillRect(-halfW, botY, w, partH);
+    ctx.fillStyle = "#fff";
+    drawInfoBoxText(ctx, fwd?.name ?? "", fwd?.mappingType ?? "", 0, topY + partH / 2, textMaxW);
+    drawInfoBoxText(ctx, rev?.name ?? "", rev?.mappingType ?? "", 0, botY + partH / 2, textMaxW);
+
+    if (relation.locked) {
+      const lockW = 14;
+      const lockH = 13;
+      const diagonal = Math.sqrt(lockW * lockW + lockH * lockH);
+      const offset = (diagonal - 2) / Math.SQRT2;
+      drawLockIcon(ctx, -halfW - offset - lockW / 2, topY - offset - 5.5, true);
+    }
+    ctx.restore();
   }
 
   function drawInfoBoxText(
@@ -801,11 +908,17 @@ export function useDesigner(
     for (const relation of relations.value) {
       const pts = lineInfoPoints(relation);
       if (!pts) continue;
-      const { source, target } = pts;
+      const { source, target, infoPos } = pts;
 
       if (relation.relationType === "inherit") continue;
 
-      const infoPos = relation.position ?? midpoint(source, target);
+      if (relation.isSelfRelation) {
+        if (distToSegment(wx, wy, source.x, source.y, infoPos.x, infoPos.y) <= threshold) {
+          return relation;
+        }
+        continue;
+      }
+
       if (relation.position || relation.locked) {
         if (
           distToSegment(wx, wy, source.x, source.y, infoPos.x, infoPos.y) <= threshold ||
@@ -1016,12 +1129,26 @@ export function useDesigner(
     const startScreen = { x: event.clientX, y: event.clientY };
     const source = models.value.find((m) => m.id === relation.sourceId);
     const target = models.value.find((m) => m.id === relation.targetId);
-    const origin = relation.position ?? (source && target ? midpoint(source, target) : startPoint);
+    const origin = relation.position ?? (relation.isSelfRelation && source
+      ? { x: source.x + 110, y: source.y - 90 }
+      : source && target ? midpoint(source, target) : startPoint);
 
     const onMove = (nativeEvent: PointerEvent) => {
       const dx = (nativeEvent.clientX - startScreen.x) / viewport.scale;
       const dy = (nativeEvent.clientY - startScreen.y) / viewport.scale;
-      relation.position = { x: origin.x + dx, y: origin.y + dy };
+      let nx = origin.x + dx;
+      let ny = origin.y + dy;
+      if (relation.isSelfRelation && source) {
+        const ddx = nx - source.x;
+        const ddy = ny - source.y;
+        const dist = Math.hypot(ddx, ddy);
+        if (dist < SELF_MIN_DIST) {
+          const scale = SELF_MIN_DIST / (dist || 1);
+          nx = source.x + ddx * scale;
+          ny = source.y + ddy * scale;
+        }
+      }
+      relation.position = { x: nx, y: ny };
       invalidate();
     };
 

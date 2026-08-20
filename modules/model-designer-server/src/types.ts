@@ -36,12 +36,14 @@ export interface RelationMeta extends Document {
   relationType: "relation" | "inherit";
   source?: string;
   target?: string;
+  models?: string[];
   relationship?: Record<string, Record<string, unknown>>;
   position?: Point;
   name?: string;
   kind?: "one-to-one" | "one-to-many" | "many-to-many";
   locked?: boolean;
   data?: Record<string, unknown>;
+  isSelfRelation?: boolean;
 }
 
 export type MetaDocument = CanvasMeta | ModelMeta | RelationMeta;

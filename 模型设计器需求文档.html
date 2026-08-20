@@ -192,7 +192,7 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
 <body>
 
 <header>
-  <span class="tag">需求文档 · PRD · v1.0</span>
+  <span class="tag">需求文档 · PRD · v1.1</span>
   <h1>模型设计器（model-designer）</h1>
   <p>基于 Canvas 的可视化模型编辑器 · 通过后端接口操作 MongoDB 元数据</p>
 </header>
@@ -212,7 +212,8 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
     <li><a href="#s8">8. 创建操作流程</a></li>
     <li><a href="#s9">9. 模式、接口同步与删除</a></li>
     <li><a href="#s10">10. 框选</a></li>
-    <li><a href="#s11">11. 数据约定（MongoDB 草案）</a></li>
+    <li><a href="#s11">11. 数据约定（MongoDB 正式格式）</a></li>
+    <li><a href="#s12">12. 版本变更记录</a></li>
   </ul>
 </section>
 
@@ -432,7 +433,9 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
   </div>
   <h3>6.2 箭头与模型保持距离</h3>
   <ul>
-    <li>箭头<strong>不能挨着模型</strong>：线段在靠近模型边缘处截断，距模型留出固定间距（12px），该段不绘制，避免箭头压住节点。<span class="badge need">规则</span></li>
+    <li>箭头<strong>不能挨着模型</strong>：箭头尖端与模型边缘保持 <code>ARROW_GAP</code>（<code>6px</code>，世界坐标）的间距，箭头大小为 <code>ARROW_SIZE</code>（<code>10px</code>，世界坐标），二者均随画布缩放等比变化。<span class="badge need">规则</span></li>
+    <li><strong>箭头为填充三角形</strong>：非描边线条，而是一个实心三角形——尖端朝向模型方向，底边宽度等于 <code>ARROW_SIZE</code>，从底边到尖端的长度也等于 <code>ARROW_SIZE</code>。</li>
+    <li><strong>线条绘制到箭头基部</strong>：关系线只绘制到箭头三角形的底边位置（即距模型边缘 <code>ARROW_GAP + ARROW_SIZE</code> 处），箭头单独绘制在截断点上，尖端从基部向模型方向延伸 <code>ARROW_SIZE</code>，与模型边缘保持 <code>ARROW_GAP</code> 间距。</li>
   </ul>
   <h3>6.3 一体信息框</h3>
   <ul>
@@ -468,6 +471,297 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
     <li>继承关系<strong>不可拖动</strong>、<strong>没有信息框</strong>，不参与映射。</li>
     <li>其语义与模型元数据 <code>parentModelId</code> / <code>childModelIds</code> 对应。</li>
   </ul>
+  <h3>6.8 自关联关系（特殊普通关系）<span class="badge need">v1.1 新增</span></h3>
+  <div class="callout warn"><span class="t">核心定义：</span>自关联关系是普通关系的一种特殊形态，关系<strong>两端都指向同一个模型</strong>（源模型 = 目标模型）。它仍然是一体信息框的双向关系，但绘制与拖动规则与普通关系不同。</div>
+  <ul>
+    <li><strong>默认命名</strong>：创建自关联关系时，两个方向的关系名默认使用 <code>parent</code> 与 <code>children</code>（而非使用模型 ID）。</li>
+    <li><strong>映射约束</strong>：<code>parent</code> 方向的映射<strong>固定为 <code>1</code>，不可修改</strong>；<code>children</code> 方向的映射可取 <code>m</code> 或 <code>n</code>。</li>
+    <li><strong>创建方式</strong>：在"创建关系"态下，点击同一个模型两次（先选源模型，再选同一模型作为目标）即创建自关联关系。</li>
+    <li><strong>元数据</strong>：<code>models</code> 数组两端相同（如 <code>["user", "user"]</code>），<code>relationship</code> 中两个方向的 <code>source</code> 与 <code>target</code> 均为同一模型 ID（见 11.4a）。</li>
+  </ul>
+  <h3>6.8a 自关联关系绘制规则<span class="badge need">v1.1 新增</span></h3>
+  <ul>
+    <li><strong>四点曲线</strong>：自关联关系的曲线由 4 个关键点生成，依次为：
+      <ol>
+        <li><strong>模型中心</strong>（曲线起点）</li>
+        <li><strong>左侧圆上点</strong>：以模型中心为圆心、模型中心到关系框中心的距离为半径做圆，在该圆上取关系框中心点<strong>左边（逆时针）固定角度</strong>（<code>20°</code>）处的一点</li>
+        <li><strong>右侧圆上点</strong>：同第 2 点的圆，取关系框中心点<strong>右边（顺时针）固定角度</strong>（<code>20°</code>）处的一点</li>
+        <li><strong>模型中心</strong>（曲线终点）</li>
+      </ol>
+      以上 4 点绘制为 Catmull-Rom 插值曲线。<span class="badge need">规则</span></li>
+    <li><strong>关系框方向不固定</strong>：与普通关系不同，自关联的关系框<strong>不恒定水平</strong>，而是与模型（圆形）的<strong>切线平行</strong>绘制——两个关系框沿切线方向上下排列（蓝色 <code>parent</code> 在上、绿色 <code>children</code> 在下），间距 <code>6px</code>、单个框高 <code>18px</code>，与普通关系框规格一致。关系框的朝向随其围绕模型的位置角度而旋转。</li>
+    <li><strong>左右点的判定</strong>：第 2 点（左侧）与第 3 点（右侧）以<strong>模型中心到关系框中心的连线方向</strong>为基准，逆时针方向为左、顺时针方向为右。</li>
+    <li><strong>恒定夹角</strong>：第 2 点、第 3 点与关系框中心之间的夹角始终恒定（<code>20°</code>），不随拖动距离变化。由于三点在同一圆上（圆心为模型中心），该夹角也决定了曲线出入模型的角度。</li>
+    <li><strong>线条与箭头</strong>：曲线的起始绘制点截断与箭头绘制方式与普通关系保持一致（见 7.3）——箭头为填充三角形（<code>ARROW_SIZE = 10px</code>），尖端与模型边缘保持 <code>ARROW_GAP = 6px</code> 间距，线条绘制到箭头基部处截断。</li>
+    <li><strong>拖动约束</strong>：自关联关系的拖动<strong>只能拉远关系框与模型的距离</strong>或<strong>绕模型转圈</strong>（改变围绕角度），<strong>不能向模型靠近</strong>——当距离小于一定阈值时，禁止继续向模型方向拖动，保证曲线与关系框不会与模型重叠。</li>
+  </ul>
+  <div class="fig">
+    <div class="relation-demo"><canvas id="selfRelationDemo" aria-label="自关联关系曲线示例"></canvas></div>
+    <div class="cap">自关联关系交互示例：4 点 Catmull-Rom 全曲线，拖动关系框围绕模型移动，只能拉远或绕模型转圈</div>
+  </div>
+  <script>
+  (function(){
+    const canvas = document.getElementById('selfRelationDemo');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const normal = 'rgb(255, 205, 67)';
+    const active = 'rgb(228, 63, 49)';
+    const ARROW_GAP = 6;
+    const ARROW_SIZE = 10;
+    const ANGLE_OFFSET = 20 * Math.PI / 180;
+    const MIN_DIST = 80;
+    const BOX_PARTH = 18;
+    const BOX_GAP = 6;
+    let initialized = false;
+    const state = {
+      model: {x: 200, y: 180, r: 38, label: '用户'},
+      group: {x: 310, y: 80},
+      hover: false,
+      dragging: false,
+      dragDx: 0,
+      dragDy: 0
+    };
+    function resize(){
+      const rect=canvas.getBoundingClientRect();
+      const dpr=window.devicePixelRatio||1;
+      canvas.width=Math.max(1,Math.round(rect.width*dpr));
+      canvas.height=Math.round(360*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      state.model.x=rect.width/2;
+      state.model.y=180;
+      if(!initialized){
+        state.group.x=state.model.x+110;
+        state.group.y=state.model.y-90;
+        initialized=true;
+      }
+      draw();
+    }
+    function catmull(points,segments){
+      if(points.length<3) return points;
+      const p=[points[0],points[0],...points,points[points.length-1]];
+      const out=[];
+      for(let i=1;i<p.length-2;i++){
+        for(let j=0;j<=segments;j++){
+          const t=j/segments,t2=t*t,t3=t2*t;
+          const p0=p[i-1],p1=p[i],p2=p[i+1],p3=p[i+2];
+          out.push({
+            x:0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+            y:0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+          });
+        }
+      }
+      return out;
+    }
+    function computePoints(){
+      const m=state.model,g=state.group;
+      const dx=g.x-m.x,dy=g.y-m.y;
+      const R=Math.hypot(dx,dy)||1;
+      const ba=Math.atan2(dy,dx);
+      const p1={x:m.x,y:m.y};
+      const p2={x:m.x+R*Math.cos(ba-ANGLE_OFFSET),y:m.y+R*Math.sin(ba-ANGLE_OFFSET)};
+      const p4={x:m.x+R*Math.cos(ba+ANGLE_OFFSET),y:m.y+R*Math.sin(ba+ANGLE_OFFSET)};
+      const p5={x:m.x,y:m.y};
+      return {p1,p2,p4,p5,baseAngle:ba,R};
+    }
+    function buildCurve(){
+      const {p1,p2,p4,p5}=computePoints();
+      return catmull([p1,p2,p4,p5],64);
+    }
+    function drawArrowHead(x,y,angle,color){
+      const size=ARROW_SIZE;
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.rotate(angle);
+      ctx.fillStyle=color;
+      ctx.beginPath();
+      ctx.moveTo(size,0);
+      ctx.lineTo(0,-size*0.5);
+      ctx.lineTo(0,size*0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    function drawNode(){
+      const m=state.model;
+      ctx.beginPath();
+      ctx.arc(m.x,m.y,m.r,0,Math.PI*2);
+      ctx.fillStyle='#dbeafe';
+      ctx.fill();
+      ctx.strokeStyle='#2563eb';
+      ctx.lineWidth=2.5;
+      ctx.stroke();
+      ctx.fillStyle='#1e3a8a';
+      ctx.font='14px "Noto Sans CJK SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(m.label,m.x,m.y);
+    }
+    function boxW(){
+      ctx.font='12px "Noto Sans CJK SC","Microsoft YaHei",sans-serif';
+      const padding=3;
+      return Math.min(Math.max(
+        Math.ceil(ctx.measureText('parent：1').width),
+        Math.ceil(ctx.measureText('children：m').width)
+      )+padding*2,90);
+    }
+    function drawBoxes(){
+      const {baseAngle}=computePoints();
+      const ta=baseAngle+Math.PI/2;
+      ctx.save();
+      ctx.translate(state.group.x,state.group.y);
+      ctx.rotate(ta);
+      ctx.font='12px "Noto Sans CJK SC","Microsoft YaHei",sans-serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      const w=boxW();
+      const totalH=BOX_PARTH*2+BOX_GAP;
+      const x=-w/2;
+      const topY=-totalH/2;
+      const botY=topY+BOX_PARTH+BOX_GAP;
+      ctx.fillStyle='#2563eb';
+      ctx.fillRect(x,topY,w,BOX_PARTH);
+      ctx.fillStyle='#ffffff';
+      ctx.fillText('parent：1',0,topY+BOX_PARTH/2);
+      ctx.fillStyle='#16a34a';
+      ctx.fillRect(x,botY,w,BOX_PARTH);
+      ctx.fillStyle='#ffffff';
+      ctx.fillText('children：m',0,botY+BOX_PARTH/2);
+      ctx.restore();
+    }
+    function hitBox(pos){
+      const {baseAngle}=computePoints();
+      const ta=baseAngle+Math.PI/2;
+      const dx=pos.x-state.group.x,dy=pos.y-state.group.y;
+      const c=Math.cos(-ta),s=Math.sin(-ta);
+      const lx=dx*c-dy*s,ly=dx*s+dy*c;
+      const w=boxW();
+      const totalH=BOX_PARTH*2+BOX_GAP;
+      return lx>=-w/2&&lx<=w/2&&ly>=-totalH/2&&ly<=totalH/2;
+    }
+    function draw(){
+      const rect=canvas.getBoundingClientRect();
+      const width=rect.width;
+      ctx.clearRect(0,0,width,360);
+      ctx.fillStyle='#ffffff';
+      ctx.fillRect(0,0,width,360);
+      ctx.strokeStyle='#edf2f7';
+      ctx.lineWidth=1;
+      for(let x=0;x<width;x+=24){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,360);ctx.stroke();}
+      for(let y=0;y<360;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(width,y);ctx.stroke();}
+      const {p1,p2,p4,p5,R}=computePoints();
+      const m=state.model;
+      ctx.beginPath();
+      ctx.arc(m.x,m.y,R,0,Math.PI*2);
+      ctx.strokeStyle='#e5e7eb';
+      ctx.lineWidth=1;
+      ctx.setLineDash([4,3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const pts=[p1,p2,p4,p5];
+      const pcolors=['#9ca3af','#ef4444','#16a34a','#9ca3af'];
+      pts.forEach((p,i)=>{
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,2.5,0,Math.PI*2);
+        ctx.fillStyle=pcolors[i];
+        ctx.fill();
+      });
+      const curve=buildCurve();
+      const color=state.hover?active:normal;
+      const rGap=m.r+ARROW_GAP+ARROW_SIZE;
+      const rGap2=rGap*rGap;
+      let startIdx=1;
+      for(let i=1;i<curve.length;i++){
+        const dx=curve[i].x-m.x,dy=curve[i].y-m.y;
+        if(dx*dx+dy*dy>=rGap2){startIdx=i;break;}
+      }
+      let endIdx=curve.length-2;
+      for(let i=curve.length-2;i>=0;i--){
+        const dx=curve[i].x-m.x,dy=curve[i].y-m.y;
+        if(dx*dx+dy*dy>=rGap2){endIdx=i;break;}
+      }
+      if(endIdx>startIdx){
+        ctx.beginPath();
+        ctx.moveTo(curve[startIdx].x,curve[startIdx].y);
+        for(let i=startIdx+1;i<=endIdx;i++) ctx.lineTo(curve[i].x,curve[i].y);
+        ctx.strokeStyle=color;
+        ctx.lineWidth=state.hover?4:3;
+        ctx.lineCap='round';
+        ctx.lineJoin='round';
+        ctx.stroke();
+        const tStart=Math.atan2(curve[startIdx+1].y-curve[startIdx].y,curve[startIdx+1].x-curve[startIdx].x);
+        drawArrowHead(curve[startIdx].x,curve[startIdx].y,tStart+Math.PI,color);
+        const tEnd=Math.atan2(curve[endIdx].y-curve[endIdx-1].y,curve[endIdx].x-curve[endIdx-1].x);
+        drawArrowHead(curve[endIdx].x,curve[endIdx].y,tEnd,color);
+      }
+      drawNode();
+      drawBoxes();
+    }
+    function distanceToSegment(p,a,b){
+      const dx=b.x-a.x,dy=b.y-a.y;
+      const len2=dx*dx+dy*dy||1;
+      const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/len2));
+      const x=a.x+t*dx,y=a.y+t*dy;
+      return Math.hypot(p.x-x,p.y-y);
+    }
+    function hitLine(pos){
+      const curve=buildCurve();
+      for(let i=1;i<curve.length;i++) if(distanceToSegment(pos,curve[i-1],curve[i])<8) return true;
+      return false;
+    }
+    function pointer(e){
+      const rect=canvas.getBoundingClientRect();
+      return {x:e.clientX-rect.left,y:e.clientY-rect.top};
+    }
+    canvas.addEventListener('pointerdown',e=>{
+      const pos=pointer(e);
+      if(hitBox(pos)||hitLine(pos)){
+        state.dragging=true;
+        state.dragDx=pos.x-state.group.x;
+        state.dragDy=pos.y-state.group.y;
+        canvas.setPointerCapture(e.pointerId);
+      }
+    });
+    canvas.addEventListener('pointermove',e=>{
+      const pos=pointer(e);
+      if(state.dragging){
+        const m=state.model;
+        let nx=pos.x-state.dragDx,ny=pos.y-state.dragDy;
+        let dx=nx-m.x,dy=ny-m.y;
+        let dist=Math.hypot(dx,dy);
+        if(dist<MIN_DIST){
+          const angle=Math.atan2(dy,dx)||0;
+          nx=m.x+MIN_DIST*Math.cos(angle);
+          ny=m.y+MIN_DIST*Math.sin(angle);
+        }
+        const rect=canvas.getBoundingClientRect();
+        nx=Math.max(40,Math.min(rect.width-40,nx));
+        ny=Math.max(30,Math.min(330,ny));
+        state.group.x=nx;
+        state.group.y=ny;
+        draw();
+        return;
+      }
+      const hit=hitBox(pos)||hitLine(pos);
+      state.hover=hit;
+      canvas.style.cursor=hit?'grab':'default';
+      draw();
+    });
+    canvas.addEventListener('pointerup',e=>{
+      state.dragging=false;
+      try{canvas.releasePointerCapture(e.pointerId);}catch(err){}
+      draw();
+    });
+    canvas.addEventListener('pointerleave',()=>{
+      if(!state.dragging){
+        state.hover=false;
+        canvas.style.cursor='default';
+        draw();
+      }
+    });
+    window.addEventListener('resize',resize);
+    resize();
+  })();
+  </script>
 </section>
 
 <section id="s7">
@@ -495,7 +789,12 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
     <li>关系<strong>只可拖动信息框组合</strong>，曲线/直线本身不可拖动；拖动信息框组合后关系切换为曲线形态并锁定。</li>
     <li>曲线由三个关键点生成：<strong>源模型连接点 → 关系框组合几何中心 → 目标模型连接点</strong>，绘制为 Catmull-Rom 插值曲线，曲线必须经过关系框组合几何中心。</li>
     <li>两个方向关系框作为一个整体移动，框间距固定为 <code>20px</code>；关系框使用固定背景色、无边框、无圆角、紧凑内边距，鼠标悬停时不改变关系框样式。</li>
-    <li>箭头尖端与圆形模型边缘保持 <code>12px</code> 间距；关系线只绘制到箭头尾部，箭头部分单独绘制，避免线条压到箭头内部。</li>
+    <li><strong>箭头为填充三角形</strong>（<code>ARROW_SIZE = 10px</code>，世界坐标），尖端朝向模型方向，与模型边缘保持 <code>ARROW_GAP = 6px</code>（世界坐标）间距，二者均随画布缩放等比变化。关系线只绘制到箭头三角形底边处（即距模型边缘 <code>ARROW_GAP + ARROW_SIZE</code> 处），箭头在截断点上单独绘制。
+    <ul>
+      <li><strong>曲线截断方式</strong>：对 Catmull-Rom 采样点进行半径检测——从源模型端找到第一个距源模型中心 <code>>= r + ARROW_GAP + ARROW_SIZE</code> 的采样点作为起点截断；从目标端找到最后一个距目标中心 <code>>= r + ARROW_GAP + ARROW_SIZE</code> 的采样点作为终点截断（<code>r</code> 为模型半径）。起点的箭头角度为该处切线方向 <code>+ π</code>（指向源模型），终点的箭头角度为该处切线方向（指向目标模型）。</li>
+      <li><strong>直线截断方式</strong>：使用 <code>circleEdgeWithGap</code> 几何计算——从模型中心沿指向信息框中心的方向，在距中心 <code>r + ARROW_GAP + ARROW_SIZE</code> 处取截断点，箭头角度为该方向 <code>+ π</code>（指向模型）。</li>
+    </ul>
+    </li>
     <li>普通状态关系线颜色为 <code>rgb(255, 205, 67)</code>；鼠标悬停在关系线或任一关系框上时，关系线与箭头高亮为 <code>rgb(228, 63, 49)</code>。悬停在某个关系框上时，仅显示该关系框对应方向的单向箭头。</li>
   </ul>
   <div class="fig">
@@ -862,6 +1161,7 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
   <h3>11.4 __META__ 集合：普通关系元数据文档（每个普通关系一个）</h3>
   <pre>{
   "META_TYPE": "relation",       <span class="cm">// 元数据类型：relation</span>
+  "models": ["user", "order"],   <span class="cm">// 关系两端模型 ID 数组（v1.1 新增）</span>
   "relationship": {              <span class="cm">// 关系信息：一个对象，两个键即双向关系名</span>
     "订单ID": {                  <span class="cm">// 该方向关系名（默认 = 指向模型 ID）</span>
       "source": "user",          <span class="cm">// 源模型</span>
@@ -883,6 +1183,31 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
   "relationType": "relation",    <span class="cm">// 关系类型</span>
   "position": { "x": 300.0, "y": 200.0 }   <span class="cm">// 信息框中心坐标（自由坐标）</span>
 }</pre>
+  <h3>11.4a __META__ 集合：自关联关系元数据文档（每个自关联关系一个）<span class="badge need">v1.1 新增</span></h3>
+  <pre>{
+  "META_TYPE": "relation",       <span class="cm">// 元数据类型：relation</span>
+  "models": ["user"],            <span class="cm">// 关系两端模型 ID 数组——自关联时两端相同（v1.1 新增）</span>
+  "relationship": {
+    "parent": {                  <span class="cm">// 自关联默认方向名：parent</span>
+      "source": "user",
+      "target": "user",
+      "related": {
+        "8f2a9c1e-...": ["5d1b3a77-...", "0c9e4f22-..."]
+      },
+      "mappingType": "1"         <span class="cm">// parent 方向映射固定为 1，不可修改</span>
+    },
+    "children": {                <span class="cm">// 自关联默认方向名：children</span>
+      "source": "user",
+      "target": "user",
+      "related": {
+        "5d1b3a77-...": ["8f2a9c1e-..."]
+      },
+      "mappingType": "m"         <span class="cm">// children 方向映射可取 m / n</span>
+    }
+  },
+  "relationType": "relation",    <span class="cm">// 关系类型仍为 relation</span>
+  "position": { "x": 300.0, "y": 200.0 }   <span class="cm">// 信息框中心坐标（自由坐标）</span>
+}</pre>
   <h3>11.5 __META__ 集合：继承关系元数据文档（每个继承关系一个）</h3>
   <pre>{
   "META_TYPE": "relation",       <span class="cm">// 元数据类型仍为 relation</span>
@@ -890,12 +1215,38 @@ footer{text-align:center;color:var(--ink-3);font-size:12px;padding:10px}
   "source": "child",             <span class="cm">// 源模型（子模型）</span>
   "target": "parent"             <span class="cm">// 指向模型（父模型）</span>
 }</pre>
-  <div class="callout">已确认：关系<strong>不保存描述数据</strong>（<code>relationship</code> 每方向仅含 <code>source</code> / <code>target</code> / <code>related</code> / <code>mappingType</code>）；<strong><code>related</code> 双向均须维护</strong>——A→B 方向存源模型文档 uuid 到目标文档 uuid 数组的映射，B→A 方向存反向映射。画布设置和继承字段显隐状态统一通过后端接口保存，不使用浏览器本地数据库。</div>
+  <div class="callout">已确认：关系<strong>不保存描述数据</strong>（<code>relationship</code> 每方向仅含 <code>source</code> / <code>target</code> / <code>related</code> / <code>mappingType</code>）；<strong><code>related</code> 双向均须维护</strong>——A→B 方向存源模型文档 uuid 到目标文档 uuid 数组的映射，B→A 方向存反向映射。画布设置和继承字段显隐状态统一通过后端接口保存，不使用浏览器本地数据库。<strong>v1.1 新增 <code>models</code> 字段</strong>：所有关系元数据中增加 <code>models</code> 数组，存储关系两端模型 ID，自关联时两端相同。</div>
+</section>
+
+<section id="s12">
+  <h2><span class="no">12</span>版本变更记录</h2>
+  <div class="tbl-wrap">
+  <table>
+    <thead><tr><th style="width:90px">版本</th><th style="width:120px">日期</th><th>变更内容</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>v1.0</strong></td>
+        <td>2026-08-13</td>
+        <td>初始版本：确定基于 Canvas 的可视化模型编辑器整体方案，包含模型、关系、锁定、框选、创建流程、模式切换、接口同步与删除规则，以及 MongoDB 数据约定（<code>__META__</code> 集合的 base / model / relation 三类元数据文档）。</td>
+      </tr>
+      <tr>
+        <td><strong>v1.1</strong></td>
+        <td>2026-08-20</td>
+        <td>
+          <strong>① 关系元数据新增 <code>models</code> 字段</strong>：所有关系元数据文档增加 <code>models</code> 数组，存储关系两端模型 ID，自关联时两端相同。<br>
+          <strong>② 新增自关联关系</strong>：普通关系的特殊形态，两端指向同一模型。默认命名 <code>parent</code> / <code>children</code>，<code>parent</code> 方向映射固定为 <code>1</code>。<br>
+          <strong>③ 自关联绘制规则</strong>：4 点 Catmull-Rom 全曲线（①模型中心 → ②左侧圆上点(逆时针20°) → ③右侧圆上点(顺时针20°) → ④模型中心），以模型中心为圆心、模型中心到关系框中心距离为半径做辅助圆，左右两点在该圆上夹角恒定20°；关系框与模型切线平行而非恒定水平，两个关系框沿切线方向上下排列（间距6px、单个框高18px）；线条起始点与箭头绘制与普通关系一致；拖动只能拉远距离或绕模型转圈，不能向模型靠近（最小距离约束）。<br>
+          <strong>④ 修正线条与箭头绘制描述</strong>：根据实际实现更新 6.2 与 7.3 的描述——箭头为填充三角形（<code>ARROW_SIZE = 10px</code>），非描边线条；箭头尖端与模型边缘间距为 <code>ARROW_GAP = 6px</code>（非 12px）；线条绘制到箭头基部截断；曲线截断采用采样点半径检测，直线截断采用 <code>circleEdgeWithGap</code> 几何计算。
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 </main>
 
-<footer>模型设计器（model-designer）需求文档 · 版本 v1.0 · 2026-08-13</footer>
+<footer>模型设计器（model-designer）需求文档 · 版本 v1.1 · 2026-08-20</footer>
 
 </body>
 </html>

@@ -64,6 +64,10 @@ export interface ModelRelation {
   /** B→A 方向数据 */
   reverse?: RelationDirection;
   data?: Record<string, unknown>;
+  /** 关系两端模型 ID 数组 */
+  models?: string[];
+  /** 是否自关联关系（后端动态计算，不持久化） */
+  isSelfRelation?: boolean;
 }
 
 export interface ModelDesignerCanvas {
